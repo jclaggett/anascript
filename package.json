@@ -1,0 +1,27 @@
+{
+  "name": "lsn",
+  "version": "0.0.1",
+  "description": "Labeled Structure Notation, aiming to be used as a configuration language.",
+  "bin": {
+    "lsn": "bin/lsn.js"
+  },
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "config",
+    "lsn",
+    "json",
+    "lisp"
+  ],
+  "author": "Jonathan Claggett",
+  "license": "ISC",
+  "dependencies": {
+    "ebnf": "^1.7.4",
+    "treeify": "^1.1.0"
+  },
+  "devDependencies": {
+    "standard": "^14.3.3"
+  }
+}

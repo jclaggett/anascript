@@ -1,0 +1,37 @@
+/* Labeled, Structured Notation v1.4 */
+
+/* Abstract */
+forms           ::= (WS* (comment | entry))*
+entry           ::= pair | value
+value           ::= sigil_value | base_value
+base_value      ::= collection | simple
+collection      ::= round | square | curly
+simple          ::= number | string | boolean | null | undefined | symbol
+
+/* Concrete */
+comment         ::= NUMBER_SIGN entry
+pair            ::= value COLON value
+sigil_value     ::= SIGIL base_value
+round           ::= LEFT_ROUND forms? RIGHT_ROUND
+square          ::= LEFT_SQUARE forms? RIGHT_SQUARE
+curly           ::= "-"? LEFT_CURLY forms? RIGHT_CURLY
+number          ::= "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? (("e" | "E") ( "-" | "+" )? ("0" | [1-9] [0-9]*))?
+string          ::= '"' (([#x20-#x21] | [#x23-#x5B] | [#x5D-#xFFFF]) | #x5C (#x22 | #x5C | #x2F | #x62 | #x66 | #x6E | #x72 | #x74 | #x75 HEXDIG HEXDIG HEXDIG HEXDIG))* '"'
+boolean         ::= "true" | "false"
+null            ::= "null"
+undefined       ::= "undefined"
+symbol          ::= SCHAR (SCHAR | [0-9])*
+
+/* Tokens */
+SCHAR           ::= ([a-z] | [A-Z] | "_" | "*" | "+" | "-" | "?" | "<" | ">" | "$")
+HEXDIG          ::= [a-fA-F0-9]
+SIGIL           ::= WS* ("$" | "\\") WS*
+NUMBER_SIGN     ::= WS* "#" WS*
+COLON           ::= WS* ":" WS*
+LEFT_ROUND      ::= WS* "(" WS*
+LEFT_SQUARE     ::= WS* "[" WS*
+LEFT_CURLY      ::= WS* "{" WS*
+RIGHT_ROUND     ::= WS* ")" WS*
+RIGHT_SQUARE    ::= WS* "]" WS*
+RIGHT_CURLY     ::= WS* "}" WS*
+WS              ::= [#x20#x09#x0A#x0D#x2C#x3B] /* Space | Tab | \n | \r | , comma | ; semicolon */
