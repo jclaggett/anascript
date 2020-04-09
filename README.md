@@ -6,3 +6,5 @@ available in all data structures. The goal is to define a Lisp based
 configuration language that will create See the EBNF grammar for details
 
 This is still just an crude experiment at the moment.
+
+to try it out: `bin/lsn.js`
