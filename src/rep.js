@@ -1,10 +1,12 @@
 'use strict'
+
 const fs = require('fs')
 const path = require('path')
 
+const treeify = require('treeify')
 const ebnf = require('ebnf')
 
-const lsn = new ebnf.Grammars.W3C.Parser(fs.readFileSync(path.resolve(__dirname, 'lsn.ebnf.w3c')).toString())
+const lsnParser = new ebnf.Grammars.W3C.Parser(fs.readFileSync(path.resolve(__dirname, 'lsn.ebnf.w3c')).toString())
 
 function walk (ast, rules) {
   if (!(ast.type in rules)) {
@@ -45,7 +47,7 @@ const defaultRules = {
 const writeRules = {
   ...defaultRules,
 
-  forms: branch(children => children.join(' ')),
+  forms: branch(children => children.join(', ')),
 
   pair: branch(children => children.join(': ')),
   comment: twig(child => ''),
@@ -77,12 +79,12 @@ function simplifyAST (ast) {
   return walk(ast, simplifyRules)
 }
 
-function writeAST (ast) {
+function write (ast) {
   return walk(ast, writeRules)
 }
 
-function readStr (str) {
-  const ast = lsn.getAST(str)
+function read (str) {
+  const ast = lsnParser.getAST(str)
 
   if (!ast) {
     throw new Error('Failed to parse input')
@@ -91,8 +93,20 @@ function readStr (str) {
   return ast
 }
 
-module.exports = {
-  readStr,
-  simplifyAST,
-  writeAST
+function evaluate (ast, env) {
+  return ast
 }
+
+function print (exp) {
+  return `#eval: ${write(exp)}\n#AST :\n${treeify.asTree(simplifyAST(exp), true)}`
+}
+
+function rep (str) {
+  try {
+    return print(evaluate(read(str)))
+  } catch (e) {
+    return `#Error: "${e.message}"`
+  }
+}
+
+module.exports = rep
