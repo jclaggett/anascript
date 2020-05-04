@@ -3,10 +3,27 @@
 const fs = require('fs')
 const path = require('path')
 
-const treeify = require('treeify')
+const chalk = require('chalk')
+
 const ebnf = require('ebnf')
 
 const lsnParser = new ebnf.Grammars.W3C.Parser(fs.readFileSync(path.resolve(__dirname, 'lsn.ebnf.w3c')).toString())
+
+class Symbol extends String { }
+
+const color = {
+  punct: chalk.keyword('orange'),
+  comment: chalk.dim
+}
+
+const specials = {
+  comment: new Symbol('comment'),
+  bind: new Symbol('bind'),
+  ref: new Symbol('ref'),
+  deref: new Symbol('deref'),
+  list: new Symbol('list'),
+  set: new Symbol('set')
+}
 
 function walk (ast, rules) {
   if (!(ast.type in rules)) {
@@ -15,72 +32,30 @@ function walk (ast, rules) {
   return rules[ast.type](ast, rules)
 }
 
-const identity = x => x
-const branch = f => (ast, rules) => f(ast.children.map(child => walk(child, rules)))
-const twig = f => (ast, rules) => f(branch(identity)(ast, rules)[0])
-const leaf = f => (ast, rules) => f(ast.text)
-const node = f => (ast, rules) => ({ [ast.type]: f(ast, rules) })
+const children = (ast, rules) => ast.children.map(child => walk(child, rules))
+const child = (ast, rules) => children(ast, rules)[0]
+const sexpr = (type, f) => (ast, rules) => [type, ...f(ast, rules)]
 
-const defaultRules = {
-  forms: branch(identity),
-  entry: twig(identity),
-  value: twig(identity),
-  base_value: twig(identity),
-  collection: twig(identity),
-  simple: twig(identity),
+const readRules = {
+  forms: children,
+  form1: child,
+  form2: child,
+  form3: child,
+  form4: child,
 
-  pair: branch(identity),
-  comment: twig(identity),
-  sigil_value: twig(identity),
-  round: twig(identity),
-  square: twig(identity),
-  curly: twig(identity),
+  comment: sexpr(specials.comment, children),
+  bind: sexpr(specials.bind, children),
+  sigil: sexpr(specials.ref, children),
+  round: child,
+  square: sexpr(specials.list, child),
+  curly: sexpr(specials.set, child),
 
-  number: leaf(identity),
-  string: leaf(identity),
-  boolean: leaf(identity),
-  null: leaf(identity),
-  undefined: leaf(identity),
-  symbol: leaf(identity)
-}
-
-const writeRules = {
-  ...defaultRules,
-
-  forms: branch(children => children.join(', ')),
-
-  pair: branch(children => children.join(': ')),
-  comment: twig(child => ''),
-  sigil_value: twig(child => `$${child}`),
-  round: twig(child => `( ${child} )`),
-  square: twig(child => `[ ${child} ]`),
-  curly: twig(child => `{ ${child} }`)
-}
-
-const simplifyRules = {
-  ...defaultRules,
-
-  pair: node(branch(identity)),
-  comment: node(twig(identity)),
-  sigil_value: node(twig(identity)),
-  round: node(twig(identity)),
-  square: node(twig(identity)),
-  curly: node(twig(identity)),
-
-  number: node(leaf(text => parseFloat(text))),
-  string: node(leaf(text => text.slice(1, -1))),
-  boolean: node(leaf(text => text === 'true')),
-  null: node(leaf(text => null)),
-  undefined: node(leaf(text => undefined)),
-  symbol: node(leaf(text => text))
-}
-
-function simplifyAST (ast) {
-  return walk(ast, simplifyRules)
-}
-
-function write (ast) {
-  return walk(ast, writeRules)
+  number: ast => parseFloat(ast.text),
+  string: ast => ast.text,
+  boolean: ast => ast.text === 'true',
+  null: ast => null,
+  undefined: ast => undefined,
+  symbol: ast => specials[ast.text] || new Symbol(ast.text)
 }
 
 function read (str) {
@@ -90,22 +65,49 @@ function read (str) {
     throw new Error('Failed to parse input')
   }
 
-  return ast
+  return walk(ast, readRules)
 }
 
 function evaluate (ast, env) {
   return ast
 }
 
+const cp = s => chalk.keyword('orange')(s) + chalk.reset('')
+
+function printChildrenExp (exp, n, sep = ' ') {
+  return exp.slice(n).map((_, i) => printChildExp(exp, n + i)).join(sep)
+}
+function printChildExp (parentExp, i) {
+  const parent = parentExp[0]
+  const exp = parentExp[i]
+  let s = chalk`{green ${exp}}`
+  if (exp instanceof Array) {
+    const child = exp[0]
+    if (child === specials.comment && (parent !== specials.bind || i !== 1)) {
+      s = chalk.dim('#' + printChildExp(exp, 1))
+    } else if (child === specials.bind && (parent !== specials.bind || i !== 1)) {
+      s = printChildrenExp(exp, 1, cp(':'))
+    } else if (child === specials.list) {
+      s = cp('[') + printChildrenExp(exp, 1) + cp(']')
+    } else if (child === specials.set) {
+      s = cp('{') + printChildrenExp(exp, 1) + cp('}')
+    } else {
+      s = cp('(') + printChildrenExp(exp, 0) + cp(')')
+    }
+  }
+
+  return s
+}
+
 function print (exp) {
-  return `#eval: ${write(exp)}\n#AST :\n${treeify.asTree(simplifyAST(exp), true)}`
+  return `#eval: ${printChildrenExp(exp, 0)}`
 }
 
 function rep (str) {
   try {
     return print(evaluate(read(str)))
   } catch (e) {
-    return `#Error: "${e.message}"`
+    return `#error: "${e.message}"`
   }
 }
 

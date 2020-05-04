@@ -7,7 +7,8 @@
   },
   "main": "src/rep.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "cli": "src/cli.js"
   },
   "keywords": [
     "config",
@@ -18,6 +19,7 @@
   "author": "Jonathan Claggett",
   "license": "ISC",
   "dependencies": {
+    "chalk": "^4.0.0",
     "ebnf": "^1.7.4",
     "treeify": "^1.1.0"
   },
