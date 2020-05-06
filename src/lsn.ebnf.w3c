@@ -4,13 +4,14 @@
 forms           ::= (WS* form1)*
 form1           ::= comment | form2
 form2           ::= bind | form3
-form3           ::= sigil | form4
+form3           ::= expand | quote | form4
 form4           ::= round | square | complement | curly | number | string | boolean | null | undefined | symbol
 
 /* Concrete (syntax) */
 comment         ::= NUMBER_SIGN form1
 bind            ::= form3 COLON form1
-sigil           ::= SIGIL form4
+expand          ::= DOLLAR_SIGN form2
+quote           ::= BACKSLASH form2
 round           ::= LEFT_ROUND forms? RIGHT_ROUND
 square          ::= LEFT_SQUARE forms? RIGHT_SQUARE
 complement      ::= "-" curly
@@ -25,7 +26,8 @@ symbol          ::= SCHAR (SCHAR | [0-9])*
 /* Tokens */
 SCHAR           ::= ([a-z] | [A-Z] | "_" | "*" | "+" | "-" | "?" | "<" | ">" | "$")
 HEXDIG          ::= [a-fA-F0-9]
-SIGIL           ::= WS* ("$" | "\\") WS*
+BACKSLASH       ::= WS* "\\" WS*
+DOLLAR_SIGN     ::= WS* "$" WS*
 NUMBER_SIGN     ::= WS* "#" WS*
 COLON           ::= WS* ":" WS*
 LEFT_ROUND      ::= WS* "(" WS*

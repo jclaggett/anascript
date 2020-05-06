@@ -15,9 +15,9 @@ const specials = {
   bind: new Symbol('bind'),
   comment: new Symbol('comment'),
   complement: new Symbol('complement'),
-  deref: new Symbol('deref'),
+  expand: new Symbol('expand'),
   list: new Symbol('list'),
-  ref: new Symbol('ref'),
+  quote: new Symbol('quote'),
   set: new Symbol('set')
 }
 
@@ -30,7 +30,7 @@ function walk (ast, rules) {
 
 const children = (ast, rules) => ast.children.map(child => walk(child, rules))
 const child = (ast, rules) => children(ast, rules)[0]
-const sexpr = (type, f) => (ast, rules) => [type, ...f(ast, rules)]
+const sexpr = (type, f) => (ast, rules) => [type, ...(f(ast, rules) || [])]
 
 const readRules = {
   forms: children,
@@ -41,7 +41,8 @@ const readRules = {
 
   comment: sexpr(specials.comment, children),
   bind: sexpr(specials.bind, children),
-  sigil: sexpr(specials.ref, children),
+  expand: sexpr(specials.expand, children),
+  quote: sexpr(specials.quote, children),
   round: child,
   square: sexpr(specials.list, child),
   curly: sexpr(specials.set, child),
@@ -69,43 +70,46 @@ function evaluate (ast, env) {
   return ast
 }
 
-const cp = s => chalk.keyword('cyan')(s) + chalk.reset('')
-
 function printChildren (exp, n, sep = ' ') {
   return exp.slice(n).map((_, i) => printChild(exp, n + i)).join(sep)
 }
+
 function printChild (exp, i) {
   const childExp = exp[i]
-  let s = childExp
+  let format = exp => exp
   if (childExp instanceof Array) {
     const parent = exp[0]
     const child = childExp[0]
     if (child === specials.comment && (parent !== specials.bind || i !== 1)) {
-      s = chalk.dim.strikethrough('#' + printChild(childExp, 1))
+      format = x => chalk.dim.strikethrough('#' + printChildren(x, 1))
     } else if (child === specials.bind && (parent !== specials.bind || i !== 1)) {
-      s = printChildren(childExp, 1, cp(':'))
+      format = x => printChildren(x, 1, chalk.cyan(':'))
+    } else if (child === specials.quote) {
+      format = x => chalk.cyan('\\') + printChildren(x, 1)
+    } else if (child === specials.expand) {
+      format = x => chalk.cyan('$') + printChildren(x, 1)
     } else if (child === specials.list) {
-      s = cp('[') + printChildren(childExp, 1) + cp(']')
+      format = x => chalk.cyan('[') + printChildren(x, 1) + chalk.cyan(']')
     } else if (child === specials.set) {
-      s = cp('{') + printChildren(childExp, 1) + cp('}')
+      format = x => chalk.cyan('{') + printChildren(x, 1) + chalk.cyan('}')
     } else if (child === specials.complement && childExp[1][0] === specials.set) {
-      s = cp('-') + printChild(childExp, 1)
+      format = x => chalk.cyan('-') + printChildren(x, 1)
     } else {
-      s = cp('(') + printChildren(childExp, 0) + cp(')')
+      format = x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')')
     }
-  } else if (childExp instanceof Symbol) {
-    s = specials[childExp] ? chalk.blue(childExp) : childExp
+  } else if (childExp instanceof Symbol && specials[childExp]) {
+    format = chalk.blue
   } else {
-    s = {
+    format = {
       boolean: chalk.yellow,
       number: chalk.red.dim,
       string: chalk.green,
       undefined: chalk.yellow,
       object: chalk.yellow
-    }[typeof childExp](childExp) || childExp
+    }[typeof childExp] || (exp => exp)
   }
 
-  return s
+  return format(childExp)
 }
 
 function print (exp) {

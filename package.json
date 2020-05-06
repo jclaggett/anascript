@@ -8,7 +8,7 @@
   "main": "src/rep.js",
   "scripts": {
     "test": "jest",
-    "cli": "src/cli.js"
+    "start": "src/cli.js"
   },
   "keywords": [
     "config",
