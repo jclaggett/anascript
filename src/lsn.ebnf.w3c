@@ -5,7 +5,7 @@ forms           ::= (WS* form1)*
 form1           ::= comment | form2
 form2           ::= bind | form3
 form3           ::= sigil | form4
-form4           ::= round | square | curly | number | string | boolean | null | undefined | symbol
+form4           ::= round | square | complement | curly | number | string | boolean | null | undefined | symbol
 
 /* Concrete (syntax) */
 comment         ::= NUMBER_SIGN form1
@@ -13,7 +13,8 @@ bind            ::= form3 COLON form1
 sigil           ::= SIGIL form4
 round           ::= LEFT_ROUND forms? RIGHT_ROUND
 square          ::= LEFT_SQUARE forms? RIGHT_SQUARE
-curly           ::= "-"? LEFT_CURLY forms? RIGHT_CURLY
+complement      ::= "-" curly
+curly           ::= LEFT_CURLY forms? RIGHT_CURLY
 number          ::= "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? (("e" | "E") ( "-" | "+" )? ("0" | [1-9] [0-9]*))?
 string          ::= '"' (([#x20-#x21] | [#x23-#x5B] | [#x5D-#xFFFF]) | #x5C (#x22 | #x5C | #x2F | #x62 | #x66 | #x6E | #x72 | #x74 | #x75 HEXDIG HEXDIG HEXDIG HEXDIG))* '"'
 boolean         ::= "true" | "false"

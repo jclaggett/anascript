@@ -11,17 +11,13 @@ const lsnParser = new ebnf.Grammars.W3C.Parser(fs.readFileSync(path.resolve(__di
 
 class Symbol extends String { }
 
-const color = {
-  punct: chalk.keyword('orange'),
-  comment: chalk.dim
-}
-
 const specials = {
-  comment: new Symbol('comment'),
   bind: new Symbol('bind'),
-  ref: new Symbol('ref'),
+  comment: new Symbol('comment'),
+  complement: new Symbol('complement'),
   deref: new Symbol('deref'),
   list: new Symbol('list'),
+  ref: new Symbol('ref'),
   set: new Symbol('set')
 }
 
@@ -49,6 +45,7 @@ const readRules = {
   round: child,
   square: sexpr(specials.list, child),
   curly: sexpr(specials.set, child),
+  complement: sexpr(specials.complement, children),
 
   number: ast => parseFloat(ast.text),
   string: ast => ast.text,
@@ -72,35 +69,47 @@ function evaluate (ast, env) {
   return ast
 }
 
-const cp = s => chalk.keyword('orange')(s) + chalk.reset('')
+const cp = s => chalk.keyword('cyan')(s) + chalk.reset('')
 
-function printChildrenExp (exp, n, sep = ' ') {
-  return exp.slice(n).map((_, i) => printChildExp(exp, n + i)).join(sep)
+function printChildren (exp, n, sep = ' ') {
+  return exp.slice(n).map((_, i) => printChild(exp, n + i)).join(sep)
 }
-function printChildExp (parentExp, i) {
-  const parent = parentExp[0]
-  const exp = parentExp[i]
-  let s = chalk`{green ${exp}}`
-  if (exp instanceof Array) {
-    const child = exp[0]
+function printChild (exp, i) {
+  const childExp = exp[i]
+  let s = childExp
+  if (childExp instanceof Array) {
+    const parent = exp[0]
+    const child = childExp[0]
     if (child === specials.comment && (parent !== specials.bind || i !== 1)) {
-      s = chalk.dim('#' + printChildExp(exp, 1))
+      s = chalk.dim.strikethrough('#' + printChild(childExp, 1))
     } else if (child === specials.bind && (parent !== specials.bind || i !== 1)) {
-      s = printChildrenExp(exp, 1, cp(':'))
+      s = printChildren(childExp, 1, cp(':'))
     } else if (child === specials.list) {
-      s = cp('[') + printChildrenExp(exp, 1) + cp(']')
+      s = cp('[') + printChildren(childExp, 1) + cp(']')
     } else if (child === specials.set) {
-      s = cp('{') + printChildrenExp(exp, 1) + cp('}')
+      s = cp('{') + printChildren(childExp, 1) + cp('}')
+    } else if (child === specials.complement && childExp[1][0] === specials.set) {
+      s = cp('-') + printChild(childExp, 1)
     } else {
-      s = cp('(') + printChildrenExp(exp, 0) + cp(')')
+      s = cp('(') + printChildren(childExp, 0) + cp(')')
     }
+  } else if (childExp instanceof Symbol) {
+    s = specials[childExp] ? chalk.blue(childExp) : childExp
+  } else {
+    s = {
+      boolean: chalk.yellow,
+      number: chalk.red.dim,
+      string: chalk.green,
+      undefined: chalk.yellow,
+      object: chalk.yellow
+    }[typeof childExp](childExp) || childExp
   }
 
   return s
 }
 
 function print (exp) {
-  return `#eval: ${printChildrenExp(exp, 0)}`
+  return `#eval: ${printChildren(exp, 0)}`
 }
 
 function rep (str) {
