@@ -10,8 +10,8 @@ form4           ::= round | square | complement | curly | number | string | bool
 /* Concrete (syntax) */
 comment         ::= NUMBER_SIGN form1
 bind            ::= form3 COLON form1
-expand          ::= DOLLAR_SIGN form2
-quote           ::= BACKSLASH form2
+expand          ::= DOLLAR_SIGN form3
+quote           ::= BACKSLASH form3
 round           ::= LEFT_ROUND forms? RIGHT_ROUND
 square          ::= LEFT_SQUARE forms? RIGHT_SQUARE
 complement      ::= "-" curly
