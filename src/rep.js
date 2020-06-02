@@ -3,6 +3,7 @@
 const fs = require('fs')
 const path = require('path')
 
+const im = require('immutable')
 const chalk = require('chalk')
 
 const ebnf = require('ebnf')
@@ -66,10 +67,6 @@ function read (str) {
   return walk(ast, readRules)
 }
 
-function evaluate (ast, env) {
-  return ast
-}
-
 function printChildren (exp, n, sep = ' ') {
   return exp.slice(n).map((_, i) => printChild(exp, n + i)).join(sep)
 }
@@ -114,6 +111,20 @@ function printChild (exp, i) {
 
 function print (exp) {
   return `#eval: ${printChildren(exp, 0)}`
+}
+
+const initialEnv = im.Map({
+  prev: null
+})
+let env = initialEnv
+
+function evaluateEnv (env, ast) {
+  return env.set('prev', ast)
+}
+
+function evaluate (ast) {
+  env = evaluateEnv(env, [specials.list, ...ast])
+  return env.get('prev').slice(1)
 }
 
 function rep (str) {

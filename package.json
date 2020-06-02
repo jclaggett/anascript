@@ -8,7 +8,8 @@
   "main": "src/rep.js",
   "scripts": {
     "test": "jest",
-    "start": "src/cli.js"
+    "start": "src/cli.js",
+    "debug": "node inspect src/cli.js"
   },
   "keywords": [
     "config",
@@ -21,7 +22,7 @@
   "dependencies": {
     "chalk": "^4.0.0",
     "ebnf": "^1.7.4",
-    "treeify": "^1.1.0"
+    "immutable": "^4.0.0-rc.12"
   },
   "devDependencies": {
     "standard": "^14.3.3"
