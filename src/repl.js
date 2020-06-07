@@ -15,7 +15,7 @@ const main = () => {
   })
 
   rl.on('line', (line) => {
-    rl.output.write((line === '') ? line : rep(line) + os.EOL)
+    rl.output.write((line === '') ? line : rep.rep(line) + os.EOL)
     rl.prompt()
   }).on('close', () => {
     rl.output.write(os.EOL)

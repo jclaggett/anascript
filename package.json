@@ -8,8 +8,9 @@
   "main": "src/rep.js",
   "scripts": {
     "test": "jest",
-    "start": "src/cli.js",
-    "debug": "node inspect src/cli.js"
+    "repl": "node src/node-repl.js",
+    "start": "src/repl.js",
+    "debug": "node inspect src/repl.js"
   },
   "keywords": [
     "config",

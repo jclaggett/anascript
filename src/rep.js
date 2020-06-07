@@ -10,28 +10,39 @@ const ebnf = require('ebnf')
 
 const lsnParser = new ebnf.Grammars.W3C.Parser(fs.readFileSync(path.resolve(__dirname, 'lsn.ebnf.w3c')).toString())
 
-const symbol = text => im.Map({ symbol: text })
-const isSymbol = x => im.has(x, 'symbol')
-const isList = x => im.List.isList(x)
-const isCallable = x => x instanceof Function
-
-const specials = [
+const Symbol2 = im.Record({ sym: null }, 'Symbol2')
+const symbol = sym => Symbol2({ sym })
+const sym = Object.fromEntries([
+  'activeEval',
   'bind',
   'comment',
   'complement',
+  'do',
   'error',
   'eval',
   'expand',
   'list',
   'quote',
-  'set'
-].reduce((m, s) => { m[s] = symbol(s); return m }, {})
+  'set',
+  '_'
+].map(x => [x, symbol(x)]))
+const specials = sym
 
-const bind = (k, v) => im.List([specials.bind, k, v])
-// const list = vs => im.List([specials.list, ...vs])
-// const set = vs => im.List([specials.set, ...vs])
+const getMeta = x => x[Symbol.for('metadata')] || im.Map()
+const setMeta = (x, m) => {
+  x[Symbol.for('metadata')] = im.Map(m)
+  return x
+}
 
-const isForm = (x, val) => isList(x) && x.first() === val
+const isSymbol = x => x instanceof Symbol2
+const isList = x => im.List.isList(x)
+const isCall = (x) => isList(x) && getMeta(x).get('call', false)
+const isBind = (x) => isList(x) && getMeta(x).get('bind', false)
+const isCallable = x => x instanceof Function
+
+const list = xs => im.List(xs)
+const call = xs => setMeta(im.List(xs), { call: true })
+const bind = (k, v) => setMeta(im.List([k, v]), { bind: true })
 
 //
 // Read Section
@@ -44,9 +55,9 @@ function walkAST (ast, rules) {
   return rules[ast.type](ast, rules)
 }
 
-const children = (ast, rules) => ast.children.map(child => walkAST(child, rules))
-const child = (ast, rules) => children(ast, rules)[0]
-const sexpr = (type, f) => (ast, rules) => [type, ...(f(ast, rules) || [])]
+const children = (ast, rules) => call(ast.children.map(child => walkAST(child, rules)))
+const child = (ast, rules) => children(ast, rules).first()
+const sexpr = (type, f) => (ast, rules) => call([type, ...(f(ast, rules) || [])])
 
 const readRules = {
   forms: children,
@@ -79,81 +90,104 @@ function read (str) {
     throw new Error('Failed to parse input')
   }
 
-  return im.fromJS(walkAST(ast, readRules))
+  return walkAST(ast, readRules)
 }
 
 //
 // Evaluation Section
 //
 
-function evaluateList (exp, env) {
-  return exp
+function evalList (exp, env) {
+  const val = list(exp
     .slice(1)
-    .map(item => env.get(specials.activeEval)(item, env))
-    .unshift(exp.first())
+    .map(item => env.get(specials.activeEval)(item, env)))
+  return val
 }
 
-function evaluateBind (exp, env) {
-  return exp
-    .update(1, childExp => evaluateExp(childExp, env.set(specials.activeEval, evaluateExp)))
-    .update(2, childExp => env.get(specials.activeEval)(childExp, env))
+function evalBind (exp, env) {
+  return bind(
+    evalExp(exp.get(1), env.set(specials.activeEval, evalExp)),
+    env.get(specials.activeEval)(exp.get(2), env))
 }
 
-function evaluateExpand (exp, env) {
-  return env.get(evaluateExp(exp.get(1), env))
+function evalExpand (exp, env) {
+  return env.get(evalExp(exp.get(1), env))
 }
 
-function evaluateQuote (exp, env) {
-  return exp.get(1)
+function evalQuote (exp, env) {
+  // new plan: define a new env that only evals a few specific calls and eval
+  // exp. Question: what about symbols? eh. hope we get lucky.
+  env = env.set(specials.activeEval, evalExp)
+  return evalExp(exp.get(1), {
+    get: k => {
+      const v = env.get(k)
+      if (isCallable(v)) {
+        if (!env.get('unquotedForms').has(k)) {
+          return (exp, env) => exp
+        }
+      }
+      return v
+    }
+  })
 }
 
-function evaluateExp (exp, env) {
+function evalExp (exp, env) {
   let val = exp
-  if (isList(exp)) {
-    const command = evaluateSymExp(exp.first(), env)
-    if (isCallable(command)) {
-      val = command(exp, env)
+  if (isCall(exp)) {
+    const callable = evalSymExp(exp.first(), env)
+    if (isCallable(callable)) {
+      val = callable(exp, env)
     } else {
-      throw new Error(`Not callable: ${exp.first()} (${command})`)
+      throw new Error(`Not callable: ${exp.first()} (${callable})`)
     }
   }
   return val
 }
 
-function evaluateSymExp (exp, env) {
+function evalSymExp (exp, env) {
   if (isSymbol(exp)) {
     return env.get(exp)
   } else {
-    return evaluateExp(exp, env)
+    return evalExp(exp, env)
+  }
+}
+
+function updateBindEnv (env, val) {
+  const lhs = val.get(0)
+  const rhs = val.get(1)
+  if (isBind(rhs)) {
+    env = updateBindEnv(env, rhs)
+    return env.set(lhs, env.get(rhs.get(0)))
+  } else {
+    return env.set(lhs, rhs)
   }
 }
 
 function updateEnv (env, val) {
-  if (isForm(val, specials.bind)) {
-    const lhs = val.get(1)
-    const rhs = val.get(2)
-    if (isForm(rhs, specials.bind)) {
-      env = updateEnv(env, rhs)
-      return env.set(lhs, env.get(rhs.get(1)))
-    } else {
-      return env.set(lhs, rhs)
-    }
-  } else {
-    return env
-  }
+  return updateBindEnv(env, bind(specials._, val))
 }
 
-function evaluateBody (state, exp) {
-  const val = evaluateSymExp(exp, state.get('env'))
+function evalDo (exp, env) {
+  return exp
+    .slice(1)
+    .reduce((env, form) =>
+      updateEnv(env, evalSymExp(form, env)), env)
+    .get(symbol('_'))
+}
+
+function evalBody (state, exp) {
+  const val = evalSymExp(exp, state.env)
   return state
     .update('vals', vals => vals.push(val))
-    .update('env', env => updateEnv(env, val))
+    .update('env', env => {
+      env = env.update('expTotal', expTotal => expTotal + 1)
+      return updateEnv(env, bind(env.get('expTotal'), val))
+    })
 }
 
 function evaluate (state, exps) {
-  state = state.set('vals', im.List())
   return exps
-    .reduce(evaluateBody, state)
+    .reduce(evalBody, state.set('vals', im.List()))
     .set('exps', exps)
     .update('expTotal', n => n + exps.count())
 }
@@ -169,23 +203,22 @@ function printChildren (exp, n, sep = ' ') {
     .join(sep)
 }
 
+const childType = child =>
+  isSymbol(child) ? 'symbol' : typeof child
+
 function printChild (parentExp, i) {
   const childExp = parentExp.get(i)
   let format = null
 
-  if (isList(childExp)) {
+  if (isCall(childExp)) {
     const parent = parentExp.first()
     const child = childExp.first()
     if (child === specials.comment && (parent !== specials.bind || i !== 1)) {
       format = x => chalk.dim.strikethrough('#' + printChildren(x, 1))
-    } else if (child === specials.bind && (parent !== specials.bind || i !== 1)) {
-      format = x => printChildren(x, 1, chalk.cyan(': '))
     } else if (child === specials.quote) {
       format = x => chalk.cyan('\\') + printChildren(x, 1)
     } else if (child === specials.expand) {
       format = x => chalk.cyan('$') + printChildren(x, 1)
-    } else if (child === specials.list) {
-      format = x => chalk.cyan('[') + printChildren(x, 1) + chalk.cyan(']')
     } else if (child === specials.set) {
       format = x => chalk.cyan('{') + printChildren(x, 1) + chalk.cyan('}')
     } else if (child === specials.complement && childExp.getIn([0, 1]) === specials.set) {
@@ -193,17 +226,19 @@ function printChild (parentExp, i) {
     } else {
       format = x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')')
     }
-  } else if (isSymbol(childExp)) {
-    const color = specials[childExp.get('symbol')] ? chalk.blue.bold : chalk.blue
-    format = x => color(x.get('symbol'))
+  } else if (isBind(childExp) && (!isBind(parentExp) || i !== 0)) {
+    format = x => printChildren(x, 0, chalk.cyan(': '))
+  } else if (isList(childExp)) {
+    format = x => chalk.cyan('[') + printChildren(x, 0) + chalk.cyan(']')
   } else {
     format = {
       boolean: chalk.yellow,
       number: chalk.yellow,
       string: chalk.green,
+      symbol: x => (specials[x] ? chalk.blue.bold : chalk.blue)(x.sym),
       undefined: chalk.yellow,
       object: chalk.yellow
-    }[typeof childExp] || (exp => exp)
+    }[childType(childExp)] || (exp => exp)
   }
 
   return format(childExp)
@@ -217,27 +252,40 @@ function print (exps, expTotal = 0) {
 // REP Loop
 //
 
-let replState = im.fromJS({
-  env: im.Map()
-    .set(specials.bind, evaluateBind)
-    .set(specials.expand, evaluateExpand)
-    .set(specials.list, evaluateList)
-    .set(specials.quote, evaluateQuote)
-    .set(specials.activeEval, evaluateSymExp),
-  exps: [],
-  vals: [],
-  expTotal: 0
-})
+let replState = im.Record({
+  env: im.Map([
+    [specials.bind, evalBind],
+    [specials.expand, evalExpand],
+    [specials.list, evalList],
+    [specials.quote, evalQuote],
+    [specials.activeEval, evalSymExp],
+    [symbol('inc'), (exp, env) => 1 + evalSymExp(exp.get(1), env)],
+    [specials.do, evalDo],
+    ['unquotedForms', im.Set([specials.bind, specials.list])],
+    ['expTotal', 0]
+  ]),
+  exps: im.List(),
+  vals: im.List()
+})()
 
 function rep (str) {
   try {
     const exps = read(str)
     replState = evaluate(replState, exps)
-    const out = print(replState.get('vals'), replState.get('expTotal'))
+    const out = print(replState.vals, replState.env.get('expTotal'))
     return out
   } catch (e) {
-    return printChildren(im.List([bind(specials.error, `"${e.message}"`)]), 0)
+    return printChildren(list([bind(specials.error, `"${e.message}"`)]), 0)
   }
 }
 
-module.exports = rep
+module.exports = {
+  bind,
+  call,
+  isCall,
+  isList,
+  list,
+  rep,
+  replState,
+  sym
+}
