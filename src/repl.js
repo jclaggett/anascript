@@ -5,13 +5,15 @@ const os = require('os')
 const process = require('process')
 const readline = require('readline')
 
+const chalk = require('chalk')
+
 const rep = require('./rep')
 
 const main = () => {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: '#user> '
+    prompt: `${chalk.blue('_')}${chalk.cyan(':')} `
   })
 
   rl.on('line', (line) => {

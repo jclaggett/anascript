@@ -34,14 +34,16 @@ const setMeta = (x, m) => {
   return x
 }
 
+const isCallable = x => x instanceof Function
 const isSymbol = x => x instanceof Symbol2
 const isList = x => im.List.isList(x)
 const isCall = (x) => isList(x) && getMeta(x).get('call', false)
 const isBind = (x) => isList(x) && getMeta(x).get('bind', false)
-const isCallable = x => x instanceof Function
+const isSet = x => im.Map.isMap(x)
 
-const list = xs => im.List(xs)
+const list = xs => setMeta(im.List(xs), {})
 const call = xs => setMeta(im.List(xs), { call: true })
+const set = xs => im.Map(xs)
 const bind = (k, v) => setMeta(im.List([k, v]), { bind: true })
 
 //
@@ -110,13 +112,18 @@ function evalBind (exp, env) {
     env.get(specials.activeEval)(exp.get(2), env))
 }
 
+function evalSet (exp, env) {
+  return set(exp
+    .slice(1)
+    .map(exp => env.get(specials.activeEval)(exp, env))
+    .map(val => isBind(val) ? val : bind(val, val)))
+}
+
 function evalExpand (exp, env) {
   return env.get(evalExp(exp.get(1), env))
 }
 
 function evalQuote (exp, env) {
-  // new plan: define a new env that only evals a few specific calls and eval
-  // exp. Question: what about symbols? eh. hope we get lucky.
   env = env.set(specials.activeEval, evalExp)
   return evalExp(exp.get(1), {
     get: k => {
@@ -219,8 +226,6 @@ function printChild (parentExp, i) {
       format = x => chalk.cyan('\\') + printChildren(x, 1)
     } else if (child === specials.expand) {
       format = x => chalk.cyan('$') + printChildren(x, 1)
-    } else if (child === specials.set) {
-      format = x => chalk.cyan('{') + printChildren(x, 1) + chalk.cyan('}')
     } else if (child === specials.complement && childExp.getIn([0, 1]) === specials.set) {
       format = x => chalk.cyan('-') + printChildren(x, 1)
     } else {
@@ -230,6 +235,12 @@ function printChild (parentExp, i) {
     format = x => printChildren(x, 0, chalk.cyan(': '))
   } else if (isList(childExp)) {
     format = x => chalk.cyan('[') + printChildren(x, 0) + chalk.cyan(']')
+  } else if (isSet(childExp)) {
+    format = x =>
+      chalk.cyan('{') +
+        printChildren(x.entrySeq().map(([k, v]) =>
+          im.is(k, v) ? v : bind(k, v)), 0) +
+        chalk.cyan('}')
   } else {
     format = {
       boolean: chalk.yellow,
@@ -252,16 +263,31 @@ function print (exps, expTotal = 0) {
 // REP Loop
 //
 
+function evalRest (exp, env) {
+  return exp
+    .slice(1)
+    .map(exp => evalSymExp(exp, env))
+}
+
 let replState = im.Record({
   env: im.Map([
     [specials.bind, evalBind],
     [specials.expand, evalExpand],
     [specials.list, evalList],
     [specials.quote, evalQuote],
+    [specials.set, evalSet],
     [specials.activeEval, evalSymExp],
-    [symbol('inc'), (exp, env) => 1 + evalSymExp(exp.get(1), env)],
+    [symbol('inc'), (exp, env) => 1 + evalRest(exp).get(1)],
+    [symbol('get'), (exp, env) => {
+      const vals = evalRest(exp, env)
+      return vals.get(1).get(vals.get(2))
+    }],
+    [symbol('add'), (exp, env) => {
+      const vals = evalRest(exp, env)
+      return vals.get(1).set(vals.get(2), vals.get(3))
+    }],
     [specials.do, evalDo],
-    ['unquotedForms', im.Set([specials.bind, specials.list])],
+    ['unquotedForms', im.Set([specials.bind, specials.list, specials.set])],
     ['expTotal', 0]
   ]),
   exps: im.List(),
@@ -275,6 +301,7 @@ function rep (str) {
     const out = print(replState.vals, replState.env.get('expTotal'))
     return out
   } catch (e) {
+    console.dir(e)
     return printChildren(list([bind(specials.error, `"${e.message}"`)]), 0)
   }
 }
