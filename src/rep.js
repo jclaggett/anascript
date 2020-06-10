@@ -23,10 +23,10 @@ const sym = Object.fromEntries([
   'expand',
   'list',
   'quote',
+  'read',
   'set',
   '_'
 ].map(x => [x, symbol(x)]))
-const specials = sym
 
 const getMeta = x => x[Symbol.for('metadata')] || im.Map()
 const setMeta = (x, m) => {
@@ -68,21 +68,21 @@ const readRules = {
   form3: child,
   form4: child,
 
-  comment: sexpr(specials.comment, children),
-  bind: sexpr(specials.bind, children),
-  expand: sexpr(specials.expand, children),
-  quote: sexpr(specials.quote, children),
+  comment: sexpr(sym.comment, children),
+  bind: sexpr(sym.bind, children),
+  expand: sexpr(sym.expand, children),
+  quote: sexpr(sym.quote, children),
   round: child,
-  square: sexpr(specials.list, child),
-  curly: sexpr(specials.set, child),
-  complement: sexpr(specials.complement, children),
+  square: sexpr(sym.list, child),
+  curly: sexpr(sym.set, child),
+  complement: sexpr(sym.complement, children),
 
   number: ast => parseFloat(ast.text),
   string: ast => ast.text,
   boolean: ast => ast.text === 'true',
   null: ast => null,
   undefined: ast => undefined,
-  symbol: ast => specials[ast.text] || symbol(ast.text)
+  symbol: ast => sym[ast.text] || symbol(ast.text)
 }
 
 function read (str) {
@@ -102,21 +102,31 @@ function read (str) {
 function evalList (exp, env) {
   const val = list(exp
     .slice(1)
-    .map(item => env.get(specials.activeEval)(item, env)))
+    .map(item => env.get(sym.activeEval)(item, env)))
   return val
 }
 
 function evalBind (exp, env) {
   return bind(
-    evalExp(exp.get(1), env.set(specials.activeEval, evalExp)),
-    env.get(specials.activeEval)(exp.get(2), env))
+    evalExp(exp.get(1), env.set(sym.activeEval, evalExp)),
+    env.get(sym.activeEval)(exp.get(2), env))
+}
+
+function unchainBind (leftVals, rightVal) {
+  if (isBind(rightVal)) {
+    return unchainBind(leftVals.push(rightVal.first()), rightVal.last())
+  } else {
+    return leftVals.map(leftVal => bind(leftVal, rightVal))
+  }
 }
 
 function evalSet (exp, env) {
   return set(exp
     .slice(1)
-    .map(exp => env.get(specials.activeEval)(exp, env))
-    .map(val => isBind(val) ? val : bind(val, val)))
+    .map(exp => env.get(sym.activeEval)(exp, env))
+    .map(val => isBind(val) ? val : bind(val, val))
+    .map(val => unchainBind(im.List(), val))
+    .reduce((a, b) => a.concat(b)))
 }
 
 function evalExpand (exp, env) {
@@ -124,7 +134,7 @@ function evalExpand (exp, env) {
 }
 
 function evalQuote (exp, env) {
-  env = env.set(specials.activeEval, evalExp)
+  env = env.set(sym.activeEval, evalExp)
   return evalExp(exp.get(1), {
     get: k => {
       const v = env.get(k)
@@ -171,7 +181,7 @@ function updateBindEnv (env, val) {
 }
 
 function updateEnv (env, val) {
-  return updateBindEnv(env, bind(specials._, val))
+  return updateBindEnv(env, bind(sym._, val))
 }
 
 function evalDo (exp, env) {
@@ -220,13 +230,13 @@ function printChild (parentExp, i) {
   if (isCall(childExp)) {
     const parent = parentExp.first()
     const child = childExp.first()
-    if (child === specials.comment && (parent !== specials.bind || i !== 1)) {
+    if (child === sym.comment && (parent !== sym.bind || i !== 1)) {
       format = x => chalk.dim.strikethrough('#' + printChildren(x, 1))
-    } else if (child === specials.quote) {
+    } else if (child === sym.quote) {
       format = x => chalk.cyan('\\') + printChildren(x, 1)
-    } else if (child === specials.expand) {
+    } else if (child === sym.expand) {
       format = x => chalk.cyan('$') + printChildren(x, 1)
-    } else if (child === specials.complement && childExp.getIn([0, 1]) === specials.set) {
+    } else if (child === sym.complement && childExp.getIn([0, 1]) === sym.set) {
       format = x => chalk.cyan('-') + printChildren(x, 1)
     } else {
       format = x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')')
@@ -246,7 +256,7 @@ function printChild (parentExp, i) {
       boolean: chalk.yellow,
       number: chalk.yellow,
       string: chalk.green,
-      symbol: x => (specials[x] ? chalk.blue.bold : chalk.blue)(x.sym),
+      symbol: x => (sym[x] ? chalk.blue.bold : chalk.blue)(x.sym),
       undefined: chalk.yellow,
       object: chalk.yellow
     }[childType(childExp)] || (exp => exp)
@@ -271,23 +281,35 @@ function evalRest (exp, env) {
 
 let replState = im.Record({
   env: im.Map([
-    [specials.bind, evalBind],
-    [specials.expand, evalExpand],
-    [specials.list, evalList],
-    [specials.quote, evalQuote],
-    [specials.set, evalSet],
-    [specials.activeEval, evalSymExp],
-    [symbol('inc'), (exp, env) => 1 + evalRest(exp).get(1)],
+    [sym.comment, (exp, env) => exp],
+    [sym.bind, evalBind],
+    [sym.eval, (exp, env) => evalSymExp(evalRest(exp, env).first(), env)],
+    [sym.expand, evalExpand],
+    [sym.list, evalList],
+    [sym.quote, evalQuote],
+    [sym.read, (exp, env) => exp.get(1)],
+    [sym.set, evalSet],
+    [sym.activeEval, evalSymExp],
+    [symbol('='), (exp, env) => {
+      const vals = evalRest(exp, env)
+      return im.is(vals.get(0), vals.get(1))
+    }],
+    [symbol('inc'), (exp, env) => 1 + evalRest(exp, env).first()],
     [symbol('get'), (exp, env) => {
       const vals = evalRest(exp, env)
-      return vals.get(1).get(vals.get(2))
+      return vals.get(0).get(vals.get(1))
     }],
     [symbol('add'), (exp, env) => {
       const vals = evalRest(exp, env)
-      return vals.get(1).set(vals.get(2), vals.get(3))
+      return vals
+        .rest()
+        .map(val => isBind(val) ? val : bind(val, val))
+        .map(val => unchainBind(im.List(), val))
+        .reduce((a, b) => a.concat(b))
+        .reduce((s, binding) => s.set(binding.first(), binding.last()), vals.first())
     }],
-    [specials.do, evalDo],
-    ['unquotedForms', im.Set([specials.bind, specials.list, specials.set])],
+    [sym.do, evalDo],
+    ['unquotedForms', im.Set([sym.bind, sym.list, sym.set])],
     ['expTotal', 0]
   ]),
   exps: im.List(),
@@ -302,7 +324,7 @@ function rep (str) {
     return out
   } catch (e) {
     console.dir(e)
-    return printChildren(list([bind(specials.error, `"${e.message}"`)]), 0)
+    return printChildren(list([bind(sym.error, `"${e.message}"`)]), 0)
   }
 }
 

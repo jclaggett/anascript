@@ -21,10 +21,11 @@ string          ::= '"' (([#x20-#x21] | [#x23-#x5B] | [#x5D-#xFFFF]) | #x5C (#x2
 boolean         ::= "true" | "false"
 null            ::= "null"
 undefined       ::= "undefined"
-symbol          ::= SCHAR (SCHAR | [0-9])*
+symbol          ::= (OCHAR | SCHAR) (OCHAR | SCHAR | [0-9])*
 
 /* Tokens */
-SCHAR           ::= ([a-z] | [A-Z] | "_" | "*" | "+" | "-" | "?" | "<" | ">" | "$")
+OCHAR           ::= ("=" | "!" | "@" | "%" | "^" | "&" | "*" | "=" | "-" | "+" | ">" | "<" | "?" | "/" | "|" | "." )
+SCHAR           ::= ([a-z] | [A-Z] | "_")
 HEXDIG          ::= [a-fA-F0-9]
 BACKSLASH       ::= WS* "\\" WS*
 DOLLAR_SIGN     ::= WS* "$" WS*
