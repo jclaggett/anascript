@@ -99,11 +99,14 @@ function read (str) {
 // Evaluation Section
 //
 
+function evalActiveRest (exp, env) {
+  return exp
+    .rest()
+    .map(exp => env.get(sym.activeEval)(exp, env))
+}
+
 function evalList (exp, env) {
-  const val = list(exp
-    .slice(1)
-    .map(item => env.get(sym.activeEval)(item, env)))
-  return val
+  return list(evalActiveRest(exp, env))
 }
 
 function evalBind (exp, env) {
@@ -120,13 +123,15 @@ function unchainBind (leftVals, rightVal) {
   }
 }
 
-function evalSet (exp, env) {
-  return set(exp
-    .slice(1)
-    .map(exp => env.get(sym.activeEval)(exp, env))
+function normalizeBinds (binds) {
+  return binds
     .map(val => isBind(val) ? val : bind(val, val))
     .map(val => unchainBind(im.List(), val))
-    .reduce((a, b) => a.concat(b)))
+    .reduce((a, b) => a.concat(b))
+}
+
+function evalSet (exp, env) {
+  return set(normalizeBinds(evalActiveRest(exp, env)))
 }
 
 function evalExpand (exp, env) {
@@ -169,24 +174,14 @@ function evalSymExp (exp, env) {
   }
 }
 
-function updateBindEnv (env, val) {
-  const lhs = val.get(0)
-  const rhs = val.get(1)
-  if (isBind(rhs)) {
-    env = updateBindEnv(env, rhs)
-    return env.set(lhs, env.get(rhs.get(0)))
-  } else {
-    return env.set(lhs, rhs)
-  }
-}
-
 function updateEnv (env, val) {
-  return updateBindEnv(env, bind(sym._, val))
+  return normalizeBinds(list([bind(sym._, val)]))
+    .reduce((env, val) => env.set(val.first(), val.last()), env)
 }
 
 function evalDo (exp, env) {
   return exp
-    .slice(1)
+    .rest()
     .reduce((env, form) =>
       updateEnv(env, evalSymExp(form, env)), env)
     .get(symbol('_'))
@@ -275,7 +270,7 @@ function print (exps, expTotal = 0) {
 
 function evalRest (exp, env) {
   return exp
-    .slice(1)
+    .rest()
     .map(exp => evalSymExp(exp, env))
 }
 
@@ -290,6 +285,7 @@ let replState = im.Record({
     [sym.read, (exp, env) => exp.get(1)],
     [sym.set, evalSet],
     [sym.activeEval, evalSymExp],
+    [symbol('normalizeBinds'), (exp, env) => list(normalizeBinds(evalRest(exp, env)))],
     [symbol('='), (exp, env) => {
       const vals = evalRest(exp, env)
       return im.is(vals.get(0), vals.get(1))
@@ -301,11 +297,7 @@ let replState = im.Record({
     }],
     [symbol('add'), (exp, env) => {
       const vals = evalRest(exp, env)
-      return vals
-        .rest()
-        .map(val => isBind(val) ? val : bind(val, val))
-        .map(val => unchainBind(im.List(), val))
-        .reduce((a, b) => a.concat(b))
+      return normalizeBinds(vals.rest())
         .reduce((s, binding) => s.set(binding.first(), binding.last()), vals.first())
     }],
     [sym.do, evalDo],
