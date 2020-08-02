@@ -41,7 +41,7 @@ const isCall = (x) => isList(x) && getMeta(x).get('call', false)
 const isBind = (x) => isList(x) && getMeta(x).get('bind', false)
 const isSet = x => im.Map.isMap(x)
 
-const list = xs => setMeta(im.List(xs), {})
+const list = (...xs) => setMeta(im.List(xs), {})
 const call = xs => setMeta(im.List(xs), { call: true })
 const set = xs => im.Map(xs)
 const bind = (k, v) => setMeta(im.List([k, v]), { bind: true })
@@ -106,7 +106,7 @@ function evalActiveRest (exp, env) {
 }
 
 function evalList (exp, env) {
-  return list(evalActiveRest(exp, env))
+  return list(...evalActiveRest(exp, env))
 }
 
 function evalBind (exp, env) {
@@ -154,28 +154,24 @@ function evalQuote (exp, env) {
 }
 
 function evalExp (exp, env) {
-  let val = exp
-  if (isCall(exp)) {
-    const callable = evalSymExp(exp.first(), env)
-    if (isCallable(callable)) {
-      val = callable(exp, env)
-    } else {
-      throw new Error(`Not callable: ${exp.first()} (${callable})`)
-    }
+  try {
+    return isCall(exp)
+      ? evalSymExp(exp.first(), env)(exp, env)
+      : exp
+  } catch (e) {
+    e.message = `${exp.first()} is not a function`
+    throw e
   }
-  return val
 }
 
 function evalSymExp (exp, env) {
-  if (isSymbol(exp)) {
-    return env.get(exp)
-  } else {
-    return evalExp(exp, env)
-  }
+  return isSymbol(exp)
+    ? env.get(exp)
+    : evalExp(exp, env)
 }
 
 function updateEnv (env, val) {
-  return normalizeBinds(list([bind(sym._, val)]))
+  return normalizeBinds(list(bind(sym._, val)))
     .reduce((env, val) => env.set(val.first(), val.last()), env)
 }
 
@@ -223,8 +219,9 @@ function printChild (parentExp, i) {
   let format = null
 
   if (isCall(childExp)) {
-    const parent = parentExp.first()
-    const child = childExp.first()
+    format = x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')')
+  } else if (isCall(childExp)) {
+    // This block of pretty printing is disabled for now
     if (child === sym.comment && (parent !== sym.bind || i !== 1)) {
       format = x => chalk.dim.strikethrough('#' + printChildren(x, 1))
     } else if (child === sym.quote) {
@@ -285,7 +282,11 @@ let replState = im.Record({
     [sym.read, (exp, env) => exp.get(1)],
     [sym.set, evalSet],
     [sym.activeEval, evalSymExp],
-    [symbol('normalizeBinds'), (exp, env) => list(normalizeBinds(evalRest(exp, env)))],
+    [symbol('+'), (exp, env) => evalRest(exp, env).reduce((total, x) => total + x)],
+    [symbol('-'), (exp, env) => evalRest(exp, env).reduce((total, x) => total - x)],
+    [symbol('*'), (exp, env) => evalRest(exp, env).reduce((total, x) => total * x)],
+    [symbol('/'), (exp, env) => evalRest(exp, env).reduce((total, x) => total / x)],
+    [symbol('normalizeBinds'), (exp, env) => list(...normalizeBinds(evalRest(exp, env)))],
     [symbol('='), (exp, env) => {
       const vals = evalRest(exp, env)
       return im.is(vals.get(0), vals.get(1))
@@ -316,7 +317,7 @@ function rep (str) {
     return out
   } catch (e) {
     console.dir(e)
-    return printChildren(list([bind(sym.error, `"${e.message}"`)]), 0)
+    return printChildren(list(bind(sym.error, `"${e.message}"`)), 0)
   }
 }
 

@@ -13,7 +13,7 @@ const main = () => {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: `${chalk.blue('_')}${chalk.cyan(':')} `
+    prompt: chalk`{blue _}{cyan :} `
   })
 
   rl.on('line', (line) => {
