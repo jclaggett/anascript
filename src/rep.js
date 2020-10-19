@@ -21,6 +21,7 @@ const sym = Object.fromEntries([
   'error',
   'eval',
   'expand',
+  'fn',
   'list',
   'quote',
   'read',
@@ -45,6 +46,7 @@ const list = (...xs) => setMeta(im.List(xs), {})
 const call = xs => setMeta(im.List(xs), { call: true })
 const set = xs => im.Map(xs)
 const bind = (k, v) => setMeta(im.List([k, v]), { bind: true })
+const doForm = (...xs) => call([sym.do, ...xs])
 
 //
 // Read Section
@@ -170,6 +172,16 @@ function evalSymExp (exp, env) {
     : evalExp(exp, env)
 }
 
+function evalFn (expWhenDefined, envWhenDefined) {
+  return (expWhenCalled, envWhenCalled) => {
+    return evalDo(
+      doForm(
+        bind(sym.args, evalSymExp(expWhenCalled, envWhenCalled)),
+        expWhenDefined.last()),
+      envWhenDefined)
+  }
+}
+
 function updateEnv (env, val) {
   return normalizeBinds(list(bind(sym._, val)))
     .reduce((env, val) => env.set(val.first(), val.last()), env)
@@ -282,6 +294,7 @@ let replState = im.Record({
     [sym.read, (exp, env) => exp.get(1)],
     [sym.set, evalSet],
     [sym.activeEval, evalSymExp],
+    [sym.fn, evalFn],
     [symbol('+'), (exp, env) => evalRest(exp, env).reduce((total, x) => total + x)],
     [symbol('-'), (exp, env) => evalRest(exp, env).reduce((total, x) => total - x)],
     [symbol('*'), (exp, env) => evalRest(exp, env).reduce((total, x) => total * x)],
@@ -293,8 +306,8 @@ let replState = im.Record({
     }],
     [symbol('inc'), (exp, env) => 1 + evalRest(exp, env).first()],
     [symbol('get'), (exp, env) => {
-      const vals = evalRest(exp, env)
-      return vals.get(0).get(vals.get(1))
+      const [s, k] = evalRest(exp, env)
+      return s.get(k)
     }],
     [symbol('add'), (exp, env) => {
       const vals = evalRest(exp, env)
