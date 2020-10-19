@@ -13,7 +13,9 @@ const main = () => {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: chalk`{blue _}{cyan :} `
+    prompt: chalk`{blue _}{cyan :} `,
+    terminal: true,
+    historySize: 200
   })
 
   rl.on('line', (line) => {
