@@ -18,6 +18,7 @@ const sym = Object.fromEntries([
   'comment',
   'complement',
   'do',
+  'env',
   'error',
   'eval',
   'expand',
@@ -33,6 +34,9 @@ const getMeta = x => x[Symbol.for('metadata')] || im.Map()
 const setMeta = (x, m) => {
   x[Symbol.for('metadata')] = im.Map(m)
   return x
+}
+const alterMeta = (x, m) => {
+  return setMeta(x, getMeta(x).merge(im.Map(m)))
 }
 
 const isCallable = x => x instanceof Function
@@ -168,7 +172,7 @@ function evalExp (exp, env) {
 
 function evalSymExp (exp, env) {
   return isSymbol(exp)
-    ? env.get(exp)
+    ? env.get(exp, exp === sym.env ? env : null)
     : evalExp(exp, env)
 }
 
@@ -223,47 +227,44 @@ function printChildren (exp, n, sep = ' ') {
     .join(sep)
 }
 
-const childType = child =>
-  isSymbol(child) ? 'symbol' : typeof child
+const expType = exp =>
+  isCall(exp) ? 'call'
+    : isBind(exp) ? 'bind'
+      : isList(exp) ? 'list'
+        : isSet(exp) ? 'set'
+          : isSymbol(exp) ? 'symbol'
+            : typeof exp
 
 function printChild (parentExp, i) {
   const childExp = parentExp.get(i)
   let format = null
 
-  if (isCall(childExp)) {
-    format = x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')')
-  } else if (isCall(childExp)) {
+  if (format) {
     // This block of pretty printing is disabled for now
-    if (child === sym.comment && (parent !== sym.bind || i !== 1)) {
+    if (child === sym.comment && (parentExp !== sym.bind || i !== 1)) {
       format = x => chalk.dim.strikethrough('#' + printChildren(x, 1))
-    } else if (child === sym.quote) {
-      format = x => chalk.cyan('\\') + printChildren(x, 1)
-    } else if (child === sym.expand) {
-      format = x => chalk.cyan('$') + printChildren(x, 1)
     } else if (child === sym.complement && childExp.getIn([0, 1]) === sym.set) {
       format = x => chalk.cyan('-') + printChildren(x, 1)
-    } else {
-      format = x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')')
     }
-  } else if (isBind(childExp) && (!isBind(parentExp) || i !== 0)) {
-    format = x => printChildren(x, 0, chalk.cyan(': '))
-  } else if (isList(childExp)) {
-    format = x => chalk.cyan('[') + printChildren(x, 0) + chalk.cyan(']')
-  } else if (isSet(childExp)) {
-    format = x =>
-      chalk.cyan('{') +
-        printChildren(x.entrySeq().map(([k, v]) =>
-          im.is(k, v) ? v : bind(k, v)), 0) +
-        chalk.cyan('}')
   } else {
     format = {
+      bind: x => printChildren(x, 0, chalk.cyan(': ')),
+      call: x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')'),
+      list: x => chalk.cyan('[') + printChildren(x, 0) + chalk.cyan(']'),
+      set: x => (
+        chalk.cyan('{') +
+        printChildren(x.entrySeq().map(([k, v]) =>
+          im.is(k, v) ? v : bind(k, v)), 0) +
+        chalk.cyan('}')),
+      expand: x => chalk.cyan('$') + printChildren(x, 1),
+      quote: x => chalk.cyan('\\') + printChildren(x, 1),
       boolean: chalk.yellow,
       number: chalk.yellow,
       string: chalk.green,
       symbol: x => (sym[x] ? chalk.blue.bold : chalk.blue)(x.sym),
       undefined: chalk.yellow,
       object: chalk.yellow
-    }[childType(childExp)] || (exp => exp)
+    }[expType(childExp)] || (exp => exp)
   }
 
   return format(childExp)
@@ -277,6 +278,16 @@ function print (exps, expTotal = 0) {
 // REP Loop
 //
 
+function evalRead (exp, env) {
+  return read(evalSymExp(exp.get(1), env).slice(1, -1)).first()
+}
+
+function evalEval (exp, env) {
+  return evalSymExp(
+    exp.get(1),
+    evalSymExp(exp.get(2), env))
+}
+
 function evalRest (exp, env) {
   return exp
     .rest()
@@ -287,11 +298,11 @@ let replState = im.Record({
   env: im.Map([
     [sym.comment, (exp, env) => exp],
     [sym.bind, evalBind],
-    [sym.eval, (exp, env) => evalSymExp(evalRest(exp, env).first(), env)],
+    [sym.read, evalRead],
+    [sym.eval, evalEval],
     [sym.expand, evalExpand],
     [sym.list, evalList],
     [sym.quote, evalQuote],
-    [sym.read, (exp, env) => exp.get(1)],
     [sym.set, evalSet],
     [sym.activeEval, evalSymExp],
     [sym.fn, evalFn],
@@ -335,6 +346,7 @@ function rep (str) {
 }
 
 module.exports = {
+  alterMeta,
   bind,
   call,
   isCall,
