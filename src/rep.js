@@ -39,7 +39,7 @@ const alterMeta = (x, m) => {
   return setMeta(x, getMeta(x).merge(im.Map(m)))
 }
 
-const isCallable = x => x instanceof Function
+// const isCallable = x => x instanceof Function
 const isSymbol = x => x instanceof Symbol2
 const isList = x => im.List.isList(x)
 const isCall = (x) => isList(x) && getMeta(x).get('call', false)
@@ -117,7 +117,7 @@ function evalList (exp, env) {
 
 function evalBind (exp, env) {
   return bind(
-    evalExp(exp.get(1), env.set(sym.activeEval, evalExp)),
+    exp.get(1),
     env.get(sym.activeEval)(exp.get(2), env))
 }
 
@@ -145,18 +145,7 @@ function evalExpand (exp, env) {
 }
 
 function evalQuote (exp, env) {
-  env = env.set(sym.activeEval, evalExp)
-  return evalExp(exp.get(1), {
-    get: k => {
-      const v = env.get(k)
-      if (isCallable(v)) {
-        if (!env.get('unquotedForms').has(k)) {
-          return (exp, env) => exp
-        }
-      }
-      return v
-    }
-  })
+  return exp.get(1)
 }
 
 function evalExp (exp, env) {
