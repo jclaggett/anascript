@@ -46,11 +46,11 @@ const isCall = (x) => isList(x) && getMeta(x).get('call', false)
 const isBind = (x) => isList(x) && getMeta(x).get('bind', false)
 const isSet = x => im.Map.isMap(x)
 
-const list = (...xs) => setMeta(im.List(xs), {})
+const list = (xs) => setMeta(im.List(xs), {})
 const call = xs => setMeta(im.List(xs), { call: true })
 const set = xs => im.Map(xs)
 const bind = (k, v) => setMeta(im.List([k, v]), { bind: true })
-const doForm = (...xs) => call([sym.do, ...xs])
+const doForm = (xs) => call([sym.do, ...xs])
 
 //
 // Read Section
@@ -112,7 +112,7 @@ function evalActiveRest (exp, env) {
 }
 
 function evalList (exp, env) {
-  return list(...evalActiveRest(exp, env))
+  return list(evalActiveRest(exp, env))
 }
 
 function evalBind (exp, env) {
@@ -168,15 +168,16 @@ function evalSymExp (exp, env) {
 function evalFn (expWhenDefined, envWhenDefined) {
   return (expWhenCalled, envWhenCalled) => {
     return evalDo(
-      doForm(
+      doForm([
         bind(sym.args, evalSymExp(expWhenCalled, envWhenCalled)),
-        expWhenDefined.last()),
+        expWhenDefined.last()
+      ]),
       envWhenDefined)
   }
 }
 
 function updateEnv (env, val) {
-  return normalizeBinds(list(bind(sym._, val)))
+  return normalizeBinds(list([bind(sym._, val)]))
     .reduce((env, val) => env.set(val.first(), val.last()), env)
 }
 
@@ -299,7 +300,7 @@ let replState = im.Record({
     [symbol('-'), (exp, env) => evalRest(exp, env).reduce((total, x) => total - x)],
     [symbol('*'), (exp, env) => evalRest(exp, env).reduce((total, x) => total * x)],
     [symbol('/'), (exp, env) => evalRest(exp, env).reduce((total, x) => total / x)],
-    [symbol('normalizeBinds'), (exp, env) => list(...normalizeBinds(evalRest(exp, env)))],
+    [symbol('normalizeBinds'), (exp, env) => list(normalizeBinds(evalRest(exp, env)))],
     [symbol('='), (exp, env) => {
       const vals = evalRest(exp, env)
       return im.is(vals.get(0), vals.get(1))
@@ -330,7 +331,7 @@ function rep (str) {
     return out
   } catch (e) {
     console.dir(e)
-    return printChildren(list(bind(sym.error, `"${e.message}"`)), 0)
+    return printChildren(list([bind(sym.error, `"${e.message}"`)]), 0)
   }
 }
 
