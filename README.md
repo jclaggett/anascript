@@ -29,15 +29,15 @@ This is still just an crude experiment at the moment.
     now usually mean code.
   - LSN: labels are added with an infix `:`. Describe bindings in various
     paren, square and curly bracket collections.
-2. The `:` syntax is a context free form and may occur anywhere.
-3. The infix `:` is first and _only_ infix syntax to be added. I think having
-   one infix form means the precendence rules will not be too horrible.
+2. The `:` form may occur anywhere.
+3. The `:` is the _only_ infix syntax to be added. Having only one infix
+   syntax means the precendence rules will not be _too_ horrible.
 4. A few symbols will be dedicated for use in prefix syntax:
   - `#` which more loosely binds to the next form (e.g., in `#a:1` the `#`
      applies to the entire `a:1` form).
   - `$`, `\` which both tightly bind to the next form (e.g., in `$a:1` the `$`
      applies only to the `a`).
-5. Symbols are context free forms and may occur anywhere.
+5. Symbols may occur anywhere.
 6. Strings just support `"` delimiters.
 7. No sigificant whitespace. None. Not even comment lines.
 8. Commas and semicolons are just whitespace.
@@ -98,16 +98,19 @@ To run an LSL repl, run this command: `npm run start`
    the syntax is just the process of replacing the syntax with the following
    forms:
 
-   *syntax form* | *special form*
-   `#x` | `(comment x)`
-   `x:1` | `(bind x 1)`
-   `$x` | `(expand x)`
-   `\x` | `(quote x)`
-   `[x y z]` | `(list x y z)`
-   `{x y z}` | `(set x y z)`
-   `(x y z)` | `(x y z)`
+| Syntax | Lisp Form |
+| --- | --- |
+| `#x` | `(comment x)` |
+| `x:1` | `(bind x 1)` |
+| `$x` | `(expand x)` |
+| `\x` | `(quote x)` |
+| `[x y z]` | `(list x y z)` |
+| `{x y z}` | `(set x y z)` |
+| `(x y z)` | `(x y z)` |
 
-3. Only two kinds of collections: ordered collections (lists) and unordered
-   collections (sets). Maps are a special case of sets.
-4. Symbols are expanded (resolved) everywhere _except_ in the left hand side of
+2. Only two kinds of collections: ordered (lists) and unordered (sets).
+   Maps are a special case of sets. Parens are a special case of lists.
+3. Symbols are expanded (resolved) everywhere _except_ in the left hand side of
    a bind.
+4. No keywords. Since symbols are conviently not expanded in a bind form, maybe
+   we don't need them.
