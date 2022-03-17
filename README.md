@@ -22,20 +22,20 @@ This is still just an crude experiment at the moment.
 ## LSN Design Notes
 
 1. Labels are additional syntax layered on top of Clojure and Lisp:
-  1. Classic Lisp: Code and data collections are represented using lists
-     (parens only).
-  2. Clojure: Square brackets (vectors) and curly brackets (maps, sets) are
-     added and describe ordered and unordered data collections. Parens (lists)
-     now usually mean code.
-  3. LSN: labels are added with an infix `:`. Describe bindings in various
-     paren, square and curly bracket collections.
+  - Classic Lisp: Code and data collections are represented using lists
+    (parens only).
+  - Clojure: Square brackets (vectors) and curly brackets (maps, sets) are
+    added and describe ordered and unordered data collections. Parens (lists)
+    now usually mean code.
+  - LSN: labels are added with an infix `:`. Describe bindings in various
+    paren, square and curly bracket collections.
 2. The `:` syntax is a context free form and may occur anywhere.
 3. The infix `:` is first and _only_ infix syntax to be added. I think having
    one infix form means the precendence rules will not be too horrible.
 4. A few symbols will be dedicated for use in prefix syntax:
-  1. `#` which more loosely binds to the next form (e.g., in `#a:1` the `#`
+  - `#` which more loosely binds to the next form (e.g., in `#a:1` the `#`
      applies to the entire `a:1` form).
-  2. `$`, `\` which both tightly bind to the next form (e.g., in `$a:1` the `$`
+  - `$`, `\` which both tightly bind to the next form (e.g., in `$a:1` the `$`
      applies only to the `a`).
 5. Symbols are context free forms and may occur anywhere.
 6. Strings just support `"` delimiters.
@@ -97,14 +97,17 @@ To run an LSL repl, run this command: `npm run start`
 1. Each syntax corresponds to exactly one lisp special form. This means parsing
    the syntax is just the process of replacing the syntax with the following
    forms:
-  1. `#x` -> `(comment x)`
-  2. `x:1` -> `(bind x 1)`
-  3. `$x` -> `(expand x)`
-  4. `\x` -> `(quote x)`
-  5. `[x y z]` -> `(list x y z)`
-  6. `{x y z}` -> `(set x y z)`
-  7. `(x y z)` -> `(x y z)`
-2. Only two kinds of collections: ordered collections (lists) and unordered
+
+   *syntax form* | *special form*
+   `#x` | `(comment x)`
+   `x:1` | `(bind x 1)`
+   `$x` | `(expand x)`
+   `\x` | `(quote x)`
+   `[x y z]` | `(list x y z)`
+   `{x y z}` | `(set x y z)`
+   `(x y z)` | `(x y z)`
+
+3. Only two kinds of collections: ordered collections (lists) and unordered
    collections (sets). Maps are a special case of sets.
-3. Symbols are expanded (resolved) everywhere _except_ in the left hand side of
+4. Symbols are expanded (resolved) everywhere _except_ in the left hand side of
    a bind.
