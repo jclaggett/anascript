@@ -315,7 +315,7 @@ let replState = im.Record({
       const [s, k] = evalRest(exp, env)
       return s.get(k)
     }],
-    [symbol('add'), (exp, env) => {
+    [symbol('conj'), (exp, env) => {
       const vals = evalRest(exp, env)
       return normalizeBinds(vals.rest())
         .reduce((s, binding) => s.set(binding.first(), binding.last()), vals.first())

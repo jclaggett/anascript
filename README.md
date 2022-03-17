@@ -31,35 +31,27 @@ To try it out: `npm run start`
     x                 #"symbols expand automatically"
     34: true          #"true labeled with number 34"
     $34               #"number 34 expanded to true"
+    a: b: 3.14        #"labels can be chained"
 
 ## Compound Values
 
     [1 2 3 4]         #"ordered collection (vector)"
     {1 2 3 4}         #"unordered collection (set)"
     {a:1 b:2}         #"unordered, labeled collection (map)"
+    {a:1 3 4}         #"unordered, partially labeled collection (map & set)"
     [a:1 b:2]         #"vector of labeled values"
 
+## Function Calls
 
-Labels in LSN are represented by using an infix colon between two values in a
-collection:
-```
-ex1: [
-  a: 42
-  b: a # "Labels in an ordered collection are lexically scoped."
-]
-
-ex2: {
-  "a:" 42
-}
-
-b: (get ex2 "a") # "Labels in an unordered collection are dynamically scoped."
-```
-
-## Collection Values
-_TODO_
-
-##  Comments
-_TODO_
+    v: (+ 1 2)        #"+ function sums numbers"
+    (- 9 v)           #"- function subtracts them"
+    (conj {1 2} 3)    #"conj adds values to unordered collections"
+    (conj [1 2] 3)    #"or to the end of ordered collections (NOT DONE)"
+    z: (conj {1} b:2) #"conj also adds labeled values"
+    (get z \b)        #"get will look up values by their labels"
+    (get z 1)         #"unlabeled values are implicitly labeled as themselves."
+    (get [-1 -2] 1)   #"ordered collections have implicit index labels"
+    (get [1 x:2] \x)  #"and may also have explicit labels (NOT DONE)"
 
 # Notes
 
