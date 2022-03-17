@@ -218,11 +218,16 @@ function printChildren (exp, n, sep = ' ') {
 }
 
 const expType = exp =>
-  isCall(exp) ? 'call'
-    : isBind(exp) ? 'bind'
-      : isList(exp) ? 'list'
-        : isSet(exp) ? 'set'
-          : isSymbol(exp) ? 'symbol'
+  isCall(exp)
+    ? 'call'
+    : isBind(exp)
+      ? 'bind'
+      : isList(exp)
+        ? 'list'
+        : isSet(exp)
+          ? 'set'
+          : isSymbol(exp)
+            ? 'symbol'
             : typeof exp
 
 function printChild (parentExp, i) {

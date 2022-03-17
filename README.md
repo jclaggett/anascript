@@ -10,14 +10,35 @@ See the EBNF grammar for specifics on syntax: `src/lsn.ebnf.w3c`.
 
 This is still just an crude experiment at the moment.
 
-to try it out: `bin/lsn.js`
+To try it out: `npm run start`
 
 # A Brief tour of LSN syntax and semantics
 
 ## Simple Values
-_TODO_
 
-## Labels
+    #"comment string" #"Does nothing"
+    1, -30.1          #"numbers (comma is whitespace)"
+    true false        #"boolean values"
+    "a" "b"           #"strings"
+    null undefined    #"null & undefined"
+    \symbol           #"symbol literal (using \ syntax)"
+    #23               #"number commented out"
+
+## Labeled Values
+
+    x: 3              #"number labeled with symbol x"
+    $x                #"symbol x expanded to 3"
+    x                 #"symbols expand automatically"
+    34: true          #"true labeled with number 34"
+    $34               #"number 34 expanded to true"
+
+## Compound Values
+
+    [1 2 3 4]         #"ordered collection (vector)"
+    {1 2 3 4}         #"unordered collection (set)"
+    {a:1 b:2}         #"unordered, labeled collection (map)"
+    [a:1 b:2]         #"vector of labeled values"
+
 
 Labels in LSN are represented by using an infix colon between two values in a
 collection:
@@ -56,7 +77,7 @@ the semantic meaning of square and curly brackets and I view labels as another
 benefit of adding label syntax is that JSON is now a proper subset of LSN.
 
 Various other design goals:
-- structural syntex only (e.g., no line based comments)
+- structural syntax only (e.g., no line based comments)
 - small syntax (see `src/lsn.ebnf.w3c`) 
 - No specific semantic meaning attached to `()`, `[]`, or `{}` They are all
   grouping forms.
