@@ -136,6 +136,14 @@ function normalizeBinds (binds) {
     .reduce((a, b) => a.concat(b))
 }
 
+function getBindValue (val) {
+  if (isBind(val)) {
+    return getBindValue(val.last())
+  } else {
+    return val
+  }
+}
+
 function evalSet (exp, env) {
   return set(normalizeBinds(evalActiveRest(exp, env)))
 }
@@ -313,7 +321,7 @@ let replState = im.Record({
     [symbol('inc'), (exp, env) => 1 + evalRest(exp, env).first()],
     [symbol('get'), (exp, env) => {
       const [s, k] = evalRest(exp, env)
-      return s.get(k)
+      return getBindValue(s.get(k))
     }],
     [symbol('conj'), (exp, env) => {
       const vals = evalRest(exp, env)
