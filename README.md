@@ -76,11 +76,11 @@ To run an LSL repl, run this command: `npm run start`
 
 ### Compound Values
 
-    [1 2 3 4]         #"ordered collection (vector)"
+    [1 2 3 4]         #"ordered collection (list)"
     {1 2 3 4}         #"unordered collection (set)"
     {a:1 b:2}         #"unordered, labeled collection (map)"
     {a:1 3 4}         #"unordered, partially labeled collection (map & set)"
-    [a:1 b:2]         #"vector of labeled values"
+    [a:1 b:2]         #"list of labeled values"
 
 ### Function Calls
 
@@ -111,7 +111,9 @@ To run an LSL repl, run this command: `npm run start`
 
 2. Only two kinds of collections: ordered (lists) and unordered (sets).
    Maps are a special case of sets. Parens are a special case of lists.
-3. Symbols are expanded (resolved) everywhere _except_ in the left hand side of
+3. bind forms are used differently by different special forms and are expected
+   to be 'consumed' at read time.
+5. Symbols are expanded (resolved) everywhere _except_ in the left hand side of
    a bind.
 4. No keywords. Since symbols are conviently not expanded in a bind form, maybe
    we don't need them.
