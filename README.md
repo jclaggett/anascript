@@ -37,11 +37,12 @@ This is still just an crude experiment at the moment.
      applies to the entire `a:1` form).
   - `$`, `\` which both tightly bind to the next form (e.g., in `$a:1` the `$`
      applies only to the `a`).
-5. Symbols may occur anywhere.
-6. Strings just support `"` delimiters.
-7. No sigificant whitespace. None. Not even comment lines.
-8. Commas and semicolons are just whitespace.
-9. Trying to be easy to parse by humans Syntax by being small and not having
+5. Prefix symbols are not allowed to appear as a part of other symbols
+6. Symbols may occur anywhere.
+7. Strings just support `"` delimiters.
+8. No sigificant whitespace. None. Not even comment lines.
+9. Commas and semicolons are just whitespace.
+10. Trying to be easy to parse by humans Syntax by being small and not having
    exceptions if possible.
 
 # Labeled, Structured Lisp
