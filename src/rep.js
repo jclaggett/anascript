@@ -42,15 +42,17 @@ const alterMeta = (x, m) => {
 // const isCallable = x => x instanceof Function
 const isSymbol = x => x instanceof Symbol2
 const isList = x => im.List.isList(x)
-const isCall = (x) => isList(x) && getMeta(x).get('call', false)
-const isBind = (x) => isList(x) && getMeta(x).get('bind', false)
+const isCall = x => isList(x) && getMeta(x).get('call', false)
+const isBind = x => isList(x) && getMeta(x).get('bind', false)
 const isSet = x => im.Map.isMap(x)
 
-const list = (xs) => setMeta(im.List(xs), {})
+const getBindValue = x => isBind(x) ? getBindValue(x.last()) : x
+
+const list = xs => setMeta(im.List(xs.map(getBindValue)), {})
 const call = xs => setMeta(im.List(xs), { call: true })
 const set = xs => im.Map(xs)
 const bind = (k, v) => setMeta(im.List([k, v]), { bind: true })
-const doForm = (xs) => call([sym.do, ...xs])
+const doForm = xs => call([sym.do, ...xs])
 
 //
 // Read Section
@@ -136,14 +138,6 @@ function normalizeBinds (binds) {
     .reduce((a, b) => a.concat(b))
 }
 
-function getBindValue (val) {
-  if (isBind(val)) {
-    return getBindValue(val.last())
-  } else {
-    return val
-  }
-}
-
 function evalSet (exp, env) {
   return set(normalizeBinds(evalActiveRest(exp, env)))
 }
@@ -186,7 +180,7 @@ function evalFn (expWhenDefined, envWhenDefined) {
 
 function updateEnv (env, val) {
   return normalizeBinds(list([bind(sym._, val)]))
-    .reduce((env, val) => env.set(val.first(), val.last()), env)
+    .reduce((env, val) => env.set(val.first(), val.last()), env) // Add destructure binds here!
 }
 
 function evalDo (exp, env) {
