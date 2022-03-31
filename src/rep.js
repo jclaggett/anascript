@@ -11,13 +11,18 @@ const ebnf = require('ebnf')
 const lsnParser = new ebnf.Grammars.W3C.Parser(fs.readFileSync(path.resolve(__dirname, 'lsn.ebnf.w3c')).toString())
 
 const Symbol2 = im.Record({ sym: null }, 'Symbol2')
+const Bind = im.Record({ k: null, v: null }, 'Bind')
 const symbol = sym => Symbol2({ sym })
 const sym = Object.fromEntries([
+  '_',
   'activeEval',
   'bind',
   'comment',
   'complement',
+  'conj',
   'do',
+  'emptyList',
+  'emptySet',
   'env',
   'error',
   'eval',
@@ -26,33 +31,23 @@ const sym = Object.fromEntries([
   'list',
   'quote',
   'read',
-  'set',
-  '_'
+  'set'
 ].map(x => [x, symbol(x)]))
 
-const getMeta = x => x[Symbol.for('metadata')] || im.Map()
-const setMeta = (x, m) => {
-  x[Symbol.for('metadata')] = im.Map(m)
-  return x
-}
-const alterMeta = (x, m) => {
-  return setMeta(x, getMeta(x).merge(im.Map(m)))
-}
-
-// const isCallable = x => x instanceof Function
 const isSymbol = x => x instanceof Symbol2
 const isList = x => im.List.isList(x)
-const isCall = x => isList(x) && getMeta(x).get('call', false)
-const isBind = x => isList(x) && getMeta(x).get('bind', false)
+const isBind = x => x instanceof Bind
 const isSet = x => im.Map.isMap(x)
 
-const getBindValue = x => isBind(x) ? getBindValue(x.last()) : x
+const getBindValue = x => isBind(x) ? getBindValue(x.v) : x
 
-const list = xs => setMeta(im.List(xs.map(getBindValue)), {})
-const call = xs => setMeta(im.List(xs), { call: true })
+const list = im.List
 const set = xs => im.Map(xs)
-const bind = (k, v) => setMeta(im.List([k, v]), { bind: true })
-const doForm = xs => call([sym.do, ...xs])
+const bind = (k, v) => new Bind({ k, v })
+const doForm = xs => list([sym.do, ...xs])
+
+const emptyList = list([])
+const emptySet = set([])
 
 //
 // Read Section
@@ -65,9 +60,9 @@ function walkAST (ast, rules) {
   return rules[ast.type](ast, rules)
 }
 
-const children = (ast, rules) => call(ast.children.map(child => walkAST(child, rules)))
+const children = (ast, rules) => list(ast.children.map(child => walkAST(child, rules)))
 const child = (ast, rules) => children(ast, rules).first()
-const sexpr = (type, f) => (ast, rules) => call([type, ...(f(ast, rules) || [])])
+const sexpr = (type, f) => (ast, rules) => list([type, ...(f(ast, rules) || [])])
 
 const readRules = {
   forms: children,
@@ -113,8 +108,14 @@ function evalActiveRest (exp, env) {
     .map(exp => env.get(sym.activeEval)(exp, env))
 }
 
-function evalList (exp, env) {
-  return list(evalActiveRest(exp, env))
+const evalList = (exp, env) => {
+  return evalSymExp(
+    exp
+      .rest()
+      .reduce(
+        (r, exp) => list([sym.conj, r, exp]),
+        sym.emptyList),
+    env)
 }
 
 function evalBind (exp, env) {
@@ -125,7 +126,7 @@ function evalBind (exp, env) {
 
 function unchainBind (leftVals, rightVal) {
   if (isBind(rightVal)) {
-    return unchainBind(leftVals.push(rightVal.first()), rightVal.last())
+    return unchainBind(leftVals.push(rightVal.k), rightVal.v)
   } else {
     return leftVals.map(leftVal => bind(leftVal, rightVal))
   }
@@ -152,7 +153,7 @@ function evalQuote (exp, env) {
 
 function evalExp (exp, env) {
   try {
-    return isCall(exp)
+    return isList(exp)
       ? evalSymExp(exp.first(), env)(exp, env)
       : exp
   } catch (e) {
@@ -161,7 +162,7 @@ function evalExp (exp, env) {
   }
 }
 
-function evalSymExp (exp, env) {
+const evalSymExp = (exp, env) => {
   return isSymbol(exp)
     ? env.get(exp, exp === sym.env ? env : null)
     : evalExp(exp, env)
@@ -180,7 +181,7 @@ function evalFn (expWhenDefined, envWhenDefined) {
 
 function updateEnv (env, val) {
   return normalizeBinds(list([bind(sym._, val)]))
-    .reduce((env, val) => env.set(val.first(), val.last()), env) // Add destructure binds here!
+    .reduce((env, val) => env.set(val.k, val.v), env)
 }
 
 function evalDo (exp, env) {
@@ -220,17 +221,15 @@ function printChildren (exp, n, sep = ' ') {
 }
 
 const expType = exp =>
-  isCall(exp)
-    ? 'call'
-    : isBind(exp)
-      ? 'bind'
-      : isList(exp)
-        ? 'list'
-        : isSet(exp)
-          ? 'set'
-          : isSymbol(exp)
-            ? 'symbol'
-            : typeof exp
+  isBind(exp)
+    ? 'bind'
+    : isList(exp)
+      ? 'list'
+      : isSet(exp)
+        ? 'set'
+        : isSymbol(exp)
+          ? 'symbol'
+          : typeof exp
 
 function printChild (parentExp, i) {
   const childExp = parentExp.get(i)
@@ -245,7 +244,7 @@ function printChild (parentExp, i) {
     }
   } else {
     format = {
-      bind: x => printChildren(x, 0, chalk.cyan(': ')),
+      bind: x => printChildren(im.List([x.k, x.v]), 0, chalk.cyan(': ')),
       call: x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')'),
       list: x => chalk.cyan('[') + printChildren(x, 0) + chalk.cyan(']'),
       set: x => (
@@ -291,6 +290,20 @@ function evalRest (exp, env) {
     .map(exp => evalSymExp(exp, env))
 }
 
+const evalConj = (exp, env) => {
+  const [x, ...vals] = evalRest(exp, env)
+  return normalizeBinds(vals)
+    .reduce(
+      isSet(x)
+        ? (x, b) => x.set(b.k, b.v)
+        : isList(x)
+          ? (x, b) => (b.k >= 0 && b.k <= x.count())
+              ? x.set(b.k, b.v)
+              : (b.k === b.v) ? x.push(b.v) : x
+          : (x, b) => x,
+      x)
+}
+
 let replState = im.Record({
   env: im.Map([
     [sym.comment, (exp, env) => exp],
@@ -317,14 +330,13 @@ let replState = im.Record({
       const [s, k] = evalRest(exp, env)
       return getBindValue(s.get(k))
     }],
-    [symbol('conj'), (exp, env) => {
-      const vals = evalRest(exp, env)
-      return normalizeBinds(vals.rest())
-        .reduce((s, binding) => s.set(binding.first(), binding.last()), vals.first())
-    }],
+    [symbol('conj'), evalConj],
+    [symbol('type'), (exp, env) => expType(evalRest(exp, env).first())],
     [sym.do, evalDo],
     ['unquotedForms', im.Set([sym.bind, sym.list, sym.set])],
-    ['expTotal', 0]
+    ['expTotal', 0],
+    [sym.emptyList, emptyList],
+    [sym.emptySet, emptySet]
   ]),
   exps: im.List(),
   vals: im.List()
@@ -343,12 +355,15 @@ function rep (str) {
 }
 
 module.exports = {
-  alterMeta,
   bind,
-  call,
-  isCall,
-  isList,
   list,
+
+  isBind,
+  isList,
+
+  expType,
+
+  read,
   rep,
   replState,
   sym
