@@ -135,7 +135,8 @@ function unchainBind (leftVals, rightVal) {
 function normalizeBinds (binds) {
   return binds
     .map(val => isBind(val) ? val : bind(val, val))
-    .flatMap(val => unchainBind(im.List(), val))
+    .map(val => unchainBind(im.List(), val))
+    .reduce((a, b) => a.concat(b))
 }
 
 function evalSet (exp, env) {
