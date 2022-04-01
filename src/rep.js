@@ -102,12 +102,6 @@ function read (str) {
 // Evaluation Section
 //
 
-function evalActiveRest (exp, env) {
-  return exp
-    .rest()
-    .map(exp => env.get(sym.activeEval)(exp, env))
-}
-
 const evalList = (exp, env) => {
   return evalSymExp(
     exp
@@ -115,6 +109,16 @@ const evalList = (exp, env) => {
       .reduce(
         (r, exp) => list([sym.conj, r, exp]),
         sym.emptyList),
+    env)
+}
+
+function evalSet (exp, env) {
+  return evalSymExp(
+    exp
+      .rest()
+      .reduce(
+        (r, exp) => list([sym.conj, r, exp]),
+        sym.emptySet),
     env)
 }
 
@@ -137,10 +141,6 @@ function normalizeBinds (binds) {
     .map(val => isBind(val) ? val : bind(val, val))
     .map(val => unchainBind(im.List(), val))
     .reduce((a, b) => a.concat(b))
-}
-
-function evalSet (exp, env) {
-  return set(normalizeBinds(evalActiveRest(exp, env)))
 }
 
 function evalExpand (exp, env) {
@@ -244,7 +244,7 @@ function printChild (parentExp, i) {
     }
   } else {
     format = {
-      bind: x => printChildren(im.List([x.k, x.v]), 0, chalk.cyan(': ')),
+      bind: x => printChildren(im.List([x.k, x.v]), 0, chalk.cyan(':')),
       call: x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')'),
       list: x => chalk.cyan('[') + printChildren(x, 0) + chalk.cyan(']'),
       set: x => (
@@ -290,17 +290,24 @@ function evalRest (exp, env) {
     .map(exp => evalSymExp(exp, env))
 }
 
+const dbg = (msg, ...vals) => {
+  const ret = vals.pop()
+  console.debug(msg, ...vals)
+  return ret
+}
 const evalConj = (exp, env) => {
   const [x, ...vals] = evalRest(exp, env)
   return isSet(x)
     ? normalizeBinds(vals).reduce((x, b) => x.set(b.k, b.v), x)
     : isList(x)
       ? normalizeBinds(vals).reduce(
-          (x, b) => (b.k >= 0 && b.k <= x.count())
-            ? x.set(b.k, b.v)
-            : (b.k === b.v)
-                ? x.push(b.v)
-                : x,
+          (x, b) =>
+            (b.k != null && b.k >= -x.count() && b.k <= x.count())
+              ? x.set(b.k, b.v)
+              : (b.k === b.v)
+                  ? x.push(b.v)
+                  : x
+          ,
           x)
       : x
 }
