@@ -135,8 +135,7 @@ function unchainBind (leftVals, rightVal) {
 function normalizeBinds (binds) {
   return binds
     .map(val => isBind(val) ? val : bind(val, val))
-    .map(val => unchainBind(im.List(), val))
-    .reduce((a, b) => a.concat(b))
+    .flatMap(val => unchainBind(im.List(), val))
 }
 
 function evalSet (exp, env) {
@@ -292,16 +291,17 @@ function evalRest (exp, env) {
 
 const evalConj = (exp, env) => {
   const [x, ...vals] = evalRest(exp, env)
-  return normalizeBinds(vals)
-    .reduce(
-      isSet(x)
-        ? (x, b) => x.set(b.k, b.v)
-        : isList(x)
-          ? (x, b) => (b.k >= 0 && b.k <= x.count())
-              ? x.set(b.k, b.v)
-              : (b.k === b.v) ? x.push(b.v) : x
-          : (x, b) => x,
-      x)
+  return isSet(x)
+    ? normalizeBinds(vals).reduce((x, b) => x.set(b.k, b.v), x)
+    : isList(x)
+      ? normalizeBinds(vals).reduce(
+          (x, b) => (b.k >= 0 && b.k <= x.count())
+            ? x.set(b.k, b.v)
+            : (b.k === b.v)
+                ? x.push(b.v)
+                : x,
+          x)
+      : x
 }
 
 let replState = im.Record({
