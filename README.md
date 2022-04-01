@@ -1,6 +1,6 @@
 # Labeled, Structured Notation
 
-A notation for expressing data structures and is a superset of JSON. The novel
+A notation for expressing data structures and a superset of JSON. The novel
 idea is to generalize the concept of a 'label' found in JSON objects using a
 `:` (e.g., `"label": true`) to be made available in all data structures. The
 goal is to define a Lisp based configuration language that would act as a JSON+
