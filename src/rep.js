@@ -15,7 +15,7 @@ const Bind = im.Record({ k: null, v: null }, 'Bind')
 const symbol = sym => Symbol2({ sym })
 const sym = Object.fromEntries([
   '_',
-  'activeEval',
+  'evalActive',
   'bind',
   'comment',
   'complement',
@@ -34,6 +34,12 @@ const sym = Object.fromEntries([
   'set'
 ].map(x => [x, symbol(x)]))
 
+const dbg = (msg, ...vals) => {
+  const ret = vals.pop()
+  console.debug(msg, ...vals)
+  return ret
+}
+
 const isSymbol = x => x instanceof Symbol2
 const isList = x => im.List.isList(x)
 const isBind = x => x instanceof Bind
@@ -41,13 +47,14 @@ const isSet = x => im.Map.isMap(x)
 
 const getBindValue = x => isBind(x) ? getBindValue(x.v) : x
 
-const list = im.List
-const set = xs => im.Map(xs)
+const list = (...xs) => im.List(xs)
+const set = (...xs) => im.Map(xs)
 const bind = (k, v) => new Bind({ k, v })
-const doForm = xs => list([sym.do, ...xs])
+const doForm = xs => list(sym.do, ...xs)
+const expand = x => list(sym.expand, x)
 
-const emptyList = list([])
-const emptySet = set([])
+const emptyList = list()
+const emptySet = set()
 
 //
 // Read Section
@@ -60,9 +67,9 @@ function walkAST (ast, rules) {
   return rules[ast.type](ast, rules)
 }
 
-const children = (ast, rules) => list(ast.children.map(child => walkAST(child, rules)))
+const children = (ast, rules) => list(...ast.children.map(child => walkAST(child, rules)))
 const child = (ast, rules) => children(ast, rules).first()
-const sexpr = (type, f) => (ast, rules) => list([type, ...(f(ast, rules) || [])])
+const sexpr = (type, f) => (ast, rules) => list(type, ...(f(ast, rules) || []))
 
 const readRules = {
   forms: children,
@@ -102,30 +109,33 @@ function read (str) {
 // Evaluation Section
 //
 
+const evalActive = (exp, env) =>
+  env.get(sym.evalActive)(exp, env)
+
 const evalList = (exp, env) => {
-  return evalSymExp(
+  return evalActive(
     exp
       .rest()
       .reduce(
-        (r, exp) => list([sym.conj, r, exp]),
-        sym.emptyList),
+        (r, exp) => list(sym.conj, r, exp),
+        expand(sym.emptyList)),
     env)
 }
 
 function evalSet (exp, env) {
-  return evalSymExp(
+  return evalActive(
     exp
       .rest()
       .reduce(
-        (r, exp) => list([sym.conj, r, exp]),
-        sym.emptySet),
+        (r, exp) => list(sym.conj, r, exp),
+        expand(sym.emptySet)),
     env)
 }
 
 function evalBind (exp, env) {
   return bind(
-    exp.get(1),
-    env.get(sym.activeEval)(exp.get(2), env))
+    evalExp(exp.get(1), env.set(sym.evalActive, evalExp)),
+    evalActive(exp.get(2), env))
 }
 
 function unchainBind (leftVals, rightVal) {
@@ -180,7 +190,7 @@ function evalFn (expWhenDefined, envWhenDefined) {
 }
 
 function updateEnv (env, val) {
-  return normalizeBinds(list([bind(sym._, val)]))
+  return normalizeBinds(list(bind(sym._, val)))
     .reduce((env, val) => env.set(val.k, val.v), env)
 }
 
@@ -287,14 +297,9 @@ function evalEval (exp, env) {
 function evalRest (exp, env) {
   return exp
     .rest()
-    .map(exp => evalSymExp(exp, env))
+    .map(exp => evalActive(exp, env))
 }
 
-const dbg = (msg, ...vals) => {
-  const ret = vals.pop()
-  console.debug(msg, ...vals)
-  return ret
-}
 const evalConj = (exp, env) => {
   const [x, ...vals] = evalRest(exp, env)
   return isSet(x)
@@ -322,13 +327,13 @@ let replState = im.Record({
     [sym.list, evalList],
     [sym.quote, evalQuote],
     [sym.set, evalSet],
-    [sym.activeEval, evalSymExp],
+    [sym.evalActive, evalSymExp],
     [sym.fn, evalFn],
     [symbol('+'), (exp, env) => evalRest(exp, env).reduce((total, x) => total + x)],
     [symbol('-'), (exp, env) => evalRest(exp, env).reduce((total, x) => total - x)],
     [symbol('*'), (exp, env) => evalRest(exp, env).reduce((total, x) => total * x)],
     [symbol('/'), (exp, env) => evalRest(exp, env).reduce((total, x) => total / x)],
-    [symbol('normalizeBinds'), (exp, env) => list(normalizeBinds(evalRest(exp, env)))],
+    [symbol('normalizeBinds'), (exp, env) => list(...normalizeBinds(evalRest(exp, env)))],
     [symbol('='), (exp, env) => {
       const vals = evalRest(exp, env)
       return im.is(vals.get(0), vals.get(1))
@@ -358,11 +363,13 @@ function rep (str) {
     return out
   } catch (e) {
     console.dir(e)
-    return printChildren(list([bind(sym.error, `"${e.message}"`)]), 0)
+    return printChildren(list(bind(sym.error, `"${e.message}"`)), 0)
   }
 }
 
 module.exports = {
+  dbg,
+
   bind,
   list,
 
