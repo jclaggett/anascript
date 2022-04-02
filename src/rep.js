@@ -28,6 +28,7 @@ const sym = Object.fromEntries([
   'eval',
   'expand',
   'fn',
+  'get',
   'list',
   'quote',
   'read',
@@ -44,6 +45,7 @@ const isSymbol = x => x instanceof Symbol2
 const isList = x => im.List.isList(x)
 const isBind = x => x instanceof Bind
 const isSet = x => im.Map.isMap(x)
+const isColl = x => isList(x) || isSet(x)
 
 const getBindValue = x => isBind(x) ? getBindValue(x.v) : x
 
@@ -146,11 +148,23 @@ function unchainBind (leftVals, rightVal) {
   }
 }
 
+const get = (x, k) => {
+  return isColl(x) ? x.get(k) : null
+}
+
 function normalizeBinds (binds) {
   return binds
     .map(val => isBind(val) ? val : bind(val, val))
     .map(val => unchainBind(im.List(), val))
     .reduce((a, b) => a.concat(b))
+    .flatMap(b => {
+      if (isList(b.k)) {
+        dbg('destructuring list')
+        return b.k.map((x, i) => bind(x, get(b.v, i)))
+      } else {
+        return list(b)
+      }
+    })
 }
 
 function evalExpand (exp, env) {
@@ -167,7 +181,7 @@ function evalExp (exp, env) {
       ? evalSymExp(exp.first(), env)(exp, env)
       : exp
   } catch (e) {
-    e.message = `${exp.first()} is not a function`
+    e.message = `Error encountered when running ${exp.first()}`
     throw e
   }
 }
@@ -339,9 +353,9 @@ let replState = im.Record({
       return im.is(vals.get(0), vals.get(1))
     }],
     [symbol('inc'), (exp, env) => 1 + evalRest(exp, env).first()],
-    [symbol('get'), (exp, env) => {
+    [sym.get, (exp, env) => {
       const [s, k] = evalRest(exp, env)
-      return getBindValue(s.get(k))
+      return get(s, k)
     }],
     [symbol('conj'), evalConj],
     [symbol('type'), (exp, env) => expType(evalRest(exp, env).first())],
