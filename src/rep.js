@@ -29,6 +29,7 @@ const sym = Object.fromEntries([
   'expand',
   'fn',
   'get',
+  'isBindScope',
   'list',
   'quote',
   'read',
@@ -47,6 +48,7 @@ const isBind = x => x instanceof Bind
 const isSet = x => im.Map.isMap(x)
 const isColl = x => isList(x) || isSet(x)
 
+const isBindScope = env => env.get(sym.isBindScope, false)
 const getBindValue = x => isBind(x) ? getBindValue(x.v) : x
 
 const list = (...xs) => im.List(xs)
@@ -136,7 +138,11 @@ function evalSet (exp, env) {
 
 function evalBind (exp, env) {
   return bind(
-    evalExp(exp.get(1), env.set(sym.evalActive, evalExp)),
+    evalExp(
+      exp.get(1),
+      env
+        .set(sym.isBindScope, true)
+        .set(sym.evalActive, evalExp)),
     evalActive(exp.get(2), env))
 }
 
@@ -152,15 +158,30 @@ const get = (x, k) => {
   return isColl(x) ? x.get(k) : null
 }
 
+const rebind = (x, v, isBindValueKey = true) =>
+  isBind(x)
+    ? bind(x.k, rebind(x.v, v, isBindValueKey))
+    : isBindValueKey
+      ? bind(x, v)
+      : v
+
+const asBind = x =>
+  isBind(x) ? x : bind(x, x)
+
+// {a}: x       (bind a (get x \a)
+// {a:b}: x     (bind b (get x \a)
+// {a:b:c}: x   (bind a (bind b (get x \c)))
 function normalizeBinds (binds) {
   return binds
-    .map(val => isBind(val) ? val : bind(val, val))
+    .map(asBind)
     .map(val => unchainBind(im.List(), val))
     .reduce((a, b) => a.concat(b))
     .flatMap(b => {
-      if (isList(b.k)) {
-        dbg('destructuring list')
-        return b.k.map((x, i) => bind(x, get(b.v, i)))
+      if (isSet(b.k)) {
+        return b.k.keySeq().flatMap((x) =>
+          normalizeBinds([rebind(asBind(x), get(b.v, getBindValue(x)), false)]))
+      } else if (isList(b.k)) {
+        return b.k.flatMap((x, i) => normalizeBinds([rebind(x, get(b.v, i), true)]))
       } else {
         return list(b)
       }
@@ -317,22 +338,29 @@ function evalRest (exp, env) {
 const evalConj = (exp, env) => {
   const [x, ...vals] = evalRest(exp, env)
   return isSet(x)
-    ? normalizeBinds(vals).reduce((x, b) => x.set(b.k, b.v), x)
+    ? isBindScope(env)
+        ? vals.reduce((x, v) => x.set(v, v), x)
+        : normalizeBinds(vals).reduce((x, b) => x.set(b.k, b.v), x)
     : isList(x)
-      ? normalizeBinds(vals).reduce(
-          (x, b) =>
-            (b.k != null && b.k >= -x.count() && b.k <= x.count())
-              ? x.set(b.k, b.v)
-              : (b.k === b.v)
-                  ? x.push(b.v)
-                  : x
-          ,
-          x)
+      ? isBindScope(env)
+          ? vals.reduce((x, v) => x.push(v), x)
+          : normalizeBinds(vals).reduce(
+            (x, b) =>
+              (b.k != null && b.k >= -x.count() && b.k <= x.count())
+                ? x.set(b.k, b.v)
+                : (b.k === b.v)
+                    ? x.push(b.v)
+                    : x
+            ,
+            x)
       : x
 }
 
 let replState = im.Record({
   env: im.Map([
+    [sym.evalActive, evalSymExp],
+    [sym.isBindScope, false],
+
     [sym.comment, (exp, env) => exp],
     [sym.bind, evalBind],
     [sym.read, evalRead],
@@ -341,7 +369,6 @@ let replState = im.Record({
     [sym.list, evalList],
     [sym.quote, evalQuote],
     [sym.set, evalSet],
-    [sym.evalActive, evalSymExp],
     [sym.fn, evalFn],
     [symbol('+'), (exp, env) => evalRest(exp, env).reduce((total, x) => total + x)],
     [symbol('-'), (exp, env) => evalRest(exp, env).reduce((total, x) => total - x)],
