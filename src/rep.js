@@ -158,12 +158,10 @@ const get = (x, k) => {
   return isColl(x) ? x.get(k) : null
 }
 
-const rebind = (x, v, isBindValueKey = true) =>
+const rebind = (x, f) =>
   isBind(x)
-    ? bind(x.k, rebind(x.v, v, isBindValueKey))
-    : isBindValueKey
-      ? bind(x, v)
-      : v
+    ? bind(x.k, rebind(x.v, f))
+    : f(x)
 
 const asBind = x =>
   isBind(x) ? x : bind(x, x)
@@ -179,9 +177,9 @@ function normalizeBinds (binds) {
     .flatMap(b => {
       if (isSet(b.k)) {
         return b.k.keySeq().flatMap((x) =>
-          normalizeBinds([rebind(asBind(x), get(b.v, getBindValue(x)), false)]))
+          normalizeBinds([rebind(asBind(x), x => get(b.v, x))]))
       } else if (isList(b.k)) {
-        return b.k.flatMap((x, i) => normalizeBinds([rebind(x, get(b.v, i), true)]))
+        return b.k.flatMap((x, i) => normalizeBinds([rebind(x, x => bind(x, get(b.v, i)))]))
       } else {
         return list(b)
       }
