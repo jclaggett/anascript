@@ -154,9 +154,10 @@ function unchainBind (leftVals, rightVal) {
   }
 }
 
-const get = (x, k) => {
-  return isColl(x) ? x.get(k) : null
-}
+const get = (x, k) =>
+  isColl(x)
+    ? x.get(k)
+    : null
 
 const rebind = (x, f) =>
   isBind(x)
@@ -164,7 +165,9 @@ const rebind = (x, f) =>
     : f(x)
 
 const asBind = x =>
-  isBind(x) ? x : bind(x, x)
+  isBind(x)
+    ? x
+    : bind(x, x)
 
 // {a}: x       (bind a (get x \a)
 // {a:b}: x     (bind b (get x \a)
@@ -177,9 +180,9 @@ function normalizeBinds (binds) {
     .flatMap(b => {
       if (isSet(b.k)) {
         return b.k.keySeq().flatMap((x) =>
-          normalizeBinds([rebind(asBind(x), x => get(b.v, x))]))
+          normalizeBinds(list(rebind(asBind(x), x => get(b.v, x)))))
       } else if (isList(b.k)) {
-        return b.k.flatMap((x, i) => normalizeBinds([rebind(x, x => bind(x, get(b.v, i)))]))
+        return b.k.flatMap((x, i) => normalizeBinds(list(rebind(x, x => bind(x, get(b.v, i))))))
       } else {
         return list(b)
       }
@@ -335,14 +338,15 @@ function evalRest (exp, env) {
 
 const evalConj = (exp, env) => {
   const [x, ...vals] = evalRest(exp, env)
+  dbg('evalConj', { x: x.toJS(), vals: vals.map(x => x.toJS()) }, null)
   return isSet(x)
     ? isBindScope(env)
         ? vals.reduce((x, v) => x.set(v, v), x)
-        : normalizeBinds(vals).reduce((x, b) => x.set(b.k, b.v), x)
+        : normalizeBinds(list(...vals)).reduce((x, b) => x.set(b.k, b.v), x)
     : isList(x)
       ? isBindScope(env)
           ? vals.reduce((x, v) => x.push(v), x)
-          : normalizeBinds(vals).reduce(
+          : normalizeBinds(im.List(vals)).reduce(
             (x, b) =>
               (b.k != null && b.k >= -x.count() && b.k <= x.count())
                 ? x.set(b.k, b.v)
