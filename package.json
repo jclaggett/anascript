@@ -1,6 +1,10 @@
 {
   "name": "lsn",
   "version": "0.0.1",
+  "author": "Jonathan Claggett",
+  "email": "jonathan@claggett.org",
+  "url": "https://github.com/jclaggett/lsn",
+  "license": "ISC",
   "description": "Labeled Structure Notation, aiming to be used as a configuration language.",
   "bin": {
     "lsn": "src/cli.js"
@@ -18,8 +22,6 @@
     "json",
     "lisp"
   ],
-  "author": "Jonathan Claggett",
-  "license": "ISC",
   "dependencies": {
     "chalk": "^4.0.0",
     "ebnf": "^1.7.4",
