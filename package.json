@@ -13,7 +13,7 @@
   "scripts": {
     "test": "jest",
     "repl": "node src/node-repl.js",
-    "lsl": "src/repl.js",
+    "start": "src/repl.js",
     "debug": "node inspect src/repl.js"
   },
   "keywords": [
@@ -23,11 +23,12 @@
     "lisp"
   ],
   "dependencies": {
-    "chalk": "^4.0.0",
-    "ebnf": "^1.7.4",
-    "immutable": "^4.0.0-rc.12"
+    "chalk": "^4.1.2",
+    "ebnf": "^1.9.0",
+    "immutable": "^4.0.0"
   },
   "devDependencies": {
-    "standard": "^16.0.4"
+    "pnpm": "^6.32.9",
+    "standard": "^17.0.0"
   }
 }
