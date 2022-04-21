@@ -1,3 +1,6 @@
+# project history file
+.lsn_history
+
 # Logs
 logs
 *.log
