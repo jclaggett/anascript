@@ -10,7 +10,8 @@ const readline = require('readline')
 
 const chalk = require('chalk')
 
-const rep = require('./rep')
+// const rep = require('./rep')
+const rep = require('./rep2')
 
 const loadHistory = async (historyFile) => {
   return (await historyFile.readFile())
@@ -42,7 +43,9 @@ const main = async () => {
 
   rl.on('line', async (line) => {
     await saveHistory(historyFile, line)
-    rl.output.write((line === '') ? line : rep.rep(line) + os.EOL)
+    rl.output.write((line === '')
+      ? line
+      : rep.rep(line).join(os.EOL) + os.EOL)
     rl.prompt()
   }).on('close', () => {
     rl.output.write(os.EOL)
