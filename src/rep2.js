@@ -103,32 +103,20 @@ const form = ast => {
 }
 
 // Expanding
-// Enacting
+// Executing
 // Printing
 
-const printChildren = (exp, n, sep = ' ') => {
-  return exp
-    .slice(n)
-    .map((_, i) => printChild(exp, n + i))
-    .join(sep)
-}
-
-const printChild = (parentExp, i) => {
-  const childExp = parentExp.get(i)
-  return get(printRules, getType(childExp), x => x)(childExp)
-}
-
 const printRules = {
-  comment: x => chalk.dim.strikethrough('#' + printChildren(x, 1)),
-  bind: x => printChildren(x, 1, chalk.cyan(':')),
-  list: x => chalk.cyan('(') + printChildren(x, 0) + chalk.cyan(')'),
+  comment: x => chalk.dim.strikethrough('#' + printChildren(x.rest())),
+  bind: x => printChildren(x.rest(), chalk.cyan(':')),
+  list: x => chalk.cyan('(') + printChildren(x) + chalk.cyan(')'),
   set: x => (
     chalk.cyan('{') +
     printChildren(x.entrySeq().map(([k, v]) =>
-      im.is(k, v) ? v : makeBind(k, v)), 0) +
+      im.is(k, v) ? v : makeBind(k, v))) +
     chalk.cyan('}')),
-  expand: x => chalk.cyan('$') + printChildren(x, 1),
-  quote: x => chalk.cyan('\\') + printChildren(x, 1),
+  expand: x => chalk.cyan('$') + printChildren(x.rest()),
+  quote: x => chalk.cyan('\\') + printChildren(x.rest()),
   boolean: chalk.yellow,
   number: chalk.yellow,
   string: chalk.green,
@@ -137,9 +125,11 @@ const printRules = {
   object: chalk.yellow
 }
 
-const print = x => {
-  return printChild(makeList(x), 0)
-}
+const printChildren = (x, sep = ' ') =>
+  x.map(print).join(sep)
+
+const print = x =>
+  get(printRules, getType(x), x => x)(x)
 
 // General
 
