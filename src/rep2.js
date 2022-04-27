@@ -127,7 +127,7 @@ const call = (exp, env) => {
   try {
     const fn = evalSymListAtom(exp.first(), env)
     if (typeof fn !== 'function') {
-      throw new Error(`${print(exp.first())} is ${fn}`)
+      throw new Error(`${print(exp.first())} is ${fn} and not callable`)
     }
     return fn(exp, env)
   } catch (e) {
