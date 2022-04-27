@@ -117,62 +117,82 @@ const getEnv = (env, exp) =>
 
 const evalBind = (exp, env) =>
   makeBind(
-    evalExp(exp.get(1), env),
-    evalSym(exp.get(2), env))
+    evalListAtom(exp.get(1), env),
+    evalSymListAtom(exp.get(2), env))
 
 const evalExpand = (exp, env) =>
-  getEnv(env, evalExp(exp.get(1), env))
+  getEnv(env, evalListAtom(exp.get(1), env))
 
-const evalExp = (exp, env) => {
+const call = (exp, env) => {
   try {
-    if (isList(exp)) {
-      const fn = evalSym(exp.first(), env)
-      if (typeof fn !== 'function') {
-        throw new Error(`not callable: ${print(exp.first())} is ${fn}`)
-      }
-      return fn(exp, env)
-    } else {
-      return exp
+    const fn = evalSymListAtom(exp.first(), env)
+    if (typeof fn !== 'function') {
+      throw new Error(`${print(exp.first())} is ${fn}`)
     }
+    return fn(exp, env)
   } catch (e) {
-    e.message = `Failed evaluating ${print(exp)}\n  ${e.message}`
+    e.message = `${printLists(exp)}\n       ${e.message}`
     throw e
   }
 }
 
-const evalSym = (exp, env) =>
+const evalAtom = (exp, env) =>
+  exp // atoms always eval to themselves
+
+const evalListAtom = (exp, env) =>
+  isList(exp)
+    ? call(exp, env)
+    : evalAtom(exp, env)
+
+const evalSymListAtom = (exp, env) =>
   isSymbol(exp)
     ? getEnv(env, exp)
-    : evalExp(exp, env)
+    : evalListAtom(exp, env)
 
 const evaluate = (exp, env) =>
-  evalSym(exp, env)
+  evalSymListAtom(exp, env)
 
 // Printing
 const printRules = {
-  comment: x => chalk.dim.strikethrough('#' + printChildren(x.rest())),
-  bind: x => printChildren(x.rest(), chalk.cyan(':')),
-  list: x => chalk.cyan('(') + printChildren(x) + chalk.cyan(')'),
-  set: x => (
+  comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
+  bind: (x, r) => printChildren(x.rest(), r, chalk.cyan(':')),
+  list: (x, r) =>
+    chalk.cyan('(') +
+    printChildren(x, r) +
+    chalk.cyan(')'),
+  set: (x, r) =>
     chalk.cyan('{') +
-    printChildren(x.entrySeq().map(([k, v]) =>
-      im.is(k, v) ? v : makeBind(k, v))) +
-    chalk.cyan('}')),
-  expand: x => chalk.cyan('$') + printChildren(x.rest()),
-  quote: x => chalk.cyan('\\') + printChildren(x.rest()),
-  boolean: chalk.yellow,
-  number: chalk.yellow,
-  string: chalk.green,
-  symbol: x => (x.name in symbols ? chalk.blue.bold : chalk.blue)(x.name),
-  undefined: chalk.yellow,
-  object: chalk.yellow
+    printChildren(
+      x.entrySeq().map(([k, v]) => im.is(k, v) ? v : makeBind(k, v)),
+      r) +
+    chalk.cyan('}'),
+  expand: (x, r) => chalk.cyan('$') + printChildren(x.rest()),
+  quote: (x, r) => chalk.cyan('\\') + printChildren(x.rest()),
+  symbol: (x, r) => (x.name in symbols ? chalk.blue.bold : chalk.blue)(x.name),
+  string: (x, r) => chalk.green(x),
+  boolean: (x, r) => chalk.yellow(x),
+  number: (x, r) => chalk.yellow(x),
+  undefined: (x, r) => chalk.yellow(x),
+  object: (x, r) => chalk.yellow(x)
 }
 
-const printChildren = (x, sep = ' ') =>
-  x.map(print).join(sep)
+const listPrintRules = {
+  ...printRules,
 
-const print = x =>
-  get(printRules, getType(x), x => x)(x)
+  bind: printRules.list,
+  comment: printRules.list,
+  expand: printRules.list,
+  quote: printRules.list
+}
+
+const printChildren = (x, rules, sep = ' ') =>
+  x.map(child => print(child, rules)).join(sep)
+
+const print = (x, rules = printRules) =>
+  get(rules, getType(x), x => x)(x, rules)
+
+const printLists = x =>
+  print(x, listPrintRules)
 
 // General
 
@@ -200,7 +220,7 @@ const rep = str => {
             .update('vals', x => x.push(val))
         },
         env.set('vals', im.List()))
-    return env.get('vals').map(print)
+    return env.get('vals').map(val => print(val))
   } catch (e) {
     console.dir(e)
     return im.List([`"${e.message}"`])
