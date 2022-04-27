@@ -8,6 +8,13 @@ const ebnf = require('ebnf')
 const im = require('immutable')
 
 // Utils
+
+const dbg = (msg, ...vals) => {
+  const ret = vals.pop()
+  console.debug(msg, ...vals)
+  return ret
+}
+
 const get = (o, k, d) =>
   k in o ? o[k] : d
 
@@ -88,7 +95,7 @@ const formRules = {
   complement: formSymList('complement', formChildren),
 
   number: ast => parseFloat(ast.text),
-  string: ast => ast.text,
+  string: ast => ast.text.substr(1, ast.text.length - 2),
   boolean: ast => ast.text === 'true',
   null: ast => null,
   undefined: ast => undefined,
@@ -174,5 +181,6 @@ module.exports = {
   // eval2,
   // print,
 
+  dbg,
   rep
 }
