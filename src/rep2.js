@@ -109,10 +109,46 @@ const form = ast => {
   return formRules[ast.type](ast)
 }
 
-// Expanding
-// Executing
-// Printing
+// Evaluating
+const getEnv = (env, exp) =>
+  im.is(exp, sym('env'))
+    ? env
+    : env.get(exp)
 
+const evalBind = (exp, env) =>
+  makeBind(
+    evalExp(exp.get(1), env),
+    evalSym(exp.get(2), env))
+
+const evalExpand = (exp, env) =>
+  getEnv(env, evalExp(exp.get(1), env))
+
+const evalExp = (exp, env) => {
+  try {
+    if (isList(exp)) {
+      const fn = evalSym(exp.first(), env)
+      if (typeof fn !== 'function') {
+        throw new Error(`not callable: ${print(exp.first())} is ${fn}`)
+      }
+      return fn(exp, env)
+    } else {
+      return exp
+    }
+  } catch (e) {
+    e.message = `Failed evaluating ${print(exp)}\n  ${e.message}`
+    throw e
+  }
+}
+
+const evalSym = (exp, env) =>
+  isSymbol(exp)
+    ? getEnv(env, exp)
+    : evalExp(exp, env)
+
+const evaluate = (exp, env) =>
+  evalSym(exp, env)
+
+// Printing
 const printRules = {
   comment: x => chalk.dim.strikethrough('#' + printChildren(x.rest())),
   bind: x => printChildren(x.rest(), chalk.cyan(':')),
@@ -143,32 +179,32 @@ const print = x =>
 const read = str =>
   form(parse(str))
 
+const bindVals = (env, exp) =>
+  env
+
+let env = im.Map([
+  [sym('bind'), evalBind],
+  [sym('expand'), evalExpand],
+  [sym('env'), sym('env')],
+  ['expTotal', 1]
+])
+
 const rep = str => {
   try {
-    return read(str).map(print)
+    env = read(str)
+      .reduce(
+        (env, exp) => {
+          const val = evaluate(makeBind(env.get('expTotal'), exp), env)
+          return bindVals(env, val)
+            .update('expTotal', x => x + 1)
+            .update('vals', x => x.push(val))
+        },
+        env.set('vals', im.List()))
+    return env.get('vals').map(print)
   } catch (e) {
     console.dir(e)
-    return `"${e.message}"`
+    return im.List([`"${e.message}"`])
   }
-  /*
-  try {
-    const exps = read(str)
-    state = exps.reduce(
-      (state, exp) => {
-        const val = eval2(frm.bind(env.get('expTotal'), exp), state.env)
-        return state
-          .update('env', env =>
-            updateEnv(env, val)
-              .update('expTotal', x => x + 1))
-          .update('vals', vals => vals.push(val))
-      },
-      state.set('vals', im.List()))
-    return state.get('vals').map(print)
-  } catch (e) {
-    console.dir(e)
-    return print(list(bind(sym('error'), `"${e.message}"`)))
-  }
-  */
 }
 
 module.exports = {
