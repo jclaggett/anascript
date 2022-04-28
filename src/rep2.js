@@ -119,33 +119,42 @@ const evalBind = (exp, env) =>
   makeBind(
     evalListAtom(exp.get(1), env),
     evalSymListAtom(exp.get(2), env))
+evalBind.special = true
 
 const evalExpand = (exp, env) =>
   getEnv(env, evalListAtom(exp.get(1), env))
+evalExpand.special = true
+
+const isSpecial = (fn) => 'special' in fn
 
 const evalFn = (exp, env) => {
   const fn = evalSymListAtom(exp, env)
   if (typeof fn !== 'function') {
-    throw new Error(`${printLists(env.get('rootForm'))}\n        ^ ${printLists(exp)} is ${fn} and not callable.`)
+    throw new Error(`${printLists(env.get('rootForm'))}
+       ^ ${printLists(exp)} is ${fn} and not callable.`)
   }
-  return fn
+  return isSpecial(fn)
+    ? fn
+    : (exp, env) =>
+        fn(...exp
+          .rest()
+          .map(exp => evalSymListAtom(exp, env))
+          .toArray())
 }
+
+const evalList = (exp, env) =>
+  evalFn(exp.first(), env)(exp, env)
+
+const evalSym = (exp, env) =>
+  getEnv(env, exp)
 
 const evalAtom = (exp, env) =>
   exp // atoms always eval to themselves (even syms!)
-
-const evalList = (exp, env) => {
-  const fn = evalFn(exp.first(), env)
-  return fn(exp, env)
-}
 
 const evalListAtom = (exp, env) =>
   isList(exp)
     ? evalList(exp, env)
     : evalAtom(exp, env)
-
-const evalSym = (exp, env) =>
-  getEnv(env, exp)
 
 const evalSymListAtom = (exp, env) =>
   isSym(exp)
@@ -206,9 +215,11 @@ const bindVals = (env, exp) =>
   env
 
 let env = im.Map([
+  [sym('env'), undefined], // This is a meta reference
+
   [sym('bind'), evalBind],
   [sym('expand'), evalExpand],
-  [sym('env'), sym('env')],
+  [sym('+'), (...args) => args.reduce((sum, x) => sum + x, 0)],
   ['expTotal', 1]
 ])
 
