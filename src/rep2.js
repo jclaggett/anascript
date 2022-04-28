@@ -19,15 +19,15 @@ const get = (o, k, d) =>
   k in o ? o[k] : d
 
 // Language primitives
-const Symbol2 = im.Record({ name: null }, 'Symbol2')
-const makeSymbol = name => Symbol2({ name })
+const Sym = im.Record({ name: null }, 'Sym')
+const makeSym = name => Sym({ name })
 
-const symbols = {}
+const syms = {}
 const sym = name => {
-  if (!(name in symbols)) {
-    symbols[name] = makeSymbol(name)
+  if (!(name in syms)) {
+    syms[name] = makeSym(name)
   }
-  return symbols[name]
+  return syms[name]
 }
 
 const makeList = (...xs) => im.List(xs)
@@ -35,7 +35,7 @@ const makeList = (...xs) => im.List(xs)
 const makeBind = (k, v) => makeList(sym('bind'), k, v)
 // const makeExpand = x => makeList(sym('expand'), x)
 
-const isSymbol = x => x instanceof Symbol2
+const isSym = x => x instanceof Sym
 const isList = x => im.List.isList(x)
 const isSet = x => im.Map.isMap(x)
 const isBindList = x => x.first() === sym('bind')
@@ -44,8 +44,8 @@ const isBindList = x => x.first() === sym('bind')
 const getType = x =>
   isSet(x)
     ? 'set'
-    : isSymbol(x)
-      ? 'symbol'
+    : isSym(x)
+      ? 'sym'
       : isList(x)
         ? isBindList(x)
           ? 'bind'
@@ -99,7 +99,7 @@ const formRules = {
   boolean: ast => ast.text === 'true',
   null: ast => null,
   undefined: ast => undefined,
-  symbol: ast => symbols[ast.text] || makeSymbol(ast.text)
+  symbol: ast => syms[ast.text] || makeSym(ast.text)
 }
 
 const form = ast => {
@@ -123,34 +123,37 @@ const evalBind = (exp, env) =>
 const evalExpand = (exp, env) =>
   getEnv(env, evalListAtom(exp.get(1), env))
 
-const call = (exp, env) => {
-  try {
-    const fn = evalSymListAtom(exp.first(), env)
-    if (typeof fn !== 'function') {
-      throw new Error(`${print(exp.first())} is ${fn} and not callable`)
-    }
-    return fn(exp, env)
-  } catch (e) {
-    e.message = `${printLists(exp)}\n       ${e.message}`
-    throw e
+const evalFn = (exp, env) => {
+  const fn = evalSymListAtom(exp, env)
+  if (typeof fn !== 'function') {
+    throw new Error(`${printLists(env.get('rootForm'))}\n        ^ ${printLists(exp)} is ${fn} and not callable.`)
   }
+  return fn
 }
 
 const evalAtom = (exp, env) =>
-  exp // atoms always eval to themselves
+  exp // atoms always eval to themselves (even syms!)
+
+const evalList = (exp, env) => {
+  const fn = evalFn(exp.first(), env)
+  return fn(exp, env)
+}
 
 const evalListAtom = (exp, env) =>
   isList(exp)
-    ? call(exp, env)
+    ? evalList(exp, env)
     : evalAtom(exp, env)
 
+const evalSym = (exp, env) =>
+  getEnv(env, exp)
+
 const evalSymListAtom = (exp, env) =>
-  isSymbol(exp)
-    ? getEnv(env, exp)
+  isSym(exp)
+    ? evalSym(exp, env)
     : evalListAtom(exp, env)
 
 const evaluate = (exp, env) =>
-  evalSymListAtom(exp, env)
+  evalSymListAtom(exp, env.set('rootForm', exp))
 
 // Printing
 const printRules = {
@@ -168,7 +171,7 @@ const printRules = {
     chalk.cyan('}'),
   expand: (x, r) => chalk.cyan('$') + printChildren(x.rest()),
   quote: (x, r) => chalk.cyan('\\') + printChildren(x.rest()),
-  symbol: (x, r) => (x.name in symbols ? chalk.blue.bold : chalk.blue)(x.name),
+  sym: (x, r) => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
   string: (x, r) => chalk.green(x),
   boolean: (x, r) => chalk.yellow(x),
   number: (x, r) => chalk.yellow(x),
@@ -223,7 +226,7 @@ const rep = str => {
     return env.get('vals').map(val => print(val))
   } catch (e) {
     console.dir(e)
-    return im.List([`"${e.message}"`])
+    return im.List([])
   }
 }
 
