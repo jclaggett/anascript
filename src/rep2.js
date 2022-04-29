@@ -38,18 +38,14 @@ const makeBind = (k, v) => makeList(sym('bind'), k, v)
 const isSym = x => x instanceof Sym
 const isList = x => im.List.isList(x)
 const isSet = x => im.Map.isMap(x)
-const isBindList = x => x.first() === sym('bind')
-// const isColl = x => isList(x) || isSet(x)
 
 const getType = x =>
   isSet(x)
     ? 'set'
     : isSym(x)
-      ? 'sym'
+      ? 'symbol'
       : isList(x)
-        ? isBindList(x)
-          ? 'bind'
-          : 'list'
+        ? 'list'
         : typeof x
 
 // Parsing
@@ -59,7 +55,7 @@ const lsnParser = new ebnf.Grammars.W3C.Parser(
     .toString())
 
 const parse = str => {
-  const ast = lsnParser.getAST(str)
+  const ast = lsnParser.getAST(str + ' ')
 
   if (!ast) {
     throw new Error('Failed to parse input')
@@ -125,8 +121,8 @@ const isSpecial = (fn) => 'special' in fn
 const evalFn = (exp, env) => {
   const fn = evalSymListAtom(exp, env)
   if (typeof fn !== 'function') {
-    throw new Error(`${printLists(env.get('evalForm'))}
-       ^ ${printLists(exp)} is ${fn} and not callable.`)
+    throw new Error(`${print(env.get('evalForm'))}
+       ^ ${print(exp)} is ${fn} and not callable.`)
   }
   return isSpecial(fn)
     ? fn
@@ -175,8 +171,6 @@ const evalSymListAtom = (exp, env) =>
 
 // Printing
 const printRules = {
-  comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
-  bind: (x, r) => printChildren(x.rest(), r, chalk.cyan(':')),
   list: (x, r) =>
     chalk.cyan('(') +
     printChildren(x, r) +
@@ -187,24 +181,19 @@ const printRules = {
       x.entrySeq().map(([k, v]) => im.is(k, v) ? v : makeBind(k, v)),
       r) +
     chalk.cyan('}'),
-  expand: (x, r) => chalk.cyan('$') + printChildren(x.rest()),
-  quote: (x, r) => chalk.cyan('\\') + printChildren(x.rest()),
-  sym: (x, r) => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
+  symbol: (x, r) => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
   string: (x, r) => chalk.green(x),
   boolean: (x, r) => chalk.yellow(x),
   number: (x, r) => chalk.yellow(x),
   undefined: (x, r) => chalk.yellow(x),
   object: (x, r) => chalk.yellow(x),
-  function: (x, r) => chalk.yellow(`<${x.name}>`)
-}
+  function: (x, r) => chalk.yellow(`<${x.name}>`),
 
-const listPrintRules = {
-  ...printRules,
-
-  bind: printRules.list,
-  comment: printRules.list,
-  expand: printRules.list,
-  quote: printRules.list
+  // For now, these forms are just printed as lists
+  comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
+  bind: (x, r) => printChildren(x.rest(), r, chalk.cyan(':')),
+  expand: (x, r) => chalk.cyan('$') + printChildren(x.rest()),
+  quote: (x, r) => chalk.cyan('\\') + printChildren(x.rest())
 }
 
 const printChildren = (x, rules, sep = ' ') =>
@@ -212,9 +201,6 @@ const printChildren = (x, rules, sep = ' ') =>
 
 const print = (x, rules = printRules) =>
   get(rules, getType(x), x => x)(x, rules)
-
-const printLists = x =>
-  print(x, listPrintRules)
 
 // General
 
@@ -225,7 +211,7 @@ const bindVals = (env, exp) =>
   env
 
 let env = im.Map([
-  [sym('bind'), special(evalBind)],
+  [sym('read'), read],
   [sym('bind'), special(evalBind)],
   [sym('expand'), special(evalExpand)],
   [sym('quote'), special(evalQuote)],

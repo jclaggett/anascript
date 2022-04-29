@@ -1,7 +1,7 @@
 /* Labeled, Structured Notation v1.4 */
 
 /* Abstract (No syntax) */
-forms           ::= (WS* form1)*
+forms           ::= (WS* form1)* WS*
 form1           ::= comment | form2
 form2           ::= bind | form3
 form3           ::= expand | quote | form4
