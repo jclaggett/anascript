@@ -214,12 +214,14 @@ const bindVals = (env, exp) =>
   env
 
 let env = im.Map([
-  [sym('read'), read],
+  [sym('read'), str => read(str).first()],
   [sym('bind'), special(evalBind)],
   [sym('expand'), special(evalExpand)],
   [sym('quote'), special(evalQuote)],
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],
+
+  [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
   ['expTotal', 1]
 ])
 
