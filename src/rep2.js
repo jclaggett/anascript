@@ -22,7 +22,7 @@ const get = (o, k, d) =>
 const Sym = im.Record({ name: null }, 'Sym')
 const makeSym = name => Sym({ name })
 
-const syms = {}
+const syms = { env: makeSym('env') }
 const sym = name => {
   if (!(name in syms)) {
     syms[name] = makeSym(name)
@@ -148,6 +148,12 @@ const evalExpand = (exp, env) =>
 const evalQuote = (exp, env) =>
   exp.get(1)
 
+const evalEval = (exp, env) =>
+  evalSymListAtom(evalSymListAtom(exp.get(1), env), env)
+
+const evalEval2 = (exp, env) =>
+  evalListAtom(evalSymListAtom(exp.get(1), env), env)
+
 const evalAtom = (exp, env) =>
   exp // atoms always eval to themselves (even syms!)
 
@@ -188,7 +194,8 @@ const printRules = {
   boolean: (x, r) => chalk.yellow(x),
   number: (x, r) => chalk.yellow(x),
   undefined: (x, r) => chalk.yellow(x),
-  object: (x, r) => chalk.yellow(x)
+  object: (x, r) => chalk.yellow(x),
+  function: (x, r) => chalk.yellow(`<${x.name}>`)
 }
 
 const listPrintRules = {
@@ -218,16 +225,12 @@ const bindVals = (env, exp) =>
   env
 
 let env = im.Map([
-  [sym('env'), undefined], // This is a meta reference
-
+  [sym('bind'), special(evalBind)],
   [sym('bind'), special(evalBind)],
   [sym('expand'), special(evalExpand)],
   [sym('quote'), special(evalQuote)],
-  [sym('eval'), special((exp, env) =>
-    evalSymListAtom(evalSymListAtom(exp.get(1), env), env))],
-  [sym('eval2'), special((exp, env) =>
-    evalListAtom(evalSymListAtom(exp.get(1), env), env))],
-  [sym('+'), (...args) => args.reduce((sum, x) => sum + x, 0)],
+  [sym('eval'), special(evalEval)],
+  [sym('eval2'), special(evalEval2)],
   ['expTotal', 1]
 ])
 
