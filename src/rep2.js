@@ -191,16 +191,19 @@ const printRules = {
 
   // For now, these forms are just printed as lists
   comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
-  bind: (x, r) => printChildren(x.rest(), r, chalk.cyan(':')),
+  bind: (x, r) => printChildren(x.rest(), r, chalk.cyan(': ')),
   expand: (x, r) => chalk.cyan('$') + printChildren(x.rest()),
   quote: (x, r) => chalk.cyan('\\') + printChildren(x.rest())
 }
 
+const printBind = (x, r = printRules) =>
+  r.bind(x, r)
+
 const printChildren = (x, rules, sep = ' ') =>
   x.map(child => print(child, rules)).join(sep)
 
-const print = (x, rules = printRules) =>
-  get(rules, getType(x), x => x)(x, rules)
+const print = (x, r = printRules) =>
+  get(r, getType(x), x => x)(x, r)
 
 // General
 
@@ -233,7 +236,7 @@ const rep = str => {
             .update('vals', x => x.push(val))
         },
         env.set('vals', im.List()))
-    return env.get('vals').map(val => print(val))
+    return env.get('vals').map(val => printBind(val))
   } catch (e) {
     console.dir(e)
     return im.List([])
