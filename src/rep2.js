@@ -138,16 +138,21 @@ const evalFn = (exp, env) => {
           .toArray())
 }
 
-const expandBind = exp =>
+const rebind = (exp, fn) =>
+  isForm(exp, 'bind', 'binds')
+    ? exp.update(-1, x => rebind(x, fn))
+    : fn(exp)
+
+const destructBind = exp =>
   isForm(exp, 'bind')
     ? isForm(exp.get(1), 'list')
       ? exp
         .get(1)
         .rest()
-        .map((exp, i) => expandBind(makeBind(exp, i)))
+        .map((exp, i) => destructBind(rebind(exp, k => makeBind(k, i))))
         .unshift(sym('binds'))
-        .push(exp.get(2))
-      : exp
+        .push(exp.last())
+      : exp.update(-1, destructBind)
     : exp
 
 const evalBind = (exp, env) =>
@@ -231,17 +236,10 @@ const print = (x, r = printRules) =>
 const read = str =>
   form(parse(str))
 
-const unchainBind = (bnd, bnds = makeList()) =>
-  isForm(bnd.last(), 'bind', 'binds')
-    ? unchainBind(bnd.last(), bnds.push(bnd))
-    : bnds.map(x => x.pop().push(bnd.last())).push(bnd)
-
-const rebind = (exp, v) =>
-  isForm(exp, 'bind')
-    ? makeBind(exp.get(1), v.get(exp.get(2)))
-    : isForm(exp, 'binds')
-      ? exp.slice(1, -1).unshift(sym('binds')).push(v.get(exp.last()))
-      : exp
+const unchainBind = (exp, bnds = makeList()) =>
+  isForm(exp, 'bind', 'binds')
+    ? unchainBind(exp.last(), bnds.push(exp))
+    : bnds.map(x => x.set(-1, exp))
 
 const applyBind = (m, exp) =>
   isForm(exp, 'bind', 'binds')
@@ -251,7 +249,7 @@ const applyBind = (m, exp) =>
         ? m.set(exp.get(1), exp.get(2))
         : exp
           .slice(1, -1)
-          .map(x => rebind(x, exp.last()))
+          .map(x => rebind(x, k => exp.last().get(k)))
           .reduce(applyBind, m)
     : m
 
@@ -276,7 +274,7 @@ const rep = str => {
       .reduce(
         (env, exp) => {
           const val = evalSymCallAtom(
-            makeBind(env.get('expTotal'), expandBind(exp)),
+            makeBind(env.get('expTotal'), destructBind(exp)),
             env.set('evalForm', exp))
           return applyBind(env,
             dbg('applyingBind',
