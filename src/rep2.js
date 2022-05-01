@@ -38,6 +38,8 @@ const makeBind = (k, v) => makeList(sym('bind'), k, v)
 const isSym = x => x instanceof Sym
 const isList = x => im.List.isList(x)
 const isSet = x => im.Map.isMap(x)
+const isForm = (x, ...names) =>
+  isList(x) && names.some(name => im.is(x.first(), sym(name)))
 
 const getType = x =>
   isSet(x)
@@ -118,8 +120,11 @@ const special = fn => {
 
 const isSpecial = (fn) => 'special' in fn
 
+const evalList = (exp, env) =>
+  exp.rest().map(x => evalSymCallAtom(x, env))
+
 const evalFn = (exp, env) => {
-  const fn = evalSymListAtom(exp, env)
+  const fn = evalSymCallAtom(exp, env)
   if (typeof fn !== 'function') {
     throw new Error(`${print(env.get('evalForm'))}
        ^ ${print(exp)} is ${fn} and not callable.`)
@@ -129,45 +134,61 @@ const evalFn = (exp, env) => {
     : (exp, env) =>
         fn(...exp
           .rest()
-          .map(exp => evalSymListAtom(exp, env))
+          .map(exp => evalSymCallAtom(exp, env))
           .toArray())
 }
 
+const expandBind = exp =>
+  isForm(exp, 'bind')
+    ? isForm(exp.get(1), 'list')
+      ? exp
+        .get(1)
+        .rest()
+        .map((exp, i) => expandBind(makeBind(exp, i)))
+        .unshift(sym('binds'))
+        .push(exp.get(2))
+      : exp
+    : exp
+
 const evalBind = (exp, env) =>
   makeBind(
-    evalListAtom(exp.get(1), env),
-    evalSymListAtom(exp.get(2), env))
+    evalCallAtom(exp.get(1), env),
+    evalSymCallAtom(exp.get(2), env))
+
+const evalBinds = (exp, env) =>
+  makeList(sym('binds'))
+    .concat(exp.rest().map(exp => evalSymCallAtom(exp, env)))
 
 const evalExpand = (exp, env) =>
-  getEnv(env, evalListAtom(exp.get(1), env))
+  getEnv(env, evalCallAtom(exp.get(1), env))
 
 const evalQuote = (exp, env) =>
   exp.get(1)
 
 const evalEval = (exp, env) =>
-  evalSymListAtom(evalSymListAtom(exp.get(1), env), env)
+  evalSymCallAtom(evalSymCallAtom(exp.get(1), env), env)
 
 const evalEval2 = (exp, env) =>
-  evalListAtom(evalSymListAtom(exp.get(1), env), env)
+  evalCallAtom(evalSymCallAtom(exp.get(1), env), env)
 
 const evalAtom = (exp, env) =>
   exp // atoms always eval to themselves (even syms!)
 
-const evalList = (exp, env) =>
+const evalCall = (exp, env) =>
   evalFn(exp.first(), env)(exp, env)
 
 const evalSym = (exp, env) =>
   getEnv(env, exp)
 
-const evalListAtom = (exp, env) =>
+const evalCallAtom = (exp, env) =>
   isList(exp)
-    ? evalList(exp, env)
+    ? evalCall(exp, env)
     : evalAtom(exp, env)
 
-const evalSymListAtom = (exp, env) =>
+const evalSymCallAtom = (exp, env) =>
   isSym(exp)
     ? evalSym(exp, env)
-    : evalListAtom(exp, env)
+    : evalCallAtom(exp, env)
 
 // Printing
 const printRules = {
@@ -182,7 +203,7 @@ const printRules = {
       r) +
     chalk.cyan('}'),
   symbol: (x, r) => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
-  string: (x, r) => chalk.green(x),
+  string: (x, r) => chalk.green(`"${x}"`),
   boolean: (x, r) => chalk.yellow(x),
   number: (x, r) => chalk.yellow(x),
   undefined: (x, r) => chalk.yellow(x),
@@ -210,16 +231,40 @@ const print = (x, r = printRules) =>
 const read = str =>
   form(parse(str))
 
-const bindVals = (env, exp) =>
-  env
+const unchainBind = (bnd, bnds = makeList()) =>
+  isForm(bnd.last(), 'bind', 'binds')
+    ? unchainBind(bnd.last(), bnds.push(bnd))
+    : bnds.map(x => x.pop().push(bnd.last())).push(bnd)
+
+const rebind = (exp, v) =>
+  isForm(exp, 'bind')
+    ? makeBind(exp.get(1), v.get(exp.get(2)))
+    : isForm(exp, 'binds')
+      ? exp.slice(1, -1).unshift(sym('binds')).push(v.get(exp.last()))
+      : exp
+
+const applyBind = (m, exp) =>
+  isForm(exp, 'bind', 'binds')
+    ? isForm(exp.last(), 'bind', 'binds')
+      ? unchainBind(exp).reduce(applyBind, m)
+      : isForm(exp, 'bind')
+        ? m.set(exp.get(1), exp.get(2))
+        : exp
+          .slice(1, -1)
+          .map(x => rebind(x, exp.last()))
+          .reduce(applyBind, m)
+    : m
 
 let env = im.Map([
   [sym('read'), str => read(str).first()],
   [sym('bind'), special(evalBind)],
+  [sym('binds'), special(evalBinds)],
   [sym('expand'), special(evalExpand)],
   [sym('quote'), special(evalQuote)],
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],
+
+  [sym('list'), special(evalList)],
 
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
   ['expTotal', 1]
@@ -230,10 +275,13 @@ const rep = str => {
     env = read(str)
       .reduce(
         (env, exp) => {
-          const val = evalSymListAtom(
-            makeBind(env.get('expTotal'), exp),
+          const val = evalSymCallAtom(
+            makeBind(env.get('expTotal'), expandBind(exp)),
             env.set('evalForm', exp))
-          return bindVals(env, val)
+          return applyBind(env,
+            dbg('applyingBind',
+              print(makeBind(sym('_'), val)),
+              makeBind(sym('_'), val)))
             .update('expTotal', x => x + 1)
             .update('vals', x => x.push(val))
         },
