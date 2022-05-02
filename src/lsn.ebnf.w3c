@@ -2,13 +2,14 @@
 
 /* Abstract (No syntax) */
 forms           ::= (WS* form1)* WS*
-form1           ::= comment | form2
+form1           ::= comment | spread | form2
 form2           ::= bind | form3
 form3           ::= expand | quote | form4
 form4           ::= round | square | curly | complement | number | string | boolean | null | undefined | symbol
 
 /* Concrete (syntax) */
 comment         ::= NUMBER_SIGN form1
+spread          ::= ELLIPSIS form1
 bind            ::= form3 COLON form1
 expand          ::= DOLLAR_SIGN form3
 quote           ::= BACKSLASH form3
@@ -27,6 +28,7 @@ symbol          ::= (OCHAR | SCHAR) (OCHAR | SCHAR | [0-9])*
 OCHAR           ::= ("=" | "!" | "@" | "%" | "^" | "&" | "*" | "-" | "+" | ">" | "<" | "?" | "/" | "|" )
 SCHAR           ::= ([a-z] | [A-Z] | "_")
 HEXDIG          ::= [a-fA-F0-9]
+ELLIPSIS        ::= WS* "..." WS*
 BACKSLASH       ::= WS* "\\" WS*
 DOLLAR_SIGN     ::= WS* "$" WS*
 NUMBER_SIGN     ::= WS* "#" WS*

@@ -87,6 +87,7 @@ const formRules = {
   bind: formSymList('bind', formChildren),
   expand: formSymList('expand', formChildren),
   quote: formSymList('quote', formChildren),
+  spread: formSymList('spread', formChildren),
   round: formChild,
   square: formSymList('list', formChild),
   curly: formSymList('set', formChild),
@@ -139,19 +140,19 @@ const evalFn = (exp, env) => {
 }
 
 const rebind = (exp, fn) =>
-  isForm(exp, 'bind', 'binds')
+  isForm(exp, 'bind', 'binds', 'spread')
     ? exp.update(-1, x => rebind(x, fn))
     : fn(exp)
 
 const destructBind = exp =>
-  isForm(exp, 'bind')
+  isForm(exp, 'bind', 'spread')
     ? isForm(exp.get(1), 'list')
       ? exp
         .get(1)
         .rest()
         .map((exp, i) => destructBind(rebind(exp, k => makeBind(k, i))))
         .unshift(sym('binds'))
-        .push(exp.last())
+        .push(destructBind(exp.last()))
       : exp.update(-1, destructBind)
     : exp
 
@@ -159,6 +160,9 @@ const evalBind = (exp, env) =>
   makeBind(
     evalCallAtom(exp.get(1), env),
     evalSymCallAtom(exp.get(2), env))
+
+const evalSpread = (exp, env) =>
+  exp.update(1, x => evalCallAtom(x, env))
 
 const evalBinds = (exp, env) =>
   makeList(sym('binds'))
@@ -249,9 +253,13 @@ const applyBind = (m, exp) =>
         ? m.set(exp.get(1), exp.get(2))
         : exp
           .slice(1, -1)
-          .map(x => rebind(x, k => exp.last().get(k)))
+          .map(x => rebind(x, isForm(x, 'spread')
+            ? k => exp.last().slice(k)
+            : k => exp.last().get(k)))
           .reduce(applyBind, m)
-    : m
+    : isForm(exp, 'spread')
+      ? applyBind(m, exp.last())
+      : m
 
 let env = im.Map([
   [sym('read'), str => read(str).first()],
@@ -259,6 +267,8 @@ let env = im.Map([
   [sym('binds'), special(evalBinds)],
   [sym('expand'), special(evalExpand)],
   [sym('quote'), special(evalQuote)],
+  [sym('spread'), special(evalSpread)],
+
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],
 
