@@ -286,10 +286,7 @@ const rep = str => {
           const val = evalSymCallAtom(
             makeBind(env.get('expTotal'), destructBind(exp)),
             env.set('evalForm', exp))
-          return applyBind(env,
-            dbg('applyingBind',
-              print(makeBind(sym('_'), val)),
-              makeBind(sym('_'), val)))
+          return applyBind(env, makeBind(sym('_'), val))
             .update('expTotal', x => x + 1)
             .update('vals', x => x.push(val))
         },
