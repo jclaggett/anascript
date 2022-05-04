@@ -31,9 +31,8 @@ const sym = name => {
 }
 
 const makeList = (...xs) => im.List(xs)
-// const makeSet = (...xs) => im.Map(xs)
+const makeSet = (...xs) => im.Map(xs)
 const makeBind = (k, v) => makeList(sym('bind'), k, v)
-// const makeExpand = x => makeList(sym('expand'), x)
 
 const isSym = x => x instanceof Sym
 const isList = x => im.List.isList(x)
@@ -49,6 +48,9 @@ const getType = x =>
       : isList(x)
         ? 'list'
         : typeof x
+
+const emptyList = makeList()
+const emptySet = makeSet()
 
 // Parsing
 
@@ -119,10 +121,8 @@ const special = fn => {
   return fn
 }
 
-const isSpecial = (fn) => 'special' in fn
-
-const evalList = (exp, env) =>
-  exp.rest().map(x => evalSymCallAtom(x, env))
+const isSpecial = (fn) =>
+  'special' in fn
 
 const evalFn = (exp, env) => {
   const fn = evalSymCallAtom(exp, env)
@@ -144,6 +144,13 @@ const rebind = (exp, fn) =>
     ? exp.update(-1, x => rebind(x, fn))
     : fn(exp)
 
+const unbind = (exp) =>
+  isForm(exp, 'bind', 'binds')
+    ? unbind(exp.last())
+    : isForm(exp, 'spread')
+      ? exp.update(-1, unbind)
+      : exp
+
 const destructBind = exp =>
   isForm(exp, 'bind', 'spread')
     ? isForm(exp.get(1), 'list')
@@ -156,23 +163,77 @@ const destructBind = exp =>
       : exp.update(-1, destructBind)
     : exp
 
-const evalBind = (exp, env) =>
-  makeBind(
-    evalCallAtom(exp.get(1), env),
-    evalSymCallAtom(exp.get(2), env))
+const unchainBind = (exp, bnds = makeList()) =>
+  isForm(exp, 'bind', 'binds')
+    ? unchainBind(exp.last(), bnds.push(exp))
+    : bnds.map(x => x.set(-1, exp))
+
+const applyBind = (set, exp) =>
+  isForm(exp, 'bind', 'binds')
+    ? isForm(exp.last(), 'bind', 'binds')
+      ? unchainBind(exp).reduce(applyBind, set)
+      : isForm(exp, 'bind')
+        ? set.set(exp.get(1), exp.get(2))
+        : exp
+          .slice(1, -1)
+          .map(x => rebind(x, isForm(x, 'spread')
+            ? k => exp.last().slice(k)
+            : k => exp.last().get(k)))
+          .reduce(applyBind, set)
+    : isForm(exp, 'spread')
+      ? applyBind(set, exp.last())
+      : set
 
 const evalSpread = (exp, env) =>
   exp.update(1, x => evalCallAtom(x, env))
 
 const evalBinds = (exp, env) =>
-  makeList(sym('binds'))
-    .concat(exp.rest().map(exp => evalSymCallAtom(exp, env)))
+  exp
+    .rest()
+    .map(x => evalSymCallAtom(x, env))
+    .unshift(exp.first())
+
+const evalBind = (exp, env) =>
+  exp
+    .update(1, x => evalCallAtom(x, env))
+    .update(2, x => evalSymCallAtom(x, env))
 
 const evalExpand = (exp, env) =>
   getEnv(env, evalCallAtom(exp.get(1), env))
 
 const evalQuote = (exp, env) =>
   exp.get(1)
+
+const evalConj = (exp, env) => {
+  const target = evalSymCallAtom(exp.get(1), env)
+
+  if (!(isList(target) || isSet(target))) {
+    throw new Error(`Unable to conj onto the ${getType(target)} ${print(target)}`)
+  }
+
+  const handleBind = isList(target)
+    ? (x, i) => rebind(unbind(x), y => makeBind(i, y))
+    : destructBind
+
+  return exp
+    .slice(2)
+    .map(x => dbg('initial exp:', print(x), x))
+    .map(handleBind)
+    .map(x => dbg('after handleBind:', print(x), x))
+    .map(x => evalSymCallAtom(x, env))
+    .map(x => dbg('after evalSymCallAtom:', print(x), x))
+    .reduce(applyBind, target)
+}
+
+const evalList = (exp, env) =>
+  evalConj(
+    makeList(sym('conj'), sym('emptyList'))
+      .concat(exp.rest()))
+
+const evalSet = (exp, env) =>
+  evalConj(
+    makeList(sym('conj'), sym('emptySet'))
+      .concat(exp.rest()))
 
 const evalEval = (exp, env) =>
   evalSymCallAtom(evalSymCallAtom(exp.get(1), env), env)
@@ -240,28 +301,7 @@ const print = (x, r = printRules) =>
 const read = str =>
   form(parse(str))
 
-const unchainBind = (exp, bnds = makeList()) =>
-  isForm(exp, 'bind', 'binds')
-    ? unchainBind(exp.last(), bnds.push(exp))
-    : bnds.map(x => x.set(-1, exp))
-
-const applyBind = (m, exp) =>
-  isForm(exp, 'bind', 'binds')
-    ? isForm(exp.last(), 'bind', 'binds')
-      ? unchainBind(exp).reduce(applyBind, m)
-      : isForm(exp, 'bind')
-        ? m.set(exp.get(1), exp.get(2))
-        : exp
-          .slice(1, -1)
-          .map(x => rebind(x, isForm(x, 'spread')
-            ? k => exp.last().slice(k)
-            : k => exp.last().get(k)))
-          .reduce(applyBind, m)
-    : isForm(exp, 'spread')
-      ? applyBind(m, exp.last())
-      : m
-
-let env = im.Map([
+const initialEnv = im.Map([
   [sym('read'), str => read(str).first()],
   [sym('bind'), special(evalBind)],
   [sym('binds'), special(evalBinds)],
@@ -272,11 +312,17 @@ let env = im.Map([
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],
 
+  [sym('conj'), special(evalConj)],
   [sym('list'), special(evalList)],
+  [sym('set'), special(evalSet)],
 
+  [sym('emptyList'), emptyList],
+  [sym('emptySet'), emptySet],
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
   ['expTotal', 1]
 ])
+
+let env = initialEnv
 
 const rep = str => {
   try {
