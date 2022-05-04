@@ -289,9 +289,9 @@ const evalSymCallAtom = (exp, env) =>
 // Printing
 const printRules = {
   list: (x, r) =>
-    chalk.cyan('(') +
+    chalk.cyan('[') +
     printChildren(x, r) +
-    chalk.cyan(')'),
+    chalk.cyan(']'),
   set: (x, r) =>
     chalk.cyan('{') +
     printChildren(
