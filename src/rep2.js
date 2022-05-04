@@ -37,8 +37,6 @@ const makeBind = (k, v) => makeList(sym('bind'), k, v)
 const isSym = x => x instanceof Sym
 const isList = x => im.List.isList(x)
 const isSet = x => im.Map.isMap(x)
-const isForm = (x, ...names) =>
-  isList(x) && names.some(name => im.is(x.first(), sym(name)))
 
 const getType = x =>
   isSet(x)
@@ -48,6 +46,12 @@ const getType = x =>
       : isList(x)
         ? 'list'
         : typeof x
+
+const is = (x, y) =>
+  getType(x) === getType(y) && im.is(x, y)
+
+const isForm = (x, ...names) =>
+  isList(x) && names.some(name => is(x.first(), sym(name)))
 
 const emptyList = makeList()
 const emptySet = makeSet()
@@ -112,7 +116,7 @@ const form = ast => {
 
 // Evaluating
 const getEnv = (env, exp) =>
-  im.is(exp, sym('env'))
+  is(exp, sym('env'))
     ? env
     : env.get(exp)
 
@@ -151,16 +155,21 @@ const unbind = (exp) =>
       ? exp.update(-1, unbind)
       : exp
 
-const destructBind = exp =>
+const destructBind = (exp, fn) =>
+  exp
+    .get(1)
+    .rest()
+    .map(fn)
+    .unshift(sym('binds'))
+    .push(destruct(exp.last()))
+
+const destruct = exp =>
   isForm(exp, 'bind', 'spread')
     ? isForm(exp.get(1), 'list')
-      ? exp
-        .get(1)
-        .rest()
-        .map((exp, i) => destructBind(rebind(exp, k => makeBind(k, i))))
-        .unshift(sym('binds'))
-        .push(destructBind(exp.last()))
-      : exp.update(-1, destructBind)
+      ? destructBind(exp, (x, i) => destruct(rebind(x, k => makeBind(k, i))))
+      : isForm(exp.get(1), 'set')
+        ? destructBind(exp, destruct)
+        : exp.update(-1, destruct)
     : exp
 
 const unchainBind = (exp, bnds = makeList()) =>
@@ -173,16 +182,19 @@ const applyBind = (set, exp) =>
     ? isForm(exp.last(), 'bind', 'binds')
       ? unchainBind(exp).reduce(applyBind, set)
       : isForm(exp, 'bind')
-        ? set.set(exp.get(1), exp.get(2))
+        ? conj(set, exp)
         : exp
           .slice(1, -1)
+          .map(x => isForm(x, 'bind', 'binds', 'spread')
+            ? x
+            : makeBind(x, x))
           .map(x => rebind(x, isForm(x, 'spread')
             ? k => exp.last().slice(k)
             : k => exp.last().get(k)))
           .reduce(applyBind, set)
     : isForm(exp, 'spread')
       ? applyBind(set, exp.last())
-      : set
+      : conj(set, exp)
 
 const evalSpread = (exp, env) =>
   exp.update(1, x => evalCallAtom(x, env))
@@ -190,7 +202,7 @@ const evalSpread = (exp, env) =>
 const evalBinds = (exp, env) =>
   exp
     .rest()
-    .map(x => evalSymCallAtom(x, env))
+    .map(x => evalCallAtom(x, env))
     .unshift(exp.first())
 
 const evalBind = (exp, env) =>
@@ -213,7 +225,7 @@ const evalConj = (exp, env) => {
 
   const handleBind = isList(target)
     ? (x, i) => rebind(unbind(x), y => makeBind(i, y))
-    : destructBind
+    : destruct
 
   return exp
     .slice(2)
@@ -226,14 +238,28 @@ const evalConj = (exp, env) => {
 }
 
 const evalList = (exp, env) =>
+  exp.rest().map(x => evalSymCallAtom(x, env))
+/*
   evalConj(
     makeList(sym('conj'), sym('emptyList'))
       .concat(exp.rest()))
+*/
+
+const conj = (m, x) =>
+  isForm(x, 'bind')
+    ? m.set(x.get(1), x.get(2))
+    : m.set(x, x)
 
 const evalSet = (exp, env) =>
+  exp
+    .rest()
+    .map(x => evalSymCallAtom(x, env))
+    .reduce(conj, emptySet)
+/*
   evalConj(
     makeList(sym('conj'), sym('emptySet'))
       .concat(exp.rest()))
+*/
 
 const evalEval = (exp, env) =>
   evalSymCallAtom(evalSymCallAtom(exp.get(1), env), env)
@@ -269,7 +295,7 @@ const printRules = {
   set: (x, r) =>
     chalk.cyan('{') +
     printChildren(
-      x.entrySeq().map(([k, v]) => im.is(k, v) ? v : makeBind(k, v)),
+      x.map((v, k) => is(k, v) ? v : makeBind(k, v)),
       r) +
     chalk.cyan('}'),
   symbol: (x, r) => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
@@ -330,7 +356,7 @@ const rep = str => {
       .reduce(
         (env, exp) => {
           const val = evalSymCallAtom(
-            makeBind(env.get('expTotal'), destructBind(exp)),
+            makeBind(env.get('expTotal'), destruct(exp)),
             env.set('evalForm', exp))
           return applyBind(env, makeBind(sym('_'), val))
             .update('expTotal', x => x + 1)
@@ -345,6 +371,9 @@ const rep = str => {
 }
 
 module.exports = {
+  makeList,
+  sym,
+  initialEnv,
   dbg,
   rep
 }
