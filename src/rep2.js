@@ -30,9 +30,14 @@ const sym = name => {
   return syms[name]
 }
 
-const makeList = (...xs) => im.List(xs)
-const makeSet = (...xs) => im.Map(xs)
-const makeBind = (k, v) => makeList(sym('bind'), k, v)
+const makeList = (...xs) =>
+  im.List(xs)
+
+const makeSet = (...xs) =>
+  im.Map(xs)
+
+const makeBind = (k, v) =>
+  makeList(sym('bind'), k, v)
 
 const isSym = x => x instanceof Sym
 const isList = x => im.List.isList(x)
@@ -286,6 +291,15 @@ const evalSymCallAtom = (exp, env) =>
     ? evalSym(exp, env)
     : evalCallAtom(exp, env)
 
+const applyExp = (env, exp) => {
+  const val = evalSymCallAtom(
+    makeBind(env.get('expTotal'), destruct(exp)),
+    env.set('evalForm', exp))
+  return applyBind(env, makeBind(sym('_'), val))
+    .update('expTotal', x => x + 1)
+    .update('vals', x => x.push(val))
+}
+
 // Printing
 const printRules = {
   list: (x, r) =>
@@ -324,10 +338,7 @@ const print = (x, r = printRules) =>
 
 // General
 
-const read = str =>
-  form(parse(str))
-
-const initialEnv = im.Map([
+const initialEnv = makeSet(
   [sym('read'), str => read(str).first()],
   [sym('bind'), special(evalBind)],
   [sym('binds'), special(evalBinds)],
@@ -345,35 +356,37 @@ const initialEnv = im.Map([
   [sym('emptyList'), emptyList],
   [sym('emptySet'), emptySet],
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
-  ['expTotal', 1]
-])
+  ['expTotal', 1])
 
 let env = initialEnv
 
+const read = str =>
+  form(parse(str))
+
+const readEval = (env, str) =>
+  read(str)
+    .reduce(applyExp, env.set('vals', emptyList))
+
 const rep = str => {
   try {
-    env = read(str)
-      .reduce(
-        (env, exp) => {
-          const val = evalSymCallAtom(
-            makeBind(env.get('expTotal'), destruct(exp)),
-            env.set('evalForm', exp))
-          return applyBind(env, makeBind(sym('_'), val))
-            .update('expTotal', x => x + 1)
-            .update('vals', x => x.push(val))
-        },
-        env.set('vals', im.List()))
+    env = readEval(env, str)
     return env.get('vals').map(val => printBind(val))
   } catch (e) {
     console.dir(e)
-    return im.List([])
+    return emptyList
   }
 }
 
 module.exports = {
-  makeList,
-  sym,
-  initialEnv,
   dbg,
-  rep
+  emptyList,
+  emptySet,
+  initialEnv,
+  makeList,
+  makeSet,
+  makeSym,
+  read,
+  readEval,
+  rep,
+  sym
 }

@@ -14,7 +14,8 @@
     "test": "jest",
     "repl": "node src/node-repl.js",
     "start": "src/repl.js",
-    "debug": "node inspect src/repl.js"
+    "debug": "node --inspect src/repl.js",
+    "debug-unsafe": "node --inspect=0.0.0.0:9229 src/repl.js"
   },
   "keywords": [
     "config",
@@ -28,7 +29,9 @@
     "immutable": "^4.0.0"
   },
   "devDependencies": {
-    "pnpm": "^6.32.9",
+    "jest": "^28.0.3",
+    "node-notifier": "^10.0.1",
+    "pnpm": "^6.32.11",
     "standard": "^17.0.0"
   }
 }
