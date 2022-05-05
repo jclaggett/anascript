@@ -1,37 +1,38 @@
 {
   "name": "lsn",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Jonathan Claggett",
   "email": "jonathan@claggett.org",
   "url": "https://github.com/jclaggett/lsn",
   "license": "ISC",
   "description": "Labeled Structure Notation, aiming to be used as a configuration language.",
-  "bin": {
-    "lsn": "src/cli.js"
-  },
-  "main": "src/rep.js",
-  "scripts": {
-    "test": "jest",
-    "repl": "node src/node-repl.js",
-    "start": "src/repl.js",
-    "debug": "node --inspect src/repl.js",
-    "debug-unsafe": "node --inspect=0.0.0.0:9229 src/repl.js"
-  },
   "keywords": [
     "config",
     "lsn",
     "json",
     "lisp"
   ],
+  "scripts": {
+    "test": "jest",
+    "test-watch-coverage": "jest --watch --coverage",
+    "lint": "eslint src",
+    "lint-fix": "eslint --fix src",
+    "start": "node src/repl.js",
+    "start-inspect": "node --inspect src/repl.js",
+    "repl": "node src/node-repl.js"
+  },
   "dependencies": {
     "chalk": "^4.1.2",
     "ebnf": "^1.9.0",
     "immutable": "^4.0.0"
   },
   "devDependencies": {
-    "jest": "^28.0.3",
-    "node-notifier": "^10.0.1",
-    "pnpm": "^6.32.11",
-    "standard": "^17.0.0"
+    "eslint": "^8.0.1",
+    "eslint-config-standard": "^17.0.0",
+    "eslint-plugin-import": "^2.25.2",
+    "eslint-plugin-jest": "^26.1.5",
+    "eslint-plugin-n": "^15.0.0",
+    "eslint-plugin-promise": "^6.0.0",
+    "jest": "^28.0.3"
   }
 }

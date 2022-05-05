@@ -107,8 +107,8 @@ const formRules = {
   number: ast => parseFloat(ast.text),
   string: ast => ast.text.substr(1, ast.text.length - 2),
   boolean: ast => ast.text === 'true',
-  null: ast => null,
-  undefined: ast => undefined,
+  null: _ast => null,
+  undefined: _ast => undefined,
   symbol: ast => syms[ast.text] || makeSym(ast.text)
 }
 
@@ -218,7 +218,7 @@ const evalBind = (exp, env) =>
 const evalExpand = (exp, env) =>
   getEnv(env, evalCallAtom(exp.get(1), env))
 
-const evalQuote = (exp, env) =>
+const evalQuote = (exp, _env) =>
   exp.get(1)
 
 const evalConj = (exp, env) => {
@@ -272,7 +272,7 @@ const evalEval = (exp, env) =>
 const evalEval2 = (exp, env) =>
   evalCallAtom(evalSymCallAtom(exp.get(1), env), env)
 
-const evalAtom = (exp, env) =>
+const evalAtom = (exp, _env) =>
   exp // atoms always eval to themselves (even syms!)
 
 const evalCall = (exp, env) =>
@@ -312,19 +312,19 @@ const printRules = {
       x.map((v, k) => is(k, v) ? v : makeBind(k, v)),
       r) +
     chalk.cyan('}'),
-  symbol: (x, r) => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
-  string: (x, r) => chalk.green(`"${x}"`),
-  boolean: (x, r) => chalk.yellow(x),
-  number: (x, r) => chalk.yellow(x),
-  undefined: (x, r) => chalk.yellow(x),
-  object: (x, r) => chalk.yellow(x),
-  function: (x, r) => chalk.yellow(`<${x.name}>`),
+  symbol: x => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
+  string: x => chalk.green(`"${x}"`),
+  boolean: x => chalk.yellow(x),
+  number: x => chalk.yellow(x),
+  undefined: x => chalk.yellow(x),
+  object: x => chalk.yellow(x),
+  function: x => chalk.yellow(`<${x.name}>`),
 
   // For now, these forms are just printed as lists
   comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
   bind: (x, r) => printChildren(x.rest(), r, chalk.cyan(': ')),
-  expand: (x, r) => chalk.cyan('$') + printChildren(x.rest()),
-  quote: (x, r) => chalk.cyan('\\') + printChildren(x.rest())
+  expand: x => chalk.cyan('$') + printChildren(x.rest()),
+  quote: x => chalk.cyan('\\') + printChildren(x.rest())
 }
 
 const printBind = (x, r = printRules) =>

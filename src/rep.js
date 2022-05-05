@@ -49,7 +49,7 @@ const isSet = x => im.Map.isMap(x)
 const isColl = x => isList(x) || isSet(x)
 
 const isBindScope = env => env.get(sym.isBindScope, false)
-const getBindValue = x => isBind(x) ? getBindValue(x.v) : x
+// const getBindValue = x => isBind(x) ? getBindValue(x.v) : x
 
 const list = (...xs) => im.List(xs)
 const set = (...xs) => im.Map(xs)
@@ -341,20 +341,20 @@ const evalConj = (exp, env) => {
   dbg('evalConj', { x: x.toJS(), vals: vals.map(x => x.toJS()) }, null)
   return isSet(x)
     ? isBindScope(env)
-        ? vals.reduce((x, v) => x.set(v, v), x)
-        : normalizeBinds(list(...vals)).reduce((x, b) => x.set(b.k, b.v), x)
+      ? vals.reduce((x, v) => x.set(v, v), x)
+      : normalizeBinds(list(...vals)).reduce((x, b) => x.set(b.k, b.v), x)
     : isList(x)
       ? isBindScope(env)
-          ? vals.reduce((x, v) => x.push(v), x)
-          : normalizeBinds(im.List(vals)).reduce(
-            (x, b) =>
-              (b.k != null && b.k >= -x.count() && b.k <= x.count())
-                ? x.set(b.k, b.v)
-                : (b.k === b.v)
-                    ? x.push(b.v)
-                    : x
-            ,
-            x)
+        ? vals.reduce((x, v) => x.push(v), x)
+        : normalizeBinds(im.List(vals)).reduce(
+          (x, b) =>
+            (b.k != null && b.k >= -x.count() && b.k <= x.count())
+              ? x.set(b.k, b.v)
+              : (b.k === b.v)
+                  ? x.push(b.v)
+                  : x
+          ,
+          x)
       : x
 }
 
