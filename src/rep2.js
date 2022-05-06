@@ -358,8 +358,6 @@ const initialEnv = makeSet(
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
   ['expTotal', 1])
 
-let env = initialEnv
-
 const read = str =>
   form(parse(str))
 
@@ -367,7 +365,8 @@ const readEval = (env, str) =>
   read(str)
     .reduce(applyExp, env.set('vals', emptyList))
 
-const rep = str => {
+let env = initialEnv
+const readEvalPrint = str => {
   try {
     env = readEval(env, str)
     return env.get('vals').map(val => printBind(val))
@@ -377,16 +376,23 @@ const rep = str => {
   }
 }
 
+const rep = readEvalPrint
+
 module.exports = {
   dbg,
   emptyList,
   emptySet,
+  form,
   initialEnv,
+  is,
   makeList,
   makeSet,
   makeSym,
+  parse,
+  print,
   read,
   readEval,
+  readEvalPrint,
   rep,
   sym
 }

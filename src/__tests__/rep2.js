@@ -1,13 +1,23 @@
+const im = require('immutable')
+
 const {
+  dbg,
   emptyList,
   emptySet,
+  form,
   initialEnv,
   makeList,
   makeSet,
   makeSym,
+  parse,
   read,
-  readEval
+  readEval,
+  readEvalPrint
 } = require('../rep2')
+
+test('dbg works', () => {
+  expect(dbg('dbg works?', 42)).toBe(42)
+})
 
 test('makeList works', () => {
   expect(makeList()).toBe(emptyList)
@@ -21,6 +31,24 @@ test('makeSet works', () => {
 
   expect(makeSet([1, 1], [2, 2], [3, 3]).toJS())
     .toStrictEqual({ 1: 1, 2: 2, 3: 3 })
+})
+
+test('parse works', () => {
+  expect(parse(''))
+    .toBeDefined()
+  expect(parse('1'))
+    .toBeDefined()
+  expect(() => parse('['))
+    .toThrow()
+})
+
+test('form works', () => {
+  expect(form(parse('')))
+    .toStrictEqual(emptyList)
+  expect(form(parse('1 2 3')))
+    .toStrictEqual(makeList(1, 2, 3))
+  expect(() => form({ type: 'unexpectedType' }))
+    .toThrow()
 })
 
 test('read works', () => {
@@ -40,16 +68,62 @@ test('read works', () => {
         [{ name: 'bind' }, { name: 'b' }, 1]]])
 })
 
-const LSL = str =>
+const toJS = x =>
+  x instanceof im.Collection
+    ? x.toJS()
+    : x
+
+const runRE = str =>
   readEval(initialEnv, str).get(makeSym('_'))
 
 test('readEval works', () => {
-  expect(LSL(''))
-    .toBeUndefined()
-
-  expect(LSL('1'))
+  expect(toJS(runRE('')))
+    .toStrictEqual(undefined)
+  expect(toJS(runRE('1')))
     .toStrictEqual(1)
-
-  expect(LSL('(+ 1 1)'))
+  expect(toJS(runRE('(+ 1 1)')))
     .toStrictEqual(2)
+  expect(toJS(runRE('(eval a)')))
+    .toStrictEqual(undefined)
+  expect(toJS(runRE('(eval2 "a")')))
+    .toStrictEqual('a')
+  expect(toJS(runRE('(read "1")')))
+    .toStrictEqual(1)
+  expect(toJS(runRE('[1 2 3]')))
+    .toStrictEqual([1, 2, 3])
+  expect(toJS(runRE('{1 2 3}')))
+    .toStrictEqual({ 1: 1, 2: 2, 3: 3 })
+  expect(toJS(runRE('a:[1 2 3] a')))
+    .toStrictEqual([1, 2, 3])
+  expect(toJS(runRE('a:b:[1 2 3] [a b]')))
+    .toStrictEqual([[1, 2, 3], [1, 2, 3]])
+  expect(toJS(runRE('a:[b c d]:[1 2 3] [a b c d]')))
+    .toStrictEqual([[1, 2, 3], 1, 2, 3])
+  expect(toJS(runRE('a:[b ...c ...d]:[1 2 3] [a b c d]')))
+    .toStrictEqual([[1, 2, 3], 1, [2, 3], [3]])
+  expect(toJS(runRE('a:[b ...[c ...d]]:[1 2 3] [a b c d]')))
+    .toStrictEqual([[1, 2, 3], 1, 2, [3]])
+  expect(toJS(runRE('a:[[b] ...[c ...d]]:[[1] 2 3] [a b c d]')))
+    .toStrictEqual([[[1], 2, 3], 1, 2, [3]])
+  expect(toJS(runRE('a:{b:"b" "c"}: {"b":1 "c":2} [a b $"c"]')))
+    .toStrictEqual([{ b: 1, c: 2 }, 1, 2])
+
+  expect(() => toJS(runRE('(unknownFn 1 1)')))
+    .toThrow()
+})
+
+const runREP = str =>
+  typeof readEvalPrint(str).first()
+
+test('readEvalPrint works', () => {
+  expect(runREP('1 2 true false null undefined'))
+    .toBe('string')
+  expect(runREP('"hello" $a \\a [1 2] {1 2} a:1'))
+    .toBe('string')
+  expect(runREP('+ bind'))
+    .toBe('string')
+  expect(runREP(''))
+    .toStrictEqual('undefined')
+  expect(runREP('('))
+    .toStrictEqual('undefined')
 })
