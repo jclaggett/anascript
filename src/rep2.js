@@ -160,41 +160,34 @@ const evalFn = (exp, env) => {
           .toArray())
 }
 
-const rebind = (exp, fn) =>
-  isForm(exp, 'bind')
-    ? exp.update(-1, x => rebind(x, fn))
-    : fn(exp)
-
-const applyBindList = (col, exp) =>
-  getType(exp) === 'list'
-    ? exp
-      .filter(x => isForm(x, 'bind'))
-      .reduce((col, bind) => col.set(bind.get(1), bind.get(2)), col)
-    : col
-
-const evalSpread = (exp, env) =>
-  exp.update(1, x => evalCallAtom(x, env))
-
-const unchainBindExp = exp =>
-  isForm(exp, 'bind')
-    ? unchainBindExp(exp.get(2)).insert(1, exp.get(1))
-    : makeList(exp)
-
 const asBind = exp =>
   isForm(exp, 'bind')
     ? exp
     : makeBind(exp, exp)
+
+const rebind = (exp, fn) =>
+  isForm(exp, 'bind')
+    ? exp.update(-1, x => rebind(x, fn))
+    : fn(exp)
 
 const getBindKey = exp =>
   isForm(exp, 'bind')
     ? getBindKey(exp.get(2))
     : exp
 
+const unchainBindExp = exp =>
+  isForm(exp, 'bind')
+    ? unchainBindExp(exp.get(2)).insert(1, exp.get(1))
+    : makeList(exp)
+
+const evalSpread = (exp, env) =>
+  exp.update(1, x => evalCallAtom(x, env))
+
 const evalBindLabelListList = (exp, env, val) =>
   exp
     .rest()
     .flatMap((x, i) =>
-      evalBind2(isForm(x, 'spread')
+      evalBind(isForm(x, 'spread')
         ? rebind(x.get(1), y =>
           makeBind(y, makeQuote(val.slice(i))))
         : rebind(x, y =>
@@ -205,7 +198,7 @@ const evalBindLabelListSet = (exp, env, val) =>
   exp
     .rest()
     .flatMap((x, i) =>
-      evalBind2(isForm(x, 'spread')
+      evalBind(isForm(x, 'spread')
         ? rebind(x.get(1), y =>
           makeBind(y, makeQuote(val.deleteAll(im.Range(0, i)))))
         : rebind(x, y =>
@@ -222,7 +215,7 @@ const evalBindLabelSetList = (exp, env, val) =>
       return r
         .update('binds', y =>
           y.concat(
-            evalBind2(isForm(x, 'spread')
+            evalBind(isForm(x, 'spread')
               ? rebind(x.get(1), z =>
                 makeBind(z, makeQuote(val.slice(r.get('maxKey') + 1))))
               : rebind(asBind(x), _ =>
@@ -246,7 +239,7 @@ const evalBindLabelSetSet = (exp, env, val) =>
       return r
         .update('binds', y =>
           y.concat(
-            evalBind2(isForm(x, 'spread')
+            evalBind(isForm(x, 'spread')
               ? rebind(x.get(1), z =>
                 makeBind(z, makeQuote(val.deleteAll(r.get('keysTaken')))))
               : rebind(asBind(x), _ =>
@@ -275,7 +268,7 @@ const evalBindLabel = (exp, env, val) =>
           : throwError(`Unable to use set destructure on ${getType(val)}`)
       : makeList(makeBind(evalCallAtom(exp, env), val))
 
-const evalBind2 = (exp, env) => {
+const evalBind = (exp, env) => {
   const exps = unchainBindExp(exp)
   const val = evalSymCallAtom(exps.first(), env)
   return exps
@@ -333,19 +326,6 @@ const evalSymCallAtom = (exp, env) =>
     ? evalSym(exp, env)
     : evalCallAtom(exp, env)
 
-const applyExp = (env, exp) => {
-  const val2 = evalSymCallAtom(
-    makeBind(
-      sym('_'),
-      makeBind(
-        getEnv(env, 'expTotal'),
-        exp)),
-    env.set('evalForm', exp))
-  return applyBindList(env, val2)
-    .update('expTotal', x => x + 1)
-    .update('vals', x => x.push(val2))
-}
-
 // Printing
 const printRules = {
   list: (x, r) =>
@@ -383,15 +363,53 @@ const print = (x, r = printRules) =>
   get(r, getType(x), x => x)(x, r)
 
 // General
+const applyBindList = (col, exp) =>
+  getType(exp) === 'list'
+    ? exp
+      .filter(x => isForm(x, 'bind'))
+      .reduce((col, bind) => col.set(bind.get(1), bind.get(2)), col)
+    : col
+
+const applyExp = (env, exp) => {
+  const val = evalSymCallAtom(
+    makeBind(
+      sym('_'),
+      makeBind(
+        getEnv(env, 'expTotal'),
+        exp)),
+    env.set('evalForm', exp))
+  return applyBindList(env, val)
+    .update('expTotal', x => x + 1)
+    .update('vals', x => x.push(val))
+}
+
+const read = str =>
+  form(parse(str))
+
+const readEval = (env, str) =>
+  read(str)
+    .reduce(applyExp, env.set('vals', emptyList))
+
+const readEvalPrint = str => {
+  try {
+    env = readEval(env, str)
+    return getEnv(env, 'vals').map(val => printBind(val))
+  } catch (e) {
+    console.dir(e)
+    return emptyList
+  }
+}
+
+const rep = readEvalPrint
 
 const initialEnv = makeSet(
   [sym('read'), str => read(str).first()],
-  [sym('bind'), special(evalBind2)],
+  [sym('bind'), special(evalBind)],
   [sym('expand'), special(evalExpand)],
   [sym('quote'), special(evalQuote)],
   [sym('spread'), special(evalSpread)],
 
-  [sym('expandBind'), special((exp, env) => evalBind2(exp.get(1), env))],
+  [sym('expandBind'), special((exp, env) => evalBind(exp.get(1), env))],
 
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],
@@ -404,26 +422,7 @@ const initialEnv = makeSet(
   [sym('emptySet'), emptySet],
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
   ['expTotal', 1])
-
-const read = str =>
-  form(parse(str))
-
-const readEval = (env, str) =>
-  read(str)
-    .reduce(applyExp, env.set('vals', emptyList))
-
 let env = initialEnv
-const readEvalPrint = str => {
-  try {
-    env = readEval(env, str)
-    return getEnv(env, 'vals').map(val => printBind(val))
-  } catch (e) {
-    console.dir(e)
-    return emptyList
-  }
-}
-
-const rep = readEvalPrint
 
 const getCurrentEnv = x =>
   getEnv(env, x)
