@@ -363,7 +363,7 @@ let replState = im.Record({
     [sym.evalActive, evalSymExp],
     [sym.isBindScope, false],
 
-    [sym.comment, (exp, env) => exp],
+    [sym.comment, (exp, _env) => exp],
     [sym.bind, evalBind],
     [sym.read, evalRead],
     [sym.eval, evalEval],

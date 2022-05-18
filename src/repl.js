@@ -26,6 +26,9 @@ const saveHistory = async (historyFile, line) => {
   }
 }
 
+const printPrompt = x =>
+  chalk`{blue ${x}}{cyan :} `
+
 const main = async () => {
   const historyFileName = path.join(process.cwd(), '.lsn_history')
   const historyFile = fs.existsSync(historyFileName)
@@ -35,7 +38,7 @@ const main = async () => {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: chalk`{blue _}{cyan :} `,
+    prompt: printPrompt(1),
     terminal: true,
     historySize: 200,
     history: await loadHistory(historyFile)
@@ -46,6 +49,7 @@ const main = async () => {
     rl.output.write((line === '')
       ? line
       : rep.rep(line).join(os.EOL) + os.EOL)
+    rl.setPrompt(printPrompt(rep.getCurrentEnv('expTotal')))
     rl.prompt()
   }).on('close', () => {
     rl.output.write(os.EOL)
