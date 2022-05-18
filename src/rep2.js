@@ -9,12 +9,6 @@ const im = require('immutable')
 
 // Utils
 
-const dbg = (msg, ...vals) => {
-  const ret = vals.pop()
-  console.debug(msg, ...vals)
-  return ret
-}
-
 const get = (o, k, d) =>
   k in o ? o[k] : d
 
@@ -428,7 +422,6 @@ const getCurrentEnv = x =>
   getEnv(env, x)
 
 module.exports = {
-  dbg,
   emptyList,
   emptySet,
   form,
