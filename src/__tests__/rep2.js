@@ -1,7 +1,6 @@
 const im = require('immutable')
 
 const {
-  dbg,
   emptyList,
   emptySet,
   form,
@@ -14,10 +13,6 @@ const {
   readEval,
   readEvalPrint
 } = require('../rep2')
-
-test('dbg works', () => {
-  expect(dbg('dbg works?', 42)).toBe(42)
-})
 
 test('makeList works', () => {
   expect(makeList()).toBe(emptyList)
