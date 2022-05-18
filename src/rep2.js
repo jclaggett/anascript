@@ -47,6 +47,9 @@ const getType = x =>
         ? 'list'
         : typeof x
 
+const isType = (x, t) =>
+  getType(x) === t
+
 const is = (x, y) =>
   getType(x) === getType(y) && im.is(x, y)
 
@@ -181,7 +184,7 @@ const evalBindLabelListList = (exp, env, val) =>
   exp
     .rest()
     .flatMap((x, i) =>
-      evalBind(isForm(x, 'spread')
+      evalBindInner(isForm(x, 'spread')
         ? rebind(x.get(1), y =>
           makeBind(y, makeQuote(val.slice(i))))
         : rebind(x, y =>
@@ -192,7 +195,7 @@ const evalBindLabelListSet = (exp, env, val) =>
   exp
     .rest()
     .flatMap((x, i) =>
-      evalBind(isForm(x, 'spread')
+      evalBindInner(isForm(x, 'spread')
         ? rebind(x.get(1), y =>
           makeBind(y, makeQuote(val.deleteAll(im.Range(0, i)))))
         : rebind(x, y =>
@@ -209,7 +212,7 @@ const evalBindLabelSetList = (exp, env, val) =>
       return r
         .update('binds', y =>
           y.concat(
-            evalBind(isForm(x, 'spread')
+            evalBindInner(isForm(x, 'spread')
               ? rebind(x.get(1), z =>
                 makeBind(z, makeQuote(val.slice(r.get('maxKey') + 1))))
               : rebind(asBind(x), _ =>
@@ -233,7 +236,7 @@ const evalBindLabelSetSet = (exp, env, val) =>
       return r
         .update('binds', y =>
           y.concat(
-            evalBind(isForm(x, 'spread')
+            evalBindInner(isForm(x, 'spread')
               ? rebind(x.get(1), z =>
                 makeBind(z, makeQuote(val.deleteAll(r.get('keysTaken')))))
               : rebind(asBind(x), _ =>
@@ -262,7 +265,7 @@ const evalBindLabel = (exp, env, val) =>
           : throwError(`Unable to use set destructure on ${getType(val)}`)
       : makeList(makeBind(evalCallAtom(exp, env), val))
 
-const evalBind = (exp, env) => {
+const evalBindInner = (exp, env) => {
   const exps = unchainBindExp(exp)
   const val = evalSymCallAtom(exps.first(), env)
   return exps
@@ -270,30 +273,35 @@ const evalBind = (exp, env) => {
     .flatMap(label => evalBindLabel(label, env, val))
 }
 
+const evalBind = (exp, env) =>
+  evalBindInner(exp, env).unshift(sym('binds'))
+
 const evalExpand = (exp, env) =>
   getEnv(env, evalCallAtom(exp.get(1), env))
 
 const evalQuote = (exp, _env) =>
   exp.get(1)
 
-const evalConj = (exp, _env) =>
-  exp
+const conjReducer = fn => {
+  const reducer = (col, x) =>
+    isForm(x, 'bind')
+      ? col.set(x.get(1), x.get(2))
+      : isForm(x, 'binds')
+        ? x.rest().reduce(reducer, col)
+        : fn(col, x)
+  return reducer
+}
 
-const evalList = (exp, env) =>
-  exp.rest().map(x => evalSymCallAtom(x, env))
+const conjReducerList = conjReducer((col, x) => col.push(x))
+const conjReducerSet = conjReducer((col, x) => col.set(x, x))
 
-const conj = (m, x) =>
-  isForm(x, 'bind')
-    ? m.set(x.get(1), x.get(2))
-    : getType(x, 'list') && isForm(x.first(), 'bind')
-      ? x.reduce(conj, m)
-      : m.set(x, x)
-
-const evalSet = (exp, env) =>
-  exp
-    .rest()
-    .map(x => evalSymCallAtom(x, env))
-    .reduce(conj, emptySet)
+const conj = (col, ...xs) =>
+  xs.reduce(isType(col, 'list')
+    ? conjReducerList
+    : isType(col, 'set')
+      ? conjReducerSet
+      : throwError(`Unable to conj onto type ${getType(col)}. Must be type set or list`),
+  col)
 
 const evalEval = (exp, env) =>
   evalSymCallAtom(evalSymCallAtom(exp.get(1), env), env)
@@ -328,9 +336,11 @@ const printRules = {
     chalk.cyan(']'),
   set: (x, r) =>
     chalk.cyan('{') +
-    printChildren(
-      x.map((v, k) => is(k, v) ? v : makeBind(k, v)),
-      r) +
+    x.map((v, k) =>
+      is(k, v)
+        ? print(k, r)
+        : printBind(makeBind(k, v), r))
+      .join(' ') +
     chalk.cyan('}'),
   symbol: x => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
   string: x => chalk.green(`"${x}"`),
@@ -357,13 +367,6 @@ const print = (x, r = printRules) =>
   get(r, getType(x), x => x)(x, r)
 
 // General
-const applyBindList = (col, exp) =>
-  getType(exp) === 'list'
-    ? exp
-      .filter(x => isForm(x, 'bind'))
-      .reduce((col, bind) => col.set(bind.get(1), bind.get(2)), col)
-    : col
-
 const applyExp = (env, exp) => {
   const val = evalSymCallAtom(
     makeBind(
@@ -372,7 +375,7 @@ const applyExp = (env, exp) => {
         getEnv(env, 'expTotal'),
         exp)),
     env.set('evalForm', exp))
-  return applyBindList(env, val)
+  return conj(env, val)
     .update('expTotal', x => x + 1)
     .update('vals', x => x.push(val))
 }
@@ -387,7 +390,7 @@ const readEval = (env, str) =>
 const readEvalPrint = str => {
   try {
     env = readEval(env, str)
-    return getEnv(env, 'vals').map(val => printBind(val))
+    return getEnv(env, 'vals').map(val => printBind(val.get(2)))
   } catch (e) {
     console.dir(e)
     return emptyList
@@ -408,13 +411,13 @@ const initialEnv = makeSet(
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],
 
-  [sym('conj'), special(evalConj)],
-  [sym('list'), special(evalList)],
-  [sym('set'), special(evalSet)],
+  [sym('list'), (...xs) => conj(emptyList, ...xs)],
+  [sym('set'), (...xs) => conj(emptySet, ...xs)],
 
   [sym('emptyList'), emptyList],
   [sym('emptySet'), emptySet],
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
+  [sym('conj'), conj],
   ['expTotal', 1])
 let env = initialEnv
 
