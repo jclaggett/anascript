@@ -216,24 +216,44 @@ const evalSpread = (exp, env) =>
 const evalBindLabelListList = (exp, env, val) =>
   exp
     .rest()
-    .flatMap((x, i) =>
-      evalBindInner(isForm(x, 'spread')
-        ? rebind(x.get(1), y =>
-          makeBind(y, makeQuote(val.slice(i))))
-        : rebind(x, y =>
-          makeBind(y, makeQuote(val.get(i)))),
-      env))
+    .reduce((r, x) =>
+      r
+        .update('binds', y =>
+          y.concat(
+            evalBindInner(isForm(x, 'spread')
+              ? rebind(x.get(1), y =>
+                makeBind(y, makeQuote(val.slice(r.get('maxKey')))))
+              : rebind(x, y =>
+                makeBind(y, makeQuote(val.get(r.get('maxKey'))))),
+            env)))
+        .update('maxKey', i =>
+          isForm(x, 'spread')
+            ? val.count()
+            : i + 1),
+    im.fromJS({ binds: [], maxKey: 0 }))
+    .get('binds')
 
 const evalBindLabelListSet = (exp, env, val) =>
   exp
     .rest()
-    .flatMap((x, i) =>
-      evalBindInner(isForm(x, 'spread')
-        ? rebind(x.get(1), y =>
-          makeBind(y, makeQuote(val.deleteAll(im.Range(0, i)))))
-        : rebind(x, y =>
-          makeBind(y, makeQuote(val.get(i)))),
-      env))
+    .reduce((r, x) =>
+      r
+        .update('binds', y =>
+          y.concat(
+            evalBindInner(isForm(x, 'spread')
+              ? rebind(x.get(1), y =>
+                makeBind(y, makeQuote(r.get('maxKey') !== undefined
+                  ? val.deleteAll(im.Range(0, r.get('maxKey')))
+                  : emptySet)))
+              : rebind(x, y =>
+                makeBind(y, makeQuote(val.get(r.get('maxKey'))))),
+            env)))
+        .update('maxKey', i =>
+          isForm(x, 'spread')
+            ? undefined
+            : i + 1),
+    im.fromJS({ binds: [], maxKey: 0 }))
+    .get('binds')
 
 const evalBindLabelSetList = (exp, env, val) =>
   exp
