@@ -12,6 +12,9 @@
     "json",
     "lisp"
   ],
+  "bin": {
+    "lsn": "src/repl.js"
+  },
   "scripts": {
     "test": "jest",
     "test-watch-coverage": "jest --watch --coverage",
