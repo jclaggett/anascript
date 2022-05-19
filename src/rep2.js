@@ -62,6 +62,9 @@ const makeForm = (name, ...args) =>
 const makeBind = (k, v) =>
   makeForm('bind', k, v)
 
+const makeLabel = (k, v) =>
+  makeForm('label', k, v)
+
 const makeQuote = x =>
   makeForm('quote', x)
 
@@ -137,7 +140,7 @@ const formRules = {
   form4: formChild,
 
   comment: formSymList('comment', formChildren),
-  bind: formSymList('bind', formChildren),
+  label: formSymList('label', formChildren),
   expand: formSymList('expand', formChildren),
   quote: formSymList('quote', formChildren),
   spread: formSymList('spread', formChildren),
@@ -190,24 +193,24 @@ const evalFn = (exp, env) => {
           .toArray())
 }
 
-const asBind = exp =>
-  isForm(exp, 'bind')
+const asLabel = exp =>
+  isForm(exp, 'label')
     ? exp
-    : makeBind(exp, exp)
+    : makeLabel(exp, exp)
 
-const rebind = (exp, fn) =>
-  isForm(exp, 'bind')
-    ? exp.update(-1, x => rebind(x, fn))
+const relabel = (exp, fn) =>
+  isForm(exp, 'label')
+    ? exp.update(-1, x => relabel(x, fn))
     : fn(exp)
 
-const getBindKey = exp =>
-  isForm(exp, 'bind')
-    ? getBindKey(exp.get(2))
+const getLabelKey = exp =>
+  isForm(exp, 'label')
+    ? getLabelKey(exp.get(2))
     : exp
 
-const unchainBindExp = exp =>
-  isForm(exp, 'bind')
-    ? unchainBindExp(exp.get(2)).insert(1, exp.get(1))
+const unchainLabel = exp =>
+  isForm(exp, 'label')
+    ? unchainLabel(exp.get(2)).insert(1, exp.get(1))
     : makeList(exp)
 
 const evalSpread = (exp, env) =>
@@ -220,11 +223,11 @@ const evalBindLabelListList = (exp, env, val) =>
       r
         .update('binds', y =>
           y.concat(
-            evalBindInner(isForm(x, 'spread')
-              ? rebind(x.get(1), y =>
-                makeBind(y, makeQuote(val.slice(r.get('maxKey')))))
-              : rebind(x, y =>
-                makeBind(y, makeQuote(val.get(r.get('maxKey'))))),
+            evalLabelInner(isForm(x, 'spread')
+              ? relabel(x.get(1), y =>
+                makeLabel(y, makeQuote(val.slice(r.get('maxKey')))))
+              : relabel(x, y =>
+                makeLabel(y, makeQuote(val.get(r.get('maxKey'))))),
             env)))
         .update('maxKey', i =>
           isForm(x, 'spread')
@@ -240,13 +243,13 @@ const evalBindLabelListSet = (exp, env, val) =>
       r
         .update('binds', y =>
           y.concat(
-            evalBindInner(isForm(x, 'spread')
-              ? rebind(x.get(1), y =>
-                makeBind(y, makeQuote(r.get('maxKey') !== undefined
+            evalLabelInner(isForm(x, 'spread')
+              ? relabel(x.get(1), y =>
+                makeLabel(y, makeQuote(r.get('maxKey') !== undefined
                   ? val.deleteAll(im.Range(0, r.get('maxKey')))
                   : emptySet)))
-              : rebind(x, y =>
-                makeBind(y, makeQuote(val.get(r.get('maxKey'))))),
+              : relabel(x, y =>
+                makeLabel(y, makeQuote(val.get(r.get('maxKey'))))),
             env)))
         .update('maxKey', i =>
           isForm(x, 'spread')
@@ -261,14 +264,14 @@ const evalBindLabelSetList = (exp, env, val) =>
     .reduce((r, x) => {
       const key = isForm(x, 'spread')
         ? undefined
-        : evalCallAtom(getBindKey(x), env)
+        : evalCallAtom(getLabelKey(x), env)
       return r
         .update('binds', y =>
           y.concat(
-            evalBindInner(isForm(x, 'spread')
-              ? rebind(x.get(1), z =>
-                makeBind(z, makeQuote(val.slice(r.get('maxKey') + 1))))
-              : rebind(asBind(x), _ =>
+            evalLabelInner(isForm(x, 'spread')
+              ? relabel(x.get(1), z =>
+                makeLabel(z, makeQuote(val.slice(r.get('maxKey') + 1))))
+              : relabel(asLabel(x), _ =>
                 makeQuote(val.get(key))),
             env)))
         .update('maxKey', y =>
@@ -285,14 +288,14 @@ const evalBindLabelSetSet = (exp, env, val) =>
     .reduce((r, x) => {
       const key = isForm(x, 'spread')
         ? undefined
-        : evalCallAtom(getBindKey(x), env)
+        : evalCallAtom(getLabelKey(x), env)
       return r
         .update('binds', y =>
           y.concat(
-            evalBindInner(isForm(x, 'spread')
-              ? rebind(x.get(1), z =>
-                makeBind(z, makeQuote(val.deleteAll(r.get('keysTaken')))))
-              : rebind(asBind(x), _ =>
+            evalLabelInner(isForm(x, 'spread')
+              ? relabel(x.get(1), z =>
+                makeLabel(z, makeQuote(val.deleteAll(r.get('keysTaken')))))
+              : relabel(asLabel(x), _ =>
                 makeQuote(val.get(key))),
             env)))
         .update('keysTaken', y =>
@@ -318,16 +321,16 @@ const evalBindLabel = (exp, env, val) =>
           : throwError(`Unable to use set destructure on ${getType(val)}`)
       : makeList(makeBind(evalCallAtom(exp, env), val))
 
-const evalBindInner = (exp, env) => {
-  const exps = unchainBindExp(exp)
+const evalLabelInner = (exp, env) => {
+  const exps = unchainLabel(exp)
   const val = evalSymCallAtom(exps.first(), env)
   return exps
     .rest()
     .flatMap(label => evalBindLabel(label, env, val))
 }
 
-const evalBind = (exp, env) =>
-  evalBindInner(exp, env).unshift(sym('binds'))
+const evalLabel = (exp, env) =>
+  evalLabelInner(exp, env).unshift(sym('binds'))
 
 const evalExpand = (exp, env) =>
   getEnv(env, evalCallAtom(exp.get(1), env))
@@ -371,7 +374,7 @@ const printRules = {
     x.map((v, k) =>
       is(k, v)
         ? print(k, r)
-        : printBind(makeBind(k, v), r))
+        : printLabel(makeLabel(k, v), r))
       .join(' ') +
     chalk.cyan('}'),
   symbol: x => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
@@ -384,13 +387,13 @@ const printRules = {
 
   // For now, these forms are just printed as lists
   comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
-  bind: (x, r) => printChildren(x.rest(), r, chalk.cyan(': ')),
+  label: (x, r) => printChildren(x.rest(), r, chalk.cyan(': ')),
   expand: x => chalk.cyan('$') + printChildren(x.rest()),
   quote: x => chalk.cyan('\\') + printChildren(x.rest())
 }
 
-const printBind = (x, r = printRules) =>
-  r.bind(x, r)
+const printLabel = (x, r = printRules) =>
+  r.label(x, r)
 
 const printChildren = (x, rules, sep = ' ') =>
   x.map(child => print(child, rules)).join(sep)
@@ -401,9 +404,9 @@ const print = (x, r = printRules) =>
 // General
 const applyExp = (env, exp) => {
   const val = evalSymCallAtom(
-    makeBind(
+    makeLabel(
       sym('_'),
-      makeBind(
+      makeLabel(
         getEnv(env, 'expTotal'),
         exp)),
     env.set('evalForm', exp))
@@ -422,7 +425,7 @@ const readEval = (env, str) =>
 const readEvalPrint = str => {
   try {
     env = readEval(env, str)
-    return getEnv(env, 'vals').map(val => printBind(val.get(2)))
+    return getEnv(env, 'vals').map(val => printLabel(val.get(2)))
   } catch (e) {
     console.dir(e)
     return emptyList
@@ -433,12 +436,10 @@ const rep = readEvalPrint
 
 const initialEnv = makeSet(
   [sym('read'), str => read(str).first()],
-  [sym('bind'), special(evalBind)],
+  [sym('label'), special(evalLabel)],
   [sym('expand'), special(evalExpand)],
   [sym('quote'), special(evalQuote)],
   [sym('spread'), special(evalSpread)],
-
-  [sym('expandBind'), special((exp, env) => evalBind(exp.get(1), env))],
 
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],

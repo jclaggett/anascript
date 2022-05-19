@@ -55,12 +55,12 @@ test('read works', () => {
       'hello', makeSym('foo')))
 
   expect(read('a:1').toJS())
-    .toStrictEqual([[{ name: 'bind' }, { name: 'a' }, 1]])
+    .toStrictEqual([[{ name: 'label' }, { name: 'a' }, 1]])
 
   expect(read('a:b:1').toJS())
     .toStrictEqual([
-      [{ name: 'bind' }, { name: 'a' },
-        [{ name: 'bind' }, { name: 'b' }, 1]]])
+      [{ name: 'label' }, { name: 'a' },
+        [{ name: 'label' }, { name: 'b' }, 1]]])
 })
 
 const toJS = x =>
@@ -95,7 +95,7 @@ test('readEval works', () => {
   expect(toJS(runRE('a:[b c d]:[1 2 3] [a b c d]')))
     .toStrictEqual([[1, 2, 3], 1, 2, 3])
   expect(toJS(runRE('a:[b ...c ...d]:[1 2 3] [a b c d]')))
-    .toStrictEqual([[1, 2, 3], 1, [2, 3], [3]])
+    .toStrictEqual([[1, 2, 3], 1, [2, 3], []])
   expect(toJS(runRE('a:[b ...[c ...d]]:[1 2 3] [a b c d]')))
     .toStrictEqual([[1, 2, 3], 1, 2, [3]])
   expect(toJS(runRE('a:[[b] ...[c ...d]]:[[1] 2 3] [a b c d]')))
@@ -115,7 +115,7 @@ test('readEvalPrint works', () => {
     .toBe('string')
   expect(runREP('"hello" $a \\a [1 2] {1 2} a:1'))
     .toBe('string')
-  expect(runREP('+ bind'))
+  expect(runREP('+ label'))
     .toBe('string')
   expect(runREP(''))
     .toStrictEqual('undefined')
