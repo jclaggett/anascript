@@ -9,7 +9,7 @@ const im = require('immutable')
 
 // Utils
 
-const get = (o, k, d) =>
+const getDefault = (o, k, d) =>
   k in o ? o[k] : d
 
 const throwError = msg => {
@@ -67,6 +67,39 @@ const makeQuote = x =>
 
 const emptyList = makeList()
 const emptySet = makeSet()
+
+const conjReducer = fn => {
+  const reducer = (col, x) =>
+    isForm(x, 'bind')
+      ? col.set(x.get(1), x.get(2))
+      : isForm(x, 'binds')
+        ? x.rest().reduce(reducer, col)
+        : isForm(x, 'spread')
+          ? isType(x.get(1), 'list')
+            ? x.get(1)
+              .reduce(reducer, col)
+            : x.get(1)
+              .map((v, k) => makeBind(k, v))
+              .reduce(reducer, col)
+          : fn(col, x)
+  return reducer
+}
+
+const conjReducerList = conjReducer((col, x) => col.push(x))
+const conjReducerSet = conjReducer((col, x) => col.set(x, x))
+
+const conj = (col, ...xs) =>
+  xs.reduce(isType(col, 'list')
+    ? conjReducerList
+    : isType(col, 'set')
+      ? conjReducerSet
+      : throwError(`Unable to conj onto type ${getType(col)}. Must be type set or list`),
+  col)
+
+const get = (col, k, d) =>
+  isType(col, 'list') || isType(col, 'set')
+    ? col.get(k, d)
+    : throwError(`Unable to get from type ${getType(col)}. Must be type set or list`)
 
 // Parsing
 
@@ -282,34 +315,6 @@ const evalExpand = (exp, env) =>
 const evalQuote = (exp, _env) =>
   exp.get(1)
 
-const conjReducer = fn => {
-  const reducer = (col, x) =>
-    isForm(x, 'bind')
-      ? col.set(x.get(1), x.get(2))
-      : isForm(x, 'binds')
-        ? x.rest().reduce(reducer, col)
-        : isForm(x, 'spread')
-          ? isType(x.get(1), 'list')
-            ? x.get(1)
-              .reduce(reducer, col)
-            : x.get(1)
-              .map((v, k) => makeBind(k, v))
-              .reduce(reducer, col)
-          : fn(col, x)
-  return reducer
-}
-
-const conjReducerList = conjReducer((col, x) => col.push(x))
-const conjReducerSet = conjReducer((col, x) => col.set(x, x))
-
-const conj = (col, ...xs) =>
-  xs.reduce(isType(col, 'list')
-    ? conjReducerList
-    : isType(col, 'set')
-      ? conjReducerSet
-      : throwError(`Unable to conj onto type ${getType(col)}. Must be type set or list`),
-  col)
-
 const evalEval = (exp, env) =>
   evalSymCallAtom(evalSymCallAtom(exp.get(1), env), env)
 
@@ -371,7 +376,7 @@ const printChildren = (x, rules, sep = ' ') =>
   x.map(child => print(child, rules)).join(sep)
 
 const print = (x, r = printRules) =>
-  get(r, getType(x), x => x)(x, r)
+  getDefault(r, getType(x), x => x)(x, r)
 
 // General
 const applyExp = (env, exp) => {
@@ -424,7 +429,9 @@ const initialEnv = makeSet(
   [sym('emptyList'), emptyList],
   [sym('emptySet'), emptySet],
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
+  [sym('-'), (...xs) => xs.reduce((t, x) => t - x, 0)],
   [sym('conj'), conj],
+  [sym('get'), get],
   ['expTotal', 1])
 let env = initialEnv
 
