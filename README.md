@@ -30,15 +30,15 @@ See the EBNF grammar for specifics on syntax: [src/lsn.ebnf.w3c](src/lsn.ebnf.w3
 1. Label Infix Operator:
     1. Additional syntax layered on top of Clojure syntax layered on Lisp
     2. Added with an infix `:` operator.
-    3. `:` may occur anywhere and is just syntax sugar around a bind form: `a:1` ==> `(bind a 1)`.
-    4. `:` has right to left precedence with itself: `a:b:1` ==> `(bind a (bind b 1))`
+    3. `:` may occur anywhere and is just syntax sugar around a 'label' form: `a:1` ==> `(label a 1)`.
+    4. `:` has right to left precedence with itself: `a:b:1` ==> `(label a (label b 1))`
     5. `:` will be the _only_ infix syntax to be added ever. Having just one infix
      operator means the precendence rules will not be _too_ horrible. As it is, even just one was suprisingly messy.
 2. Prefix Operators: A few symbols will be dedicated for use in prefix syntax:
     1. `#`, `...`, `$`, `\` are all prefix, unary operators
-    2. `#`, `...` both bind more loosely than `:`: `#a:1` ==> `(comment (bind a 1))`
+    2. `#`, `...` both bind more loosely than `:`: `#a:1` ==> `(comment (label a 1))`
        applies to the entire `a:1` form).
-    3. `$`, `\` both bind more tightly than `:`: `$a:1` ==> `(bind (expand a) 1)`
+    3. `$`, `\` both bind more tightly than `:`: `$a:1` ==> `(label (expand a) 1)`
 3. Reserved characters: Characters used by prefix and infix operators are reserved and not allowed in other of other symbols.
    I.e. a `#` can only mean the prefix symbol.
     * Exception: `.` also appears in floating point numbers.
@@ -62,7 +62,7 @@ See the EBNF grammar for specifics on syntax: [src/lsn.ebnf.w3c](src/lsn.ebnf.w3
 | Syntax | Lisp Form |
 | --- | --- |
 | `#x` | `(comment x)` |
-| `x:1` | `(bind x 1)` |
+| `x:1` | `(label x 1)` |
 | `$x` | `(expand x)` |
 | `\x` | `(quote x)` |
 | `...x` | `(spread x)` |
@@ -72,12 +72,13 @@ See the EBNF grammar for specifics on syntax: [src/lsn.ebnf.w3c](src/lsn.ebnf.w3
 
 2. Only two kinds of collections: ordered (lists) and unordered (sets).
    Maps are a special case of sets. Parens are a special case of lists.
-3. bind forms are used differently by different special forms and are expected
-   to be 'consumed' at read time.
+3. label forms are special forms and evaluate into useful values for
+   associating labels to values.
 4. Symbols are first class values and evaluate to themselves (and then possibly expanded into a new value).
 5. Symbols are expanded (resolved) everywhere _except_ in the left hand side of
-   a bind.
-6. No keywords. Since symbols are conviently not expanded in a bind form, maybe
+   a label.
+6. No keywords. Since symbols are conviently not expanded in a label form,
+   maybe
    we don't need them.
 
 ## A Brief tour of LSL syntax and semantics
