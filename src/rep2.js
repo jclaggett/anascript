@@ -178,7 +178,7 @@ const unchainBindExp = exp =>
     : makeList(exp)
 
 const evalSpread = (exp, env) =>
-  exp.update(1, x => evalCallAtom(x, env))
+  exp.update(1, x => evalSymCallAtom(x, env))
 
 const evalBindLabelListList = (exp, env, val) =>
   exp
@@ -288,7 +288,14 @@ const conjReducer = fn => {
       ? col.set(x.get(1), x.get(2))
       : isForm(x, 'binds')
         ? x.rest().reduce(reducer, col)
-        : fn(col, x)
+        : isForm(x, 'spread')
+          ? isType(x.get(1), 'list')
+            ? x.get(1)
+              .reduce(reducer, col)
+            : x.get(1)
+              .map((v, k) => makeBind(k, v))
+              .reduce(reducer, col)
+          : fn(col, x)
   return reducer
 }
 
