@@ -458,6 +458,8 @@ const initialEnv = makeSet(
   [sym('read'), str => read(str).first()],
   [sym('list'), (...xs) => conj(makeList(), ...xs)],
   [sym('set'), (...xs) => conj(makeSet(), ...xs)],
+  [sym('makeList'), (...xs) => makeList(...xs)],
+  [sym('makeSet'), (...xs) => makeSet(...xs)],
 
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
   [sym('-'), (...xs) => xs.reduce((t, x) => t - x, 0)],
