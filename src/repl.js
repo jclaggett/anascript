@@ -13,18 +13,24 @@ const chalk = require('chalk')
 // const rep = require('./rep')
 const rep = require('./rep2')
 
-const loadHistory = async (historyFile) => {
-  return (await historyFile.readFile())
-    .toString()
-    .split('\n')
-    .reverse()
-}
+const loadHistory = async historyFile =>
+  historyFile !== undefined
+    ? (await historyFile.readFile())
+        .toString()
+        .split('\n')
+        .reverse()
+    : []
 
 const saveHistory = async (historyFile, line) => {
   if (historyFile !== undefined) {
     await historyFile.write(`${line}\n`)
   }
 }
+
+const closeHistory = async historyFile =>
+  historyFile !== undefined
+    ? historyFile.close()
+    : null
 
 const printPrompt = x =>
   chalk`{blue ${x}}{cyan :} `
@@ -53,7 +59,7 @@ const main = async () => {
     rl.prompt()
   }).on('close', () => {
     rl.output.write(os.EOL)
-    historyFile.close()
+    closeHistory(historyFile)
   }).prompt()
 }
 
