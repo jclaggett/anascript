@@ -106,12 +106,12 @@ const get = (col, k, d) =>
 
 // Parsing
 
-const lsnParser = new ebnf.Grammars.W3C.Parser(
-  fs.readFileSync(path.resolve(__dirname, 'lsn.ebnf.w3c'))
+const anaParser = new ebnf.Grammars.W3C.Parser(
+  fs.readFileSync(path.resolve(__dirname, 'ana.ebnf.w3c'))
     .toString())
 
 const parse = str => {
-  const ast = lsnParser.getAST(str + ' ')
+  const ast = anaParser.getAST(str + ' ')
 
   if (!ast) {
     throw new Error('Failed to parse input')

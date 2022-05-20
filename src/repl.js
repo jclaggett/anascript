@@ -30,7 +30,7 @@ const printPrompt = x =>
   chalk`{blue ${x}}{cyan :} `
 
 const main = async () => {
-  const historyFileName = path.join(process.cwd(), '.lsn_history')
+  const historyFileName = path.join(process.cwd(), '.ana_history')
   const historyFile = fs.existsSync(historyFileName)
     ? await fsp.open(historyFileName, 'r+')
     : undefined
