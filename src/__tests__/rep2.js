@@ -107,6 +107,19 @@ test('readEval works', () => {
     .toThrow()
 })
 
+test('special forms work', () => {
+  expect(toJS(runRE('#42')))
+    .toStrictEqual(null)
+  expect(toJS(runRE('\\"a"')))
+    .toStrictEqual('a')
+  expect(toJS(runRE('true:false $true')))
+    .toStrictEqual(false)
+  expect(toJS(runRE('a:1 $a')))
+    .toStrictEqual(1)
+  expect(toJS(runRE('(do 42 a:1 b:a $b)')))
+    .toStrictEqual(1)
+})
+
 const runREP = str =>
   typeof readEvalPrint(str).first()
 

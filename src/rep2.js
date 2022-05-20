@@ -338,6 +338,19 @@ const evalExpand = (exp, env) =>
 const evalQuote = (exp, _env) =>
   exp.get(1)
 
+const evalComment = (_exp, _env) =>
+  null
+
+const evalDo = (exp, env) =>
+  exp
+    .rest()
+    .reduce((env, x) =>
+      conj(
+        env,
+        evalSymCallAtom(makeLabel(sym('_'), x), env)),
+    env)
+    .get(sym('_'))
+
 const evalEval = (exp, env) =>
   evalSymCallAtom(evalSymCallAtom(exp.get(1), env), env)
 
@@ -435,15 +448,17 @@ const readEvalPrint = str => {
 const rep = readEvalPrint
 
 const initialEnv = makeSet(
-  [sym('read'), str => read(str).first()],
   [sym('label'), special(evalLabel)],
   [sym('expand'), special(evalExpand)],
   [sym('quote'), special(evalQuote)],
   [sym('spread'), special(evalSpread)],
+  [sym('comment'), special(evalComment)],
 
+  [sym('do'), special(evalDo)],
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],
 
+  [sym('read'), str => read(str).first()],
   [sym('list'), (...xs) => conj(emptyList, ...xs)],
   [sym('set'), (...xs) => conj(emptySet, ...xs)],
 
