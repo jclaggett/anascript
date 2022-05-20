@@ -36,6 +36,7 @@ const printPrompt = x =>
   chalk`{blue ${x}}{cyan :} `
 
 const main = async () => {
+  console.log('Welcome to Anascript!')
   const historyFileName = path.join(process.cwd(), '.ana_history')
   const historyFile = fs.existsSync(historyFileName)
     ? await fsp.open(historyFileName, 'r+')
