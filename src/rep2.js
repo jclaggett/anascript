@@ -68,9 +68,6 @@ const makeLabel = (k, v) =>
 const makeQuote = x =>
   makeForm('quote', x)
 
-const emptyList = makeList()
-const emptySet = makeSet()
-
 const conjReducer = fn => {
   const reducer = (col, x) =>
     isForm(x, 'bind')
@@ -247,7 +244,7 @@ const evalBindLabelListSet = (exp, env, val) =>
               ? relabel(x.get(1), y =>
                 makeLabel(y, makeQuote(r.get('maxKey') !== undefined
                   ? val.deleteAll(im.Range(0, r.get('maxKey')))
-                  : emptySet)))
+                  : makeSet())))
               : relabel(x, y =>
                 makeLabel(y, makeQuote(val.get(r.get('maxKey'))))),
             env)))
@@ -433,7 +430,7 @@ const read = str =>
 
 const readEval = (env, str) =>
   read(str)
-    .reduce(applyExp, env.set('vals', emptyList))
+    .reduce(applyExp, env.set('vals', makeList()))
 
 const readEvalPrint = str => {
   try {
@@ -441,7 +438,7 @@ const readEvalPrint = str => {
     return getEnv(env, 'vals').map(val => printLabel(val.get(2)))
   } catch (e) {
     console.dir(e)
-    return emptyList
+    return makeList()
   }
 }
 
@@ -459,15 +456,14 @@ const initialEnv = makeSet(
   [sym('eval2'), special(evalEval2)],
 
   [sym('read'), str => read(str).first()],
-  [sym('list'), (...xs) => conj(emptyList, ...xs)],
-  [sym('set'), (...xs) => conj(emptySet, ...xs)],
+  [sym('list'), (...xs) => conj(makeList(), ...xs)],
+  [sym('set'), (...xs) => conj(makeSet(), ...xs)],
 
-  [sym('emptyList'), emptyList],
-  [sym('emptySet'), emptySet],
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
   [sym('-'), (...xs) => xs.reduce((t, x) => t - x, 0)],
   [sym('conj'), conj],
   [sym('get'), get],
+
   ['expTotal', 1])
 let env = initialEnv
 
@@ -475,8 +471,6 @@ const getCurrentEnv = x =>
   getEnv(env, x)
 
 module.exports = {
-  emptyList,
-  emptySet,
   form,
   getCurrentEnv,
   initialEnv,
