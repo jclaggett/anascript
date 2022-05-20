@@ -1,6 +1,6 @@
 {
   "name": "anascript",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "author": "Jonathan Claggett",
   "email": "jonathan@claggett.org",
   "url": "https://github.com/jclaggett/anascript",
@@ -12,7 +12,7 @@
     "lisp"
   ],
   "bin": {
-    "ana": "src/repl.js"
+    "anascript": "src/repl.js"
   },
   "scripts": {
     "test": "jest",
