@@ -1,19 +1,18 @@
 {
-  "name": "lsn",
-  "version": "0.0.2",
+  "name": "anascript",
+  "version": "0.0.1",
   "author": "Jonathan Claggett",
   "email": "jonathan@claggett.org",
-  "url": "https://github.com/jclaggett/lsn",
+  "url": "https://github.com/jclaggett/anascript",
   "license": "ISC",
-  "description": "Labeled Structure Notation, aiming to be used as a configuration language.",
+  "description": "Anascript, a small language.",
   "keywords": [
-    "config",
-    "lsn",
+    "anascript",
     "json",
     "lisp"
   ],
   "bin": {
-    "lsn": "src/repl.js"
+    "ana": "src/repl.js"
   },
   "scripts": {
     "test": "jest",
