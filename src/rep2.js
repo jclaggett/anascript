@@ -354,6 +354,11 @@ const evalEval = (exp, env) =>
 const evalEval2 = (exp, env) =>
   evalCallAtom(evalSymCallAtom(exp.get(1), env), env)
 
+const evalIf = (exp, env) =>
+  evalSymCallAtom(exp.get(1), env)
+    ? evalSymCallAtom(exp.get(2), env)
+    : evalSymCallAtom(exp.get(3), env)
+
 const evalAtom = (exp, _env) =>
   exp // atoms always eval to themselves (even syms!)
 
@@ -454,6 +459,7 @@ const initialEnv = makeSet(
   [sym('do'), special(evalDo)],
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],
+  [sym('if'), special(evalIf)],
 
   [sym('read'), str => read(str).first()],
   [sym('list'), (...xs) => conj(makeList(), ...xs)],
@@ -465,6 +471,7 @@ const initialEnv = makeSet(
   [sym('-'), (...xs) => xs.reduce((t, x) => t - x, 0)],
   [sym('conj'), conj],
   [sym('get'), get],
+  [sym('identity'), x => x],
 
   ['expTotal', 1])
 let env = initialEnv
