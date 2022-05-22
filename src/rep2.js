@@ -468,7 +468,7 @@ const initialEnv = makeSet(
   [sym('makeSet'), (...xs) => makeSet(...xs)],
 
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
-  [sym('-'), (...xs) => xs.reduce((t, x) => t - x, 0)],
+  [sym('-'), (...xs) => xs.reduce((t, x) => t - x)],
   [sym('conj'), conj],
   [sym('get'), get],
   [sym('identity'), x => x],

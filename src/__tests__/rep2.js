@@ -1,8 +1,6 @@
 const im = require('immutable')
 
 const {
-  emptyList,
-  emptySet,
   form,
   initialEnv,
   makeList,
@@ -15,14 +13,16 @@ const {
 } = require('../rep2')
 
 test('makeList works', () => {
-  expect(makeList()).toBe(emptyList)
+  expect(makeList().toJS())
+    .toStrictEqual([])
 
   expect(makeList(1, 2, 3).toJS())
     .toStrictEqual([1, 2, 3])
 })
 
 test('makeSet works', () => {
-  expect(makeSet()).toBe(emptySet)
+  expect(makeSet().toJS())
+    .toStrictEqual({})
 
   expect(makeSet([1, 1], [2, 2], [3, 3]).toJS())
     .toStrictEqual({ 1: 1, 2: 2, 3: 3 })
@@ -39,7 +39,7 @@ test('parse works', () => {
 
 test('form works', () => {
   expect(form(parse('')))
-    .toStrictEqual(emptyList)
+    .toStrictEqual(makeList())
   expect(form(parse('1 2 3')))
     .toStrictEqual(makeList(1, 2, 3))
   expect(() => form({ type: 'unexpectedType' }))
@@ -48,7 +48,7 @@ test('form works', () => {
 
 test('read works', () => {
   expect(read(''))
-    .toStrictEqual(emptyList)
+    .toStrictEqual(makeList())
 
   expect(read('0 1 -1.25 true false "hello" foo'))
     .toStrictEqual(makeList(0, 1, -1.25, true, false,
@@ -118,6 +118,23 @@ test('special forms work', () => {
     .toStrictEqual(1)
   expect(toJS(runRE('(do 42 a:1 b:a $b)')))
     .toStrictEqual(1)
+  expect(toJS(runRE('(if true "yes" "no")')))
+    .toStrictEqual('yes')
+  expect(toJS(runRE('(if false "yes" "no")')))
+    .toStrictEqual('no')
+})
+
+test('standard functions work', () => {
+  expect(toJS(runRE('(identity 42)')))
+    .toStrictEqual(42)
+  expect(toJS(runRE('(+ 1 1)')))
+    .toStrictEqual(2)
+  expect(toJS(runRE('(- 1 1)')))
+    .toStrictEqual(0)
+  expect(toJS(runRE('(get {a:1} \\a)')))
+    .toStrictEqual(1)
+  expect(() => toJS(runRE('(get 42 1)')))
+    .toThrow()
 })
 
 const runREP = str =>
