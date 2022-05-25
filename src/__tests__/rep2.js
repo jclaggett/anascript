@@ -12,7 +12,7 @@ const {
   readEvalPrint
 } = require('../rep2')
 
-test('makeList works', () => {
+test('makeList', () => {
   expect(makeList().toJS())
     .toStrictEqual([])
 
@@ -20,7 +20,7 @@ test('makeList works', () => {
     .toStrictEqual([1, 2, 3])
 })
 
-test('makeSet works', () => {
+test('makeSet', () => {
   expect(makeSet().toJS())
     .toStrictEqual({})
 
@@ -28,7 +28,7 @@ test('makeSet works', () => {
     .toStrictEqual({ 1: 1, 2: 2, 3: 3 })
 })
 
-test('parse works', () => {
+test('parse', () => {
   expect(parse(''))
     .toBeDefined()
   expect(parse('1'))
@@ -37,7 +37,7 @@ test('parse works', () => {
     .toThrow()
 })
 
-test('form works', () => {
+test('form', () => {
   expect(form(parse('')))
     .toStrictEqual(makeList())
   expect(form(parse('1 2 3')))
@@ -46,7 +46,7 @@ test('form works', () => {
     .toThrow()
 })
 
-test('read works', () => {
+test('read', () => {
   expect(read(''))
     .toStrictEqual(makeList())
 
@@ -71,7 +71,7 @@ const toJS = x =>
 const runRE = str =>
   readEval(initialEnv, str).get(makeSym('_'))
 
-test('readEval works', () => {
+test('readEval', () => {
   expect(toJS(runRE('')))
     .toStrictEqual(undefined)
   expect(toJS(runRE('1')))
@@ -107,7 +107,7 @@ test('readEval works', () => {
     .toThrow()
 })
 
-test('special forms work', () => {
+test('special forms', () => {
   expect(toJS(runRE('#42')))
     .toStrictEqual(null)
   expect(toJS(runRE('\\"a"')))
@@ -122,9 +122,22 @@ test('special forms work', () => {
     .toStrictEqual('yes')
   expect(toJS(runRE('(if false "yes" "no")')))
     .toStrictEqual('no')
+  expect(toJS(runRE('(let (set* [\\a 42]) a)')))
+    .toStrictEqual(42)
 })
 
-test('standard functions work', () => {
+test('collection forms', () => {
+  expect(toJS(runRE('[1 2 3]')))
+    .toStrictEqual([1, 2, 3])
+  expect(toJS(runRE('[1 2 3 ...[4 5]]')))
+    .toStrictEqual([1, 2, 3, 4, 5])
+  expect(toJS(runRE('{1 2 3}')))
+    .toStrictEqual({ 1: 1, 2: 2, 3: 3 })
+  expect(toJS(runRE('{1 2 3 ...{3 4 5}}')))
+    .toStrictEqual({ 1: 1, 2: 2, 3: 3, 4: 4, 5: 5 })
+})
+
+test('standard functions', () => {
   expect(toJS(runRE('(identity 42)')))
     .toStrictEqual(42)
   expect(toJS(runRE('(+ 1 1)')))
@@ -135,12 +148,22 @@ test('standard functions work', () => {
     .toStrictEqual(1)
   expect(() => toJS(runRE('(get 42 1)')))
     .toThrow()
+  expect(toJS(runRE('(set* ["a" 2])')))
+    .toStrictEqual({ a: 2 })
+  expect(toJS(runRE('(conj* (list*) 1)')))
+    .toStrictEqual([1])
+  expect(toJS(runRE('(conj* (set*) 1)')))
+    .toStrictEqual({ 1: 1 })
+  expect(toJS(runRE('(conj* (list* 9 7) 1 1)')))
+    .toStrictEqual([9, 1])
+  expect(toJS(runRE('(conj* (set* [9 7]) 2 1)')))
+    .toStrictEqual({ 9: 7, 2: 1 })
 })
 
 const runREP = str =>
   typeof readEvalPrint(str).first()
 
-test('readEvalPrint works', () => {
+test('readEvalPrint', () => {
   expect(runREP('1 2 true false null undefined'))
     .toBe('string')
   expect(runREP('"hello" $a \\a [1 2] {1 2} a:1'))

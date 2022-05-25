@@ -68,6 +68,13 @@ const makeLabel = (k, v) =>
 const makeQuote = x =>
   makeForm('quote', x)
 
+const conjStar = (col, k, v) =>
+  v === undefined
+    ? isList(col)
+      ? col.push(k)
+      : col.set(k, k)
+    : col.set(k, v)
+
 const conjReducer = fn => {
   const reducer = (col, x) =>
     isForm(x, 'bind')
@@ -359,6 +366,13 @@ const evalIf = (exp, env) =>
     ? evalSymCallAtom(exp.get(2), env)
     : evalSymCallAtom(exp.get(3), env)
 
+const evalLet = (exp, env) =>
+  evalSymCallAtom(
+    exp.get(2),
+    env.merge(evalSymCallAtom(
+      exp.get(1),
+      env)))
+
 const evalAtom = (exp, _env) =>
   exp // atoms always eval to themselves (even syms!)
 
@@ -460,16 +474,18 @@ const initialEnv = makeSet(
   [sym('eval'), special(evalEval)],
   [sym('eval2'), special(evalEval2)],
   [sym('if'), special(evalIf)],
+  [sym('let'), special(evalLet)],
 
   [sym('read'), str => read(str).first()],
   [sym('list'), (...xs) => conj(makeList(), ...xs)],
+  [sym('list*'), (...xs) => makeList(...xs)],
   [sym('set'), (...xs) => conj(makeSet(), ...xs)],
-  [sym('makeList'), (...xs) => makeList(...xs)],
-  [sym('makeSet'), (...xs) => makeSet(...xs)],
+  [sym('set*'), (...xs) => makeSet(...xs)],
 
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
   [sym('-'), (...xs) => xs.reduce((t, x) => t - x)],
   [sym('conj'), conj],
+  [sym('conj*'), conjStar],
   [sym('get'), get],
   [sym('identity'), x => x],
 
