@@ -68,13 +68,6 @@ const makeLabel = (k, v) =>
 const makeQuote = x =>
   makeForm('quote', x)
 
-const conjStar = (col, k, v) =>
-  v === undefined
-    ? isList(col)
-      ? col.push(k)
-      : col.set(k, k)
-    : col.set(k, v)
-
 const conjReducer = fn => {
   const reducer = (col, x) =>
     isForm(x, 'bind')
@@ -477,16 +470,27 @@ const initialEnv = makeSet(
   [sym('let'), special(evalLet)],
 
   [sym('read'), str => read(str).first()],
-  [sym('list'), (...xs) => conj(makeList(), ...xs)],
+
   [sym('list*'), (...xs) => makeList(...xs)],
-  [sym('set'), (...xs) => conj(makeSet(), ...xs)],
   [sym('set*'), (...xs) => makeSet(...xs)],
+  [sym('list?'), isList],
+  [sym('set?'), isSet],
+  [sym('assoc'), (col, k, v) => col.set(k, v)],
+  [sym('dissoc'), (col, k) => col.delete(k)],
+  [sym('push'), (col, v) => col.push(v)],
+  [sym('pop'), col => col.pop()],
+  [sym('first'), col => col.first()],
+  [sym('last'), col => col.last()],
+  [sym('get'), get],
+  [sym('count'), col => col.count()],
+
+  [sym('list'), (...xs) => conj(makeList(), ...xs)],
+  [sym('set'), (...xs) => conj(makeSet(), ...xs)],
+  [sym('conj'), conj],
+  [sym('type'), getType],
 
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
   [sym('-'), (...xs) => xs.reduce((t, x) => t - x)],
-  [sym('conj'), conj],
-  [sym('conj*'), conjStar],
-  [sym('get'), get],
   [sym('identity'), x => x],
 
   ['expTotal', 1])
