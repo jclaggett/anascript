@@ -10,6 +10,8 @@ const readline = require('readline')
 
 const chalk = require('chalk')
 
+const { version } = require('../package')
+
 // const rep = require('./rep')
 const rep = require('./rep2')
 
@@ -36,7 +38,7 @@ const printPrompt = x =>
   chalk`{blue ${x}}{cyan :} `
 
 const main = async () => {
-  console.log('Welcome to Anascript!')
+  console.log(`Welcome to Anascript! (v${version})`)
   const historyFileName = path.join(process.cwd(), '.ana_history')
   const historyFile = fs.existsSync(historyFileName)
     ? await fsp.open(historyFileName, 'r+')
