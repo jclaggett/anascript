@@ -172,24 +172,6 @@ const special = fn => {
   return fn
 }
 
-const isSpecial = (fn) =>
-  'special' in fn
-
-const evalFn = (exp, env) => {
-  const fn = evalSymCallAtom(exp, env)
-  if (typeof fn !== 'function') {
-    throw new Error(`${print(env.get('evalForm'))}
-       ^ ${print(exp)} is ${fn} and not callable.`)
-  }
-  return isSpecial(fn)
-    ? fn
-    : (exp, env) =>
-        fn(...exp
-          .rest()
-          .map(exp => evalSymCallAtom(exp, env))
-          .toArray())
-}
-
 const asLabel = exp =>
   isForm(exp, 'label')
     ? exp
@@ -366,14 +348,58 @@ const evalLet = (exp, env) =>
       exp.get(1),
       env)))
 
-const evalAtom = (exp, _env) =>
-  exp // atoms always eval to themselves (even syms!)
+const evalFn = (exp, env) =>
+  (...args) =>
+    evalSymCallAtom(
+      makeForm('do',
+        relabel(exp.get(1), x =>
+          makeLabel(x, makeForm('list', ...args))),
+        ...exp.slice(2)
+      ), env)
 
-const evalCall = (exp, env) =>
-  evalFn(exp.first(), env)(exp, env)
+const evalConj = (exp, env) =>
+  conj(...exp
+    .rest()
+    .map(x => evalSymCallAtom(x, env))
+    .toArray())
+
+const evalList = (exp, env) =>
+  evalSymCallAtom(
+    makeForm('conj', makeQuote(makeList()), ...exp.rest()),
+    env)
+
+const evalSet = (exp, env) =>
+  evalSymCallAtom(
+    makeForm('conj', makeQuote(makeSet()), ...exp.rest()),
+    env)
+
+const isSpecial = (fn) =>
+  'special' in fn
+
+const evalCall = (exp, env) => {
+  const fn = evalSymCallAtom(exp.first(), env)
+  if (typeof fn !== 'function') {
+    throw new Error(`${print(env.get('evalForm'))}
+       ^ ${print(exp)} is ${fn} and not callable.`)
+  }
+  const fn2 = isSpecial(fn)
+    ? fn
+    : (exp, env) =>
+        fn(...exp
+          .rest()
+          .map(x => evalSymCallAtom(x, env))
+          .flatMap(x => isForm(x, 'spread')
+            ? x.get(1)
+            : makeList(x))
+          .toArray())
+  return fn2(exp, env)
+}
 
 const evalSym = (exp, env) =>
   getEnv(env, exp)
+
+const evalAtom = (exp, _env) =>
+  exp // atoms always eval to themselves (even syms!)
 
 const evalCallAtom = (exp, env) =>
   isList(exp)
@@ -406,12 +432,12 @@ const printRules = {
   undefined: x => chalk.yellow(x),
   object: x => chalk.yellow(x),
   function: x => chalk.yellow(`<${x.name}>`),
+  label: (x, r) => printChildren(x.rest(), r, chalk.cyan(': ')),
 
   // For now, these forms are just printed as lists
-  comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
-  label: (x, r) => printChildren(x.rest(), r, chalk.cyan(': ')),
-  expand: x => chalk.cyan('$') + printChildren(x.rest()),
-  quote: x => chalk.cyan('\\') + printChildren(x.rest())
+  // comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
+  // expand: x => chalk.cyan('$') + printChildren(x.rest()),
+  // quote: x => chalk.cyan('\\') + printChildren(x.rest())
 }
 
 const printLabel = (x, r = printRules) =>
@@ -468,6 +494,10 @@ const initialEnv = makeSet(
   [sym('eval2'), special(evalEval2)],
   [sym('if'), special(evalIf)],
   [sym('let'), special(evalLet)],
+  [sym('fn'), special(evalFn)],
+  [sym('conj'), special(evalConj)],
+  [sym('list'), special(evalList)],
+  [sym('set'), special(evalSet)],
 
   [sym('read'), str => read(str).first()],
 
@@ -484,9 +514,6 @@ const initialEnv = makeSet(
   [sym('get'), get],
   [sym('count'), col => col.count()],
 
-  [sym('list'), (...xs) => conj(makeList(), ...xs)],
-  [sym('set'), (...xs) => conj(makeSet(), ...xs)],
-  [sym('conj'), conj],
   [sym('type'), getType],
 
   [sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],

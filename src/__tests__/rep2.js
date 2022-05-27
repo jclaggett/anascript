@@ -3,6 +3,7 @@ const im = require('immutable')
 const {
   form,
   initialEnv,
+  getCurrentEnv,
   makeList,
   makeSet,
   makeSym,
@@ -11,6 +12,11 @@ const {
   readEval,
   readEvalPrint
 } = require('../rep2')
+
+test('getCurrentEnv', () => {
+  expect(getCurrentEnv('expTotal'))
+    .toStrictEqual(1)
+})
 
 test('makeList', () => {
   expect(makeList().toJS())
@@ -102,6 +108,12 @@ test('readEval', () => {
     .toStrictEqual([[[1], 2, 3], 1, 2, [3]])
   expect(toJS(runRE('a:{b:"b" "c"}: {"b":1 "c":2} [a b $"c"]')))
     .toStrictEqual([{ b: 1, c: 2 }, 1, 2])
+  expect(toJS(runRE('{a ...b}: {a:1 "b":2} [a b]')))
+    .toStrictEqual([1, {b: 2}])
+  expect(toJS(runRE('[a b ...c]: {0:1 1:2 2:3} [a b c]')))
+    .toStrictEqual([1, 2, { 2: 3 }])
+  expect(toJS(runRE('{a:0 b:1 ...c}: [1, 2, 3] [a b c]')))
+    .toStrictEqual([1, 2, [3]])
 
   expect(() => toJS(runRE('(unknownFn 1 1)')))
     .toThrow()
@@ -122,8 +134,12 @@ test('special forms', () => {
     .toStrictEqual('yes')
   expect(toJS(runRE('(if false "yes" "no")')))
     .toStrictEqual('no')
+  expect(toJS(runRE('(list* 1 2 3)')))
+    .toStrictEqual([1, 2, 3])
   expect(toJS(runRE('(let (set* [\\a 42]) a)')))
     .toStrictEqual(42)
+  expect(toJS(runRE('(fn args (+ ...args)) (_ 1 2 3)')))
+    .toStrictEqual(6)
 })
 
 test('collection forms', () => {
