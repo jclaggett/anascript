@@ -523,12 +523,17 @@ const initialEnv = makeSet(
   ['expTotal', 1])
 let env = initialEnv
 
-const getCurrentEnv = x =>
-  getEnv(env, x)
+const getCurrentEnv = k =>
+  getEnv(env, k)
+
+const setCurrentEnv = (k, v) => {
+  env = env.set(k, v)
+}
 
 module.exports = {
   form,
   getCurrentEnv,
+  setCurrentEnv,
   initialEnv,
   is,
   makeList,
