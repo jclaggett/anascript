@@ -4,6 +4,7 @@ const {
   form,
   initialEnv,
   getCurrentEnv,
+  setCurrentEnv,
   makeList,
   makeSet,
   makeSym,
@@ -13,9 +14,11 @@ const {
   readEvalPrint
 } = require('../rep2')
 
-test('getCurrentEnv', () => {
-  expect(getCurrentEnv('expTotal'))
-    .toStrictEqual(1)
+test('setCurrentEnv', () => {
+  expect(setCurrentEnv('smoke-test', 42))
+    .toStrictEqual(undefined)
+  expect(getCurrentEnv('smoke-test'))
+    .toStrictEqual(42)
 })
 
 test('makeList', () => {
@@ -109,7 +112,7 @@ test('readEval', () => {
   expect(toJS(runRE('a:{b:"b" "c"}: {"b":1 "c":2} [a b $"c"]')))
     .toStrictEqual([{ b: 1, c: 2 }, 1, 2])
   expect(toJS(runRE('{a ...b}: {a:1 "b":2} [a b]')))
-    .toStrictEqual([1, {b: 2}])
+    .toStrictEqual([1, { b: 2 }])
   expect(toJS(runRE('[a b ...c]: {0:1 1:2 2:3} [a b c]')))
     .toStrictEqual([1, 2, { 2: 3 }])
   expect(toJS(runRE('{a:0 b:1 ...c}: [1, 2, 3] [a b c]')))
@@ -121,7 +124,7 @@ test('readEval', () => {
 
 test('special forms', () => {
   expect(toJS(runRE('#42')))
-    .toStrictEqual(null)
+    .toStrictEqual(undefined)
   expect(toJS(runRE('\\"a"')))
     .toStrictEqual('a')
   expect(toJS(runRE('true:false $true')))

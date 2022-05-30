@@ -120,7 +120,10 @@ const parse = str => {
 // Forming
 
 const formChildren = ast =>
-  makeList(...ast.children.map(form))
+  makeList(...ast.children
+    .map(form)
+    .filter(x => !isForm(x, 'comment')))
+
 const formChild = ast =>
   ast.children.length > 0
     ? form(ast.children[0])
@@ -317,9 +320,6 @@ const evalExpand = (exp, env) =>
 const evalQuote = (exp, _env) =>
   exp.get(1)
 
-const evalComment = (_exp, _env) =>
-  null
-
 const evalDo = (exp, env) =>
   exp
     .rest()
@@ -487,7 +487,6 @@ const initialEnv = makeSet(
   [sym('expand'), special(evalExpand)],
   [sym('quote'), special(evalQuote)],
   [sym('spread'), special(evalSpread)],
-  [sym('comment'), special(evalComment)],
 
   [sym('do'), special(evalDo)],
   [sym('eval'), special(evalEval)],
