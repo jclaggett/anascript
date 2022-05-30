@@ -429,7 +429,7 @@ const printRules = {
   undefined: x => chalk.yellow(x),
   object: x => chalk.yellow(x),
   function: x => chalk.yellow(`<${x.name}>`),
-  label: (x, r) => printChildren(x.rest(), r, chalk.cyan(': ')),
+  label: (x, r) => printChildren(x.rest(), r, chalk.cyan(': '))
 
   // For now, these forms are just printed as lists
   // comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
