@@ -1,11 +1,15 @@
 {
   "name": "anascript",
-  "version": "0.0.9",
+  "version": "0.0.10",
+  "license": "ISC",
   "author": "Jonathan Claggett",
   "email": "jonathan@claggett.org",
   "url": "https://github.com/jclaggett/anascript",
-  "license": "ISC",
-  "description": "Anascript, a small language.",
+  "bugs": {
+    "url" : "https://github.com/jclaggett/anascript/issues",
+    "email": "jonathan@claggett.org"
+  },
+  "description": "Anascript, a small experimental language.",
   "keywords": [
     "anascript",
     "json",
