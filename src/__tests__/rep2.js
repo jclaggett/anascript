@@ -1,5 +1,3 @@
-const im = require('immutable')
-
 const {
   form,
   initialEnv,
