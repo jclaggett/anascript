@@ -11,7 +11,8 @@ const {
   parse,
   read,
   readEval,
-  readEvalPrint
+  readEvalPrint,
+  toJS
 } = require('../rep2')
 
 test('setCurrentEnv', () => {
@@ -72,10 +73,12 @@ test('read', () => {
         [{ name: 'label' }, { name: 'b' }, 1]]])
 })
 
-const toJS = x =>
-  x instanceof im.Collection
-    ? x.toJS()
-    : x
+test('toJS', () => {
+  expect(toJS(42))
+    .toStrictEqual(42)
+  expect(toJS(read('42')))
+    .toStrictEqual([42])
+})
 
 const runRE = str =>
   readEval(initialEnv, str).get(makeSym('_'))

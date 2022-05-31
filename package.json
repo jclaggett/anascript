@@ -11,6 +11,7 @@
     "json",
     "lisp"
   ],
+  "main": "src/index.js",
   "bin": {
     "anascript": "src/repl.js"
   },

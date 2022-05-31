@@ -17,6 +17,13 @@ const throwError = msg => {
 }
 
 // Language primitives
+const toJS = x =>
+  x instanceof im.Collection
+    ? x.toJS()
+    : x
+
+const is = im.is
+
 const Sym = im.Record({ name: null }, 'Sym')
 const makeSym = name => Sym({ name })
 
@@ -51,7 +58,7 @@ const isType = (x, t) =>
   getType(x) === t
 
 const isForm = (x, ...names) =>
-  isList(x) && names.some(name => im.is(x.first(), sym(name)))
+  isList(x) && names.some(name => is(x.first(), sym(name)))
 
 const makeForm = (name, ...args) =>
   makeList(sym(name), ...args)
@@ -163,7 +170,7 @@ const form = ast => {
 
 // Evaluating
 const getEnv = (env, exp) =>
-  im.is(exp, sym('env'))
+  is(exp, sym('env'))
     ? env
     : env.get(exp)
 
@@ -417,7 +424,7 @@ const printRules = {
   set: (x, r) =>
     chalk.cyan('{') +
     x.map((v, k) =>
-      im.is(k, v)
+      is(k, v)
         ? print(k, r)
         : printLabel(makeLabel(k, v), r))
       .join(' ') +
@@ -540,5 +547,6 @@ module.exports = {
   readEval,
   readEvalPrint,
   rep,
-  sym
+  sym,
+  toJS
 }
