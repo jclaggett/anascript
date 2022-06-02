@@ -63,7 +63,7 @@ const closeHistory = async historyFile =>
 const printPrompt = x =>
   chalk`{blue ${x}}{cyan :} `
 
-const main = async () => {
+const repl = async () => {
   console.log(`Welcome to Anascript! (v${version})`)
   buildHelp()
 
@@ -89,6 +89,19 @@ const main = async () => {
     rl.output.write(os.EOL)
     closeHistory(historyFile)
   }).prompt()
+}
+
+const evalFile = filename =>
+  console.debug(filename)
+
+const main = async () => {
+  // parse command line args here
+  const files = process.argv.slice(1)
+  if (files.length === 0) {
+    return repl()
+  } else {
+    return files.map(evalFile)
+  }
 }
 
 main()
