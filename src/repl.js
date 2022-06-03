@@ -16,18 +16,19 @@ const { version } = require('../package')
 
 // const rep = require('./rep')
 const rep = require('./rep2')
+const ana = require('./index')
 
 const helpText = `
 # Anascript Help
 This is **markdown** printed in the \`terminal\`
 `
 
-const buildHelp = () => {
+const buildHelp = env => {
   marked.setOptions({
     renderer: new TerminalRenderer()
   })
   const indent = ' ┊  '
-  rep.setCurrentEnv(
+  return env.set(
     rep.sym('help'),
     () => console.log(
       indent + marked(helpText).replace(/\n/g, '\n' + indent)))
@@ -65,8 +66,6 @@ const printPrompt = x =>
 
 const repl = async () => {
   console.log(`Welcome to Anascript! (v${version})`)
-  buildHelp()
-
   const historyFile = await openHistory()
 
   const rl = readline.createInterface({
@@ -78,12 +77,21 @@ const repl = async () => {
     history: await loadHistory(historyFile)
   })
 
+  const env = ana.makeEnv(buildHelp(rep.initialEnv))
+
   rl.on('line', async (line) => {
     await saveHistory(historyFile, line)
-    rl.output.write((line === '')
-      ? line
-      : rep.rep(line).join(os.EOL) + os.EOL)
-    rl.setPrompt(printPrompt(rep.getCurrentEnv('expTotal')))
+    try {
+      rl.output.write((line === '')
+        ? line
+        : env
+          .eval(line)
+          .map(x => ana.printLabel(x.get(2)))
+          .join(os.EOL) + os.EOL)
+      rl.setPrompt(printPrompt(env.envMap.get('expTotal')))
+    } catch (e) {
+      console.dir(e)
+    }
     rl.prompt()
   }).on('close', () => {
     rl.output.write(os.EOL)
@@ -92,11 +100,17 @@ const repl = async () => {
 }
 
 const evalFile = filename =>
-  console.debug(filename)
+  console.log(
+    ana.print(
+      ana
+        .makeEnv()
+        .eval(`(do ${fs.readFileSync(filename)})`)
+        .last()
+        .last()))
 
 const main = async () => {
   // parse command line args here
-  const files = process.argv.slice(1)
+  const files = process.argv.slice(2)
   if (files.length === 0) {
     return repl()
   } else {

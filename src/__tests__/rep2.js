@@ -1,24 +1,14 @@
 const {
   form,
   initialEnv,
-  getCurrentEnv,
-  setCurrentEnv,
   makeList,
   makeSet,
   makeSym,
   parse,
   read,
   readEval,
-  readEvalPrint,
   toJS
 } = require('../rep2')
-
-test('setCurrentEnv', () => {
-  expect(setCurrentEnv('smoke-test', 42))
-    .toStrictEqual(undefined)
-  expect(getCurrentEnv('smoke-test'))
-    .toStrictEqual(42)
-})
 
 test('makeList', () => {
   expect(makeList().toJS())
@@ -188,20 +178,4 @@ test('standard functions', () => {
     .toStrictEqual([false, true])
   expect(toJS(runRE('[(count []) (count {1 2 3})]')))
     .toStrictEqual([0, 3])
-})
-
-const runREP = str =>
-  typeof readEvalPrint(str).first()
-
-test('readEvalPrint', () => {
-  expect(runREP('1 2 true false null undefined'))
-    .toBe('string')
-  expect(runREP('"hello" $a \\a [1 2] {1 2} a:1'))
-    .toBe('string')
-  expect(runREP('+ label'))
-    .toBe('string')
-  expect(runREP(''))
-    .toStrictEqual('undefined')
-  expect(runREP('('))
-    .toStrictEqual('undefined')
 })

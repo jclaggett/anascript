@@ -419,7 +419,7 @@ const evalSymCallAtom = (exp, env) =>
 const printRules = {
   list: (x, r) =>
     chalk.cyan('[') +
-    printChildren(x, r) +
+    printChildren(x, r, ', ') +
     chalk.cyan(']'),
   set: (x, r) =>
     chalk.cyan('{') +
@@ -427,7 +427,7 @@ const printRules = {
       is(k, v)
         ? print(k, r)
         : printLabel(makeLabel(k, v), r))
-      .join(' ') +
+      .join(', ') +
     chalk.cyan('}'),
   symbol: x => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
   string: x => chalk.green(`"${x}"`),
@@ -435,7 +435,7 @@ const printRules = {
   number: x => chalk.yellow(x),
   undefined: x => chalk.yellow(x),
   object: x => chalk.yellow(x),
-  function: x => chalk.yellow(`<${x.name}>`),
+  function: x => chalk.yellow(`<${x.name ?? 'fn'}>`),
   label: (x, r) => printChildren(x.rest(), r, chalk.cyan(': '))
 
   // For now, these forms are just printed as lists
@@ -473,18 +473,6 @@ const read = str =>
 const readEval = (env, str) =>
   read(str)
     .reduce(applyExp, env.set('vals', makeList()))
-
-const readEvalPrint = str => {
-  try {
-    env = readEval(env, str)
-    return getEnv(env, 'vals').map(val => printLabel(val.get(2)))
-  } catch (e) {
-    console.dir(e)
-    return makeList()
-  }
-}
-
-const rep = readEvalPrint
 
 const initialEnv = makeSet(
   [sym('label'), special(evalLabel)],
@@ -524,29 +512,18 @@ const initialEnv = makeSet(
   [sym('identity'), x => x],
 
   ['expTotal', 1])
-let env = initialEnv
-
-const getCurrentEnv = k =>
-  getEnv(env, k)
-
-const setCurrentEnv = (k, v) => {
-  env = env.set(k, v)
-}
 
 module.exports = {
   form,
-  getCurrentEnv,
-  setCurrentEnv,
   initialEnv,
   makeList,
   makeSet,
   makeSym,
   parse,
   print,
+  printLabel,
   read,
   readEval,
-  readEvalPrint,
-  rep,
   sym,
   toJS
 }
