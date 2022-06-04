@@ -53,12 +53,12 @@ test('read', () => {
       'hello', makeSym('foo')))
 
   expect(read('a:1').toJS())
-    .toStrictEqual([[{ name: 'label' }, { name: 'a' }, 1]])
+    .toStrictEqual([[{ sym: 'label' }, { sym: 'a' }, 1]])
 
   expect(read('a:b:1').toJS())
     .toStrictEqual([
-      [{ name: 'label' }, { name: 'a' },
-        [{ name: 'label' }, { name: 'b' }, 1]]])
+      [{ sym: 'label' }, { sym: 'a' },
+        [{ sym: 'label' }, { sym: 'b' }, 1]]])
 })
 
 test('toJS', () => {
