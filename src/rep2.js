@@ -343,9 +343,9 @@ const evalSymCallAtom = (exp, env) =>
 // Printing
 const printRules = {
   list: (x, r) =>
-    chalk.cyan('[') +
-    printChildren(x, r, ', ') +
-    chalk.cyan(']'),
+    isSym(x.first()) || isForm(x.first(), 'expand')
+      ? r.round(x, r)
+      : r.square(x, r),
   set: (x, r) =>
     chalk.cyan('{') +
     x.map((v, k) =>
@@ -354,7 +354,11 @@ const printRules = {
         : printLabel(makeLabel(k, v), r))
       .join(', ') +
     chalk.cyan('}'),
-  symbol: x => (x.name in syms ? chalk.blue.bold : chalk.blue)(x.name),
+  square: (x, r) =>
+    chalk.cyan('[') + printChildren(x, r, ', ') + chalk.cyan(']'),
+  round: (x, r) =>
+    chalk.cyan('(') + printChildren(x, r) + chalk.cyan(')'),
+  symbol: x => (x.sym in syms ? chalk.blue.bold : chalk.blue)(x.sym),
   string: x => chalk.green(`"${x}"`),
   boolean: x => chalk.yellow(x),
   number: x => chalk.yellow(x),
