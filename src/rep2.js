@@ -343,7 +343,7 @@ const evalSymCallAtom = (exp, env) =>
 // Printing
 const printRules = {
   list: (x, r) =>
-    isSym(x.first()) || isForm(x.first(), 'expand')
+    isSym(x.first())
       ? r.round(x, r)
       : r.square(x, r),
   set: (x, r) =>
