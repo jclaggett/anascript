@@ -1,10 +1,6 @@
 'use strict'
 
-const fs = require('fs')
-const path = require('path')
-
 const chalk = require('chalk')
-const ebnf = require('ebnf')
 const im = require('immutable')
 
 const {
@@ -30,68 +26,11 @@ const {
   toJS
 } = require('./lang')
 
-// Parsing
-
-const anaParser = new ebnf.Grammars.W3C.Parser(
-  fs.readFileSync(path.resolve(__dirname, 'ana.ebnf.w3c'))
-    .toString())
-
-const parse = str => {
-  const ast = anaParser.getAST(str + ' ')
-
-  if (!ast) {
-    throw new Error('Failed to parse input')
-  }
-
-  return ast
-}
-
-// Forming
-
-const formChildren = ast =>
-  makeList(...ast.children
-    .map(form)
-    .filter(x => !isForm(x, 'comment')))
-
-const formChild = ast =>
-  ast.children.length > 0
-    ? form(ast.children[0])
-    : makeList()
-const formSymList = (name, formFn) =>
-  ast =>
-    makeForm(name, ...formFn(ast))
-
-const formRules = {
-  forms: formChildren,
-  form1: formChild,
-  form2: formChild,
-  form3: formChild,
-  form4: formChild,
-
-  comment: formSymList('comment', formChildren),
-  label: formSymList('label', formChildren),
-  expand: formSymList('expand', formChildren),
-  quote: formSymList('quote', formChildren),
-  spread: formSymList('spread', formChildren),
-  round: formChild,
-  square: formSymList('list', formChild),
-  curly: formSymList('set', formChild),
-  complement: formSymList('complement', formChildren),
-
-  number: ast => parseFloat(ast.text),
-  string: ast => ast.text.substr(1, ast.text.length - 2),
-  boolean: ast => ast.text === 'true',
-  null: _ast => null,
-  undefined: _ast => undefined,
-  symbol: ast => syms[ast.text] || makeSym(ast.text)
-}
-
-const form = ast => {
-  if (!(ast.type in formRules)) {
-    throw new Error(`Unknown AST Type: ${ast.type}`)
-  }
-  return formRules[ast.type](ast)
-}
+const {
+  form,
+  parse,
+  read
+} = require('./read')
 
 // Evaluating
 const getEnv = (env, exp) =>
@@ -395,9 +334,6 @@ const applyExp = (env, exp) => {
     .update('expTotal', x => x + 1)
     .update('vals', x => x.push(val))
 }
-
-const read = str =>
-  form(parse(str))
 
 const readEval = (env, str) =>
   read(str)
