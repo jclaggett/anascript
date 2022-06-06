@@ -13,7 +13,7 @@ const {
   syms
 } = require('./lang')
 
-// Parsing
+// Parsing: converting text into an Abstract Syntax Tree (AST)
 
 const anaParser = new ebnf.Grammars.W3C.Parser(
   fs.readFileSync(path.resolve(__dirname, 'ana.ebnf.w3c'))
@@ -29,7 +29,7 @@ const parse = str => {
   return ast
 }
 
-// Forming
+// Forming: converting an AST into a Lisp Form
 
 const formChildren = ast =>
   makeList(...ast.children
