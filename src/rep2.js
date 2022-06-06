@@ -85,7 +85,7 @@ const evalBindLabelListList = (exp, env, val) =>
           isForm(x, 'spread')
             ? val.count()
             : i + 1),
-    im.fromJS({ binds: [], maxKey: 0 }))
+    makeSet(['binds', makeList()], ['maxKey', 0]))
     .get('binds')
 
 const evalBindLabelListSet = (exp, env, val) =>
@@ -96,18 +96,18 @@ const evalBindLabelListSet = (exp, env, val) =>
         .update('binds', y =>
           y.concat(
             evalLabelInner(isForm(x, 'spread')
-              ? relabel(x.get(1), y =>
-                makeLabel(y, makeQuote(r.get('maxKey') !== undefined
+              ? relabel(x.get(1), z =>
+                makeLabel(z, makeQuote(r.get('maxKey') !== undefined
                   ? val.deleteAll(im.Range(0, r.get('maxKey')))
                   : makeSet())))
-              : relabel(x, y =>
-                makeLabel(y, makeQuote(val.get(r.get('maxKey'))))),
+              : relabel(x, z =>
+                makeLabel(z, makeQuote(val.get(r.get('maxKey'))))),
             env)))
         .update('maxKey', i =>
           isForm(x, 'spread')
             ? undefined
             : i + 1),
-    im.fromJS({ binds: [], maxKey: 0 }))
+    makeSet(['binds', makeList()], ['maxKey', 0]))
     .get('binds')
 
 const evalBindLabelSetList = (exp, env, val) =>
@@ -131,7 +131,7 @@ const evalBindLabelSetList = (exp, env, val) =>
             ? key
             : y)
     },
-    im.fromJS({ binds: [], maxKey: 0 }))
+    makeSet(['binds', makeList()], ['maxKey', 0]))
     .get('binds')
 
 const evalBindLabelSetSet = (exp, env, val) =>
@@ -155,7 +155,7 @@ const evalBindLabelSetSet = (exp, env, val) =>
             ? y.push(key)
             : y)
     },
-    im.fromJS({ binds: [], keysTaken: [] }))
+    makeSet(['binds', makeList()], ['keysTaken', makeList()]))
     .get('binds')
 
 const evalBindLabel = (exp, env, val) =>
