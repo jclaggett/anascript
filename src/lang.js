@@ -4,9 +4,6 @@ const im = require('immutable')
 
 // Utils
 
-const getDefault = (o, k, d) =>
-  k in o ? o[k] : d
-
 const throwError = msg => {
   throw new Error(msg)
 }
@@ -103,7 +100,6 @@ const get = (col, k, d) =>
 module.exports = {
   conj,
   get,
-  getDefault,
   getType,
   is,
   isForm,

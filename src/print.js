@@ -3,7 +3,6 @@
 const chalk = require('chalk')
 
 const {
-  getDefault,
   getType,
   is,
   isSym,
@@ -35,7 +34,7 @@ const printRules = {
   number: x => chalk.yellow(x),
   undefined: x => chalk.yellow(x),
   object: x => chalk.yellow(x),
-  function: x => chalk.yellow(`<${x.name ?? 'fn'}>`),
+  function: x => chalk.yellow(`<fn-${x.name}>`),
   label: (x, r) => printChildren(x.rest(), r, chalk.cyan(': '))
 
   // For now, these forms are just printed as lists
@@ -50,8 +49,14 @@ const printLabel = (x, r = printRules) =>
 const printChildren = (x, rules, sep = ' ') =>
   x.map(child => print(child, rules)).join(sep)
 
-const print = (x, r = printRules) =>
-  getDefault(r, getType(x), x => x)(x, r)
+const print = (x, r = printRules) => {
+  const rule = r[getType(x)]
+  if (rule !== undefined) {
+    return rule(x, r)
+  } else {
+    return x
+  }
+}
 
 // General
 module.exports = {
