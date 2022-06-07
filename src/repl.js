@@ -106,6 +106,7 @@ const evalFile = filename =>
         .makeEnv()
         .eval(`(do ${fs.readFileSync(filename)})`)
         .last()
+        .last()
         .last()))
 
 const main = async () => {
