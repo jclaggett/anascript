@@ -32,8 +32,8 @@ commands you can use:
 | `pnpm run lint [--fix]` | Check the quality of the code and fix it if possible. |
 | `pnpm run test [--watch] [--coverage]` | Test the code, continually, and report coverage. |
 
-*Warning* This is still just a crude experiment at the moment so the language
-semantics are still in flux. That sadi, it does feel like things are solidifying.
+**Warning**: This is still just a crude experiment at the moment so the language
+semantics are still in flux. That said, it does feel like things are solidifying.
 
 ## Syntax Notes
 See the EBNF grammar for specifics on syntax: [src/ana.ebnf.w3c](src/ana.ebnf.w3c).
@@ -47,7 +47,7 @@ See the EBNF grammar for specifics on syntax: [src/ana.ebnf.w3c](src/ana.ebnf.w3
        (label b 1))`
     5. `:` will be the _only_ infix syntax to be added ever. Having just one
        infix operator means the precendence rules will not be _too_ horrible.
-       As it is, even just one was suprisingly messy.
+       As it is, even just one was surprisingly messy.
 2. Prefix Operators: A few symbols will be dedicated for use in prefix syntax:
     1. `#`, `...`, `$`, `\` are all prefix, unary operators
     2. `#`, `...` both bind more loosely than `:`: `#a:1` ==> `(comment (label a 1))`
