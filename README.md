@@ -16,10 +16,21 @@ The lisp implementation was heavily influenced by Joel Martin's
 MAL project: https://github.com/kanaka/mal
 
 ## Running
-To run a repl, run this command: `npm start` or `pnpm start` or
-`node src/repl.js`.
+To run the demo repl, run this command: `npx anascript` (or `pnpx anascript`)
+To run against a file: `npx anascript foo.ana`
 
-This is still just a crude experiment at the moment.
+If you clone the repo and want to play around with the code, here are some
+commands you can use:
+| Command | Description |
+| --- | --- |
+| `pnpm install` | Install dependencies. |
+| `pnpm start [file]` | Run the repl or run against a file. |
+| `pnpm start package.json` | Run against a JSON file to confirm compatibility. |
+| `pnpm run lint [--fix]` | Check the quality of the code and fix it if possible. |
+| `pnpm run test [--watch] [--coverage]` | Test the code, continually, and report coverage. |
+
+*Warning* This is still just a crude experiment at the moment so the language
+semantics are still in flux. That sadi, it does feel like things are solidifying.
 
 ## Syntax Notes
 See the EBNF grammar for specifics on syntax: [src/ana.ebnf.w3c](src/ana.ebnf.w3c).
