@@ -69,12 +69,8 @@ const formRules = {
   symbol: ast => syms[ast.text] || makeSym(ast.text)
 }
 
-const form = ast => {
-  if (!(ast.type in formRules)) {
-    throw new Error(`Unknown AST Type: ${ast.type}`)
-  }
-  return formRules[ast.type](ast)
-}
+const form = ast =>
+  formRules[ast.type](ast)
 
 const read = str =>
   form(parse(str))

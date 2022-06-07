@@ -1,23 +1,20 @@
 const {
-  form,
-  initialEnv,
   makeList,
   makeSet,
-  makeSym,
+  makeSym
+} = require('../rep2')
+
+const {
+  makeEnv,
   parse,
   print,
   printLabel,
   read,
-  readEval,
   toJS
-} = require('../rep2')
-
-const {
-  makeEnv
 } = require('../index')
 
 const RE = str =>
-  readEval(initialEnv, str).get(makeSym('_'))
+  makeEnv().eval(str)?.last()?.last()?.last()
 
 const REJ = str =>
   toJS(RE(str))
@@ -44,15 +41,6 @@ test('parse', () => {
   expect(parse('1'))
     .toBeDefined()
   expect(() => parse('['))
-    .toThrow()
-})
-
-test('form', () => {
-  expect(form(parse('')))
-    .toStrictEqual(makeList())
-  expect(form(parse('1 2 3')))
-    .toStrictEqual(makeList(1, 2, 3))
-  expect(() => form({ type: 'unexpectedType' }))
     .toThrow()
 })
 
