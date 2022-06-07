@@ -16,8 +16,11 @@ The lisp implementation was heavily influenced by Joel Martin's
 MAL project: https://github.com/kanaka/mal
 
 ## Running
-To run the demo repl, run this command: `npx anascript` (or `pnpx anascript`)
-To run against a file: `npx anascript foo.ana`
+| Command | Description |
+| --- | --- |
+| `npx anascript` | Run demo repl |
+| `pnpx anascript` | same as above using pnpm |
+| `pnpx anascript foo.ana` | run script and print result |
 
 If you clone the repo and want to play around with the code, here are some
 commands you can use:
