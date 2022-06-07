@@ -12,6 +12,10 @@ const {
   toJS
 } = require('../rep2')
 
+const {
+  makeEnv
+} = require('../index')
+
 const RE = str =>
   readEval(initialEnv, str).get(makeSym('_'))
 
@@ -200,5 +204,11 @@ test('print', () => {
   expect(print(RE('42'), {}))
     .toStrictEqual(42)
   expect(printLabel(makeList(makeSym('label'), 1, 1)))
+    .toBeDefined()
+})
+
+test('makeEnv', () => {
+  const env = makeEnv()
+  expect(env.eval('"hello world"'))
     .toBeDefined()
 })
