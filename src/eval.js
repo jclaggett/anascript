@@ -220,8 +220,8 @@ const isSpecial = (fn) =>
 
 const evalCall = (exp, env) => {
   const fn = evalSymCallAtom(exp.first(), env)
-  if (typeof fn !== 'function') {
-    throw new Error(`${print.print(env.get('evalForm'))}
+  if (!lang.isFn(fn)) {
+    lang.throwError(`${print.print(env.get('evalForm'))}
        ^ ${print.print(exp)} is ${fn} and not callable.`)
   }
   const fn2 = isSpecial(fn)
@@ -303,6 +303,7 @@ const initialEnv = lang.makeSet(
   [lang.sym('set*'), lang.makeSet],
   [lang.sym('list?'), lang.isList],
   [lang.sym('set?'), lang.isSet],
+  [lang.sym('fn?'), lang.isFn],
   [lang.sym('assoc'), assoc],
   [lang.sym('dissoc'), dissoc],
   [lang.sym('push'), push],

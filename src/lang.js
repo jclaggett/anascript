@@ -14,8 +14,6 @@ const toJS = x =>
     ? x.toJS()
     : x
 
-const is = im.is
-
 const Sym = im.Record({ sym: null }, 'Sym')
 const makeSym = sym => Sym({ sym })
 
@@ -27,15 +25,17 @@ const sym = name => {
   return syms[name]
 }
 
-const makeList = (...xs) =>
-  im.List(xs)
+const makeSet = (...xs) => im.Map(xs)
+const makeList = (...xs) => im.List(xs)
+const makeForm = (name, ...args) => makeList(sym(name), ...args)
 
-const makeSet = (...xs) =>
-  im.Map(xs)
-
+const is = im.is
 const isSym = x => x instanceof Sym
 const isList = x => im.List.isList(x)
 const isSet = x => im.Map.isMap(x)
+const isFn = x => typeof x === 'function'
+const isForm = (x, ...names) =>
+  isList(x) && names.some(name => is(x.first(), sym(name)))
 
 const getType = x =>
   isSet(x)
@@ -46,15 +46,6 @@ const getType = x =>
         ? 'list'
         : typeof x
 
-const isType = (x, t) =>
-  getType(x) === t
-
-const isForm = (x, ...names) =>
-  isList(x) && names.some(name => is(x.first(), sym(name)))
-
-const makeForm = (name, ...args) =>
-  makeList(sym(name), ...args)
-
 const conjReducer = fn => {
   const reducer = (col, x) =>
     isForm(x, 'bind')
@@ -62,7 +53,7 @@ const conjReducer = fn => {
       : isForm(x, 'binds')
         ? x.rest().reduce(reducer, col)
         : isForm(x, 'spread')
-          ? isType(x.get(1), 'list')
+          ? isList(x.get(1))
             ? x.get(1)
               .reduce(reducer, col)
             : x.get(1)
@@ -76,9 +67,9 @@ const conjReducerList = conjReducer((col, x) => col.push(x))
 const conjReducerSet = conjReducer((col, x) => col.set(x, x))
 
 const conj = (col, ...xs) =>
-  xs.reduce(isType(col, 'list')
+  xs.reduce(isList(col)
     ? conjReducerList
-    : isType(col, 'set')
+    : isSet(col)
       ? conjReducerSet
       : throwError(`Unable to conj onto type ${getType(col)}. Must be type set or list`),
   col)
@@ -87,6 +78,7 @@ module.exports = {
   conj,
   getType,
   is,
+  isFn,
   isForm,
   isList,
   isSet,
