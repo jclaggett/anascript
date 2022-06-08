@@ -80,7 +80,7 @@ test('readEval', () => {
   expect(REJ('(eval2 "a")'))
     .toStrictEqual('a')
   expect(REJ('(read "1")'))
-    .toStrictEqual(1)
+    .toStrictEqual([1])
   expect(REJ('[1 2 3]'))
     .toStrictEqual([1, 2, 3])
   expect(REJ('{1 2 3}'))

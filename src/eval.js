@@ -274,6 +274,14 @@ const get = (col, k, d) =>
     ? col.get(k, d)
     : lang.throwError(`Unable to get from type ${lang.getType(col)}. Must be type set or list`)
 
+const assoc = (col, k, v) => col.set(k, v)
+const dissoc = (col, k) => col.delete(k)
+const push = (col, v) => col.push(v)
+const pop = col => col.pop()
+const first = col => col.first()
+const last = col => col.last()
+const count = col => col.count()
+
 const initialEnv = lang.makeSet(
   [lang.sym('label'), special(evalLabel)],
   [lang.sym('expand'), special(evalExpand)],
@@ -290,20 +298,19 @@ const initialEnv = lang.makeSet(
   [lang.sym('list'), special(evalList)],
   [lang.sym('set'), special(evalSet)],
 
-  [lang.sym('read'), str => read.read(str).first()],
-
+  [lang.sym('read'), read.read],
   [lang.sym('list*'), lang.makeList],
   [lang.sym('set*'), lang.makeSet],
   [lang.sym('list?'), lang.isList],
   [lang.sym('set?'), lang.isSet],
-  [lang.sym('assoc'), (col, k, v) => col.set(k, v)],
-  [lang.sym('dissoc'), (col, k) => col.delete(k)],
-  [lang.sym('push'), (col, v) => col.push(v)],
-  [lang.sym('pop'), col => col.pop()],
-  [lang.sym('first'), col => col.first()],
-  [lang.sym('last'), col => col.last()],
+  [lang.sym('assoc'), assoc],
+  [lang.sym('dissoc'), dissoc],
+  [lang.sym('push'), push],
+  [lang.sym('pop'), pop],
+  [lang.sym('first'), first],
+  [lang.sym('last'), last],
   [lang.sym('get'), get],
-  [lang.sym('count'), col => col.count()],
+  [lang.sym('count'), count],
 
   [lang.sym('type'), lang.getType],
 
