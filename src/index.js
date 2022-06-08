@@ -1,4 +1,7 @@
-const rep = require('./rep2')
+const lang = require('./lang')
+const read = require('./read')
+const eval2 = require('./eval')
+const print = require('./print')
 
 class Env {
   constructor (envMap) {
@@ -6,20 +9,23 @@ class Env {
   }
 
   eval (s) {
-    this.envMap = rep.readEval(this.envMap, s)
+    this.envMap = read.read(s)
+      .reduce(
+        eval2.applyExp,
+        this.envMap.set('vals', lang.makeList()))
     return this.envMap
       .get('vals')
   }
 }
 
-const makeEnv = (envMap = rep.initialEnv) =>
+const makeEnv = (envMap = eval2.initialEnv) =>
   new Env(envMap)
 
 module.exports = {
   makeEnv,
-  parse: rep.parse,
-  read: rep.read,
-  print: rep.print,
-  printLabel: rep.printLabel,
-  toJS: rep.toJS
+  parse: read.parse,
+  read: read.read,
+  print: print.print,
+  printLabel: print.printLabel,
+  toJS: lang.toJS
 }

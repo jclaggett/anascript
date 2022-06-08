@@ -2,7 +2,7 @@ const {
   makeList,
   makeSet,
   makeSym
-} = require('../rep2')
+} = require('../lang')
 
 const {
   makeEnv,

@@ -6,7 +6,7 @@ const {
   getType,
   is,
   isSym,
-  makeLabel,
+  makeForm,
   syms
 } = require('./lang')
 
@@ -21,7 +21,7 @@ const printRules = {
     x.map((v, k) =>
       is(k, v)
         ? print(k, r)
-        : printLabel(makeLabel(k, v), r))
+        : printLabel(makeForm('label', k, v), r))
       .join(', ') +
     chalk.cyan('}'),
   square: (x, r) =>

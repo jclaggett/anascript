@@ -55,15 +55,6 @@ const isForm = (x, ...names) =>
 const makeForm = (name, ...args) =>
   makeList(sym(name), ...args)
 
-const makeBind = (k, v) =>
-  makeForm('bind', k, v)
-
-const makeLabel = (k, v) =>
-  makeForm('label', k, v)
-
-const makeQuote = x =>
-  makeForm('quote', x)
-
 const conjReducer = fn => {
   const reducer = (col, x) =>
     isForm(x, 'bind')
@@ -75,7 +66,7 @@ const conjReducer = fn => {
             ? x.get(1)
               .reduce(reducer, col)
             : x.get(1)
-              .map((v, k) => makeBind(k, v))
+              .map((v, k) => makeForm('bind', k, v))
               .reduce(reducer, col)
           : fn(col, x)
   return reducer
@@ -92,25 +83,16 @@ const conj = (col, ...xs) =>
       : throwError(`Unable to conj onto type ${getType(col)}. Must be type set or list`),
   col)
 
-const get = (col, k, d) =>
-  isType(col, 'list') || isType(col, 'set')
-    ? col.get(k, d)
-    : throwError(`Unable to get from type ${getType(col)}. Must be type set or list`)
-
 module.exports = {
   conj,
-  get,
   getType,
   is,
   isForm,
   isList,
   isSet,
   isSym,
-  makeBind,
   makeForm,
-  makeLabel,
   makeList,
-  makeQuote,
   makeSet,
   makeSym,
   sym,
