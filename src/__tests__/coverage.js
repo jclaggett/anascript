@@ -1,9 +1,6 @@
-const {
-  makeList,
-  makeSet,
-  makeSym
-} = require('../lang')
-
+// Rules for this file
+// 1. Coverage report should be at 100% when testing only this file.
+// 2. Tests should be defined only in terms of the public API.
 const {
   makeEnv,
   parse,
@@ -19,22 +16,6 @@ const RE = str =>
 const REJ = str =>
   toJS(RE(str))
 
-test('makeList', () => {
-  expect(makeList().toJS())
-    .toStrictEqual([])
-
-  expect(makeList(1, 2, 3).toJS())
-    .toStrictEqual([1, 2, 3])
-})
-
-test('makeSet', () => {
-  expect(makeSet().toJS())
-    .toStrictEqual({})
-
-  expect(makeSet([1, 1], [2, 2], [3, 3]).toJS())
-    .toStrictEqual({ 1: 1, 2: 2, 3: 3 })
-})
-
 test('parse', () => {
   expect(parse(''))
     .toBeDefined()
@@ -45,12 +26,12 @@ test('parse', () => {
 })
 
 test('read', () => {
-  expect(read(''))
-    .toStrictEqual(makeList())
+  expect(read('').toJS())
+    .toStrictEqual([])
 
-  expect(read('0 1 -1.25 true false "hello" foo null undefined'))
-    .toStrictEqual(makeList(0, 1, -1.25, true, false,
-      'hello', makeSym('foo'), null, undefined))
+  expect(read('0 1 -1.25 true false "hello" foo null undefined').toJS())
+    .toStrictEqual([0, 1, -1.25, true, false,
+      'hello', { sym: 'foo' }, null, undefined])
 
   expect(read('a:1').toJS())
     .toStrictEqual([[{ sym: 'label' }, { sym: 'a' }, 1]])
@@ -68,21 +49,21 @@ test('toJS', () => {
     .toStrictEqual([42])
 })
 
-test('readEval', () => {
+test('makeEnv', () => {
+  const env = makeEnv()
+  expect(env.eval('"hello world"'))
+    .toBeDefined()
+})
+
+test('simple use', () => {
   expect(REJ(''))
     .toStrictEqual(undefined)
-  expect(REJ('1'))
-    .toStrictEqual(1)
-  expect(REJ('(+ 1 1)'))
-    .toStrictEqual(2)
-  expect(REJ('(eval a)'))
-    .toStrictEqual(undefined)
-  expect(REJ('(eval2 "a")'))
-    .toStrictEqual('a')
+  expect(REJ('42'))
+    .toStrictEqual(42)
   expect(REJ('(read "1")'))
     .toStrictEqual([1])
-  expect(REJ('[1 2 3]'))
-    .toStrictEqual([1, 2, 3])
+  expect(REJ('[true "a" null]'))
+    .toStrictEqual([true, 'a', null])
   expect(REJ('{1 2 3}'))
     .toStrictEqual({ 1: 1, 2: 2, 3: 3 })
 
@@ -120,6 +101,10 @@ test('labeling', () => {
 test('special forms', () => {
   expect(REJ('#42'))
     .toStrictEqual(undefined)
+  expect(REJ('(eval a)'))
+    .toStrictEqual(undefined)
+  expect(REJ('(eval2 "a")'))
+    .toStrictEqual('a')
   expect(REJ('\\"a"'))
     .toStrictEqual('a')
   expect(REJ('true:false $true'))
@@ -201,16 +186,10 @@ test('standard functions', () => {
 })
 
 test('print', () => {
-  expect(print(RE('[env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null)]')))
+  expect(print(makeEnv().eval('[env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null)]')))
     .toBeDefined()
-  expect(print(RE('42'), {}))
+  expect(print(makeEnv().eval('42').last().last().last(), {}))
     .toStrictEqual(42)
-  expect(printLabel(makeList(makeSym('label'), 1, 1)))
-    .toBeDefined()
-})
-
-test('makeEnv', () => {
-  const env = makeEnv()
-  expect(env.eval('"hello world"'))
-    .toBeDefined()
+  expect(printLabel(makeEnv().eval('42')))
+    .toStrictEqual('')
 })
