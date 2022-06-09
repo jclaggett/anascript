@@ -14,8 +14,8 @@ const TerminalRenderer = require('marked-terminal')
 
 const { version } = require('../package')
 
-// const rep = require('./rep')
-const rep = require('./rep2')
+const lang = require('./lang')
+const eval2 = require('./eval')
 const ana = require('./index')
 
 const helpText = `
@@ -29,7 +29,7 @@ const buildHelp = env => {
   })
   const indent = ' ┊  '
   return env.set(
-    rep.sym('help'),
+    lang.sym('help'),
     () => console.log(
       indent + marked(helpText).replace(/\n/g, '\n' + indent)))
 }
@@ -77,7 +77,7 @@ const repl = async () => {
     history: await loadHistory(historyFile)
   })
 
-  const env = ana.makeEnv(buildHelp(rep.initialEnv))
+  const env = ana.makeEnv(buildHelp(eval2.initialEnv))
 
   rl.on('line', async (line) => {
     await saveHistory(historyFile, line)

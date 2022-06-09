@@ -281,45 +281,62 @@ const pop = col => col.pop()
 const first = col => col.first()
 const last = col => col.last()
 const count = col => col.count()
+const add = (...xs) => xs.reduce((t, x) => t + x, 0)
+const subtract = (...xs) => xs.length === 0
+  ? NaN
+  : xs.reduce((t, x) => t - x)
+const multiply = (...xs) => xs.reduce((t, x) => t * x, 1)
+const divide = (...xs) => xs.length === 0
+  ? NaN
+  : xs.reduce((t, x) => t / x)
+const identity = x => x
 
-const initialEnv = lang.makeSet(
-  [lang.sym('label'), special(evalLabel)],
-  [lang.sym('expand'), special(evalExpand)],
-  [lang.sym('quote'), special(evalQuote)],
-  [lang.sym('spread'), special(evalSpread)],
+const defEnv = x =>
+  lang.makeSet(...Object.entries(x)
+    .map(([s, f]) => [lang.sym(s), f]))
 
-  [lang.sym('do'), special(evalDo)],
-  [lang.sym('eval'), special(evalEval)],
-  [lang.sym('eval2'), special(evalEval2)],
-  [lang.sym('if'), special(evalIf)],
-  [lang.sym('let'), special(evalLet)],
-  [lang.sym('fn'), special(evalFn)],
-  [lang.sym('conj'), special(evalConj)],
-  [lang.sym('list'), special(evalList)],
-  [lang.sym('set'), special(evalSet)],
+const initialEnv = defEnv({
+  label: special(evalLabel),
+  expand: special(evalExpand),
+  quote: special(evalQuote),
+  spread: special(evalSpread),
+  list: special(evalList),
+  set: special(evalSet),
 
-  [lang.sym('read'), read.read],
-  [lang.sym('list*'), lang.makeList],
-  [lang.sym('set*'), lang.makeSet],
-  [lang.sym('list?'), lang.isList],
-  [lang.sym('set?'), lang.isSet],
-  [lang.sym('fn?'), lang.isFn],
-  [lang.sym('assoc'), assoc],
-  [lang.sym('dissoc'), dissoc],
-  [lang.sym('push'), push],
-  [lang.sym('pop'), pop],
-  [lang.sym('first'), first],
-  [lang.sym('last'), last],
-  [lang.sym('get'), get],
-  [lang.sym('count'), count],
+  do: special(evalDo),
+  eval: special(evalEval),
+  eval2: special(evalEval2),
+  if: special(evalIf),
+  let: special(evalLet),
+  fn: special(evalFn),
+  conj: special(evalConj),
 
-  [lang.sym('type'), lang.getType],
+  read: read.read,
+  type: lang.getType,
+  'list*': lang.makeList,
+  'set*': lang.makeSet,
+  'list?': lang.isList,
+  'set?': lang.isSet,
+  'fn?': lang.isFn,
+  assoc,
+  dissoc,
+  push,
+  pop,
+  first,
+  last,
+  get,
+  count,
+  identity,
 
-  [lang.sym('+'), (...xs) => xs.reduce((t, x) => t + x, 0)],
-  [lang.sym('-'), (...xs) => xs.reduce((t, x) => t - x)],
-  [lang.sym('identity'), x => x],
-
-  ['expTotal', 1])
+  '+': add,
+  '-': subtract,
+  '*': multiply,
+  '/': divide,
+  pow: Math.pow,
+  log: Math.log,
+  log10: Math.log10,
+  log2: Math.log2
+}).set('expTotal', 1)
 
 module.exports = {
   applyExp,
