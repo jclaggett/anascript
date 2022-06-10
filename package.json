@@ -21,7 +21,8 @@
   },
   "scripts": {
     "test": "jest",
-    "test-watch-coverage": "jest --watch --coverage",
+    "test-coverage": "jest --coverage coverage",
+    "test-watch": "jest --watch",
     "lint": "eslint src",
     "lint-fix": "eslint --fix src",
     "start": "node src/repl.js",
