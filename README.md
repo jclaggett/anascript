@@ -36,7 +36,7 @@ commands you can use:
 semantics are still in flux. That said, it does feel like things are solidifying.
 
 ## Syntax Notes
-See the EBNF grammar for specifics on syntax: [src/ana.ebnf.w3c](src/ana.ebnf.w3c).
+See the EBNF grammar for specifics on syntax: [src/ebnf.w3c](src/ebnf.w3c).
 
 1. Label Infix Operator:
     1. Additional syntax layered on top of Clojure syntax layered on Lisp

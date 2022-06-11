@@ -15,6 +15,7 @@ const toJS = x =>
     : x
 
 const Sym = im.Record({ sym: null }, 'Sym')
+const negValue = im.Record({}, 'negValue')({})
 const makeSym = sym => Sym({ sym })
 
 const syms = { env: makeSym('env') }
@@ -36,6 +37,22 @@ const isSet = x => im.Map.isMap(x)
 const isFn = x => typeof x === 'function'
 const isForm = (x, ...names) =>
   isList(x) && names.some(name => is(x.first(), sym(name)))
+const isNumber = x => typeof x === 'number'
+
+const isNegSet = x => x.contains(negValue)
+const isPosSet = x => !isNegSet(x)
+
+const isPos = x => isNumber(x)
+  ? x >= 0
+  : isSet(x)
+    ? isPosSet(x)
+    : null
+
+const isNeg = x => isNumber(x)
+  ? x < 0
+  : isSet(x)
+    ? isNegSet(x)
+    : null
 
 const getType = x =>
   isSet(x)
@@ -74,7 +91,17 @@ const conj = (col, ...xs) =>
       : throwError(`Unable to conj onto type ${getType(col)}. Must be type set or list`),
   col)
 
+const complement = x =>
+  isSet(x)
+    ? isNegSet(x)
+      ? x.remove(negValue)
+      : x.set(negValue, negValue)
+    : isNumber(x)
+      ? -x
+      : x
+
 module.exports = {
+  complement,
   conj,
   getType,
   is,
@@ -83,6 +110,9 @@ module.exports = {
   isList,
   isSet,
   isSym,
+  isNumber,
+  isPos,
+  isNeg,
   makeForm,
   makeList,
   makeSet,
