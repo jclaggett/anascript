@@ -3,10 +3,11 @@
 const chalk = require('chalk')
 
 const {
+  identity,
   complement,
   getType,
   is,
-  isPos,
+  isComplement,
   isSym,
   makeForm,
   syms
@@ -19,21 +20,17 @@ const printRules = {
       ? r.round(x, r)
       : r.square(x, r),
   set: (x, r) =>
-    isPos(x)
-      ? chalk.cyan('{') +
-        x.map((v, k) =>
+    (([lead, fn]) =>
+      chalk.cyan(lead + '{') +
+        fn(x).map((v, k) =>
           is(k, v)
             ? print(k, r)
             : printLabel(makeForm('label', k, v), r))
           .join(', ') +
         chalk.cyan('}')
-      : chalk.cyan('~{') +
-        complement(x).map((v, k) =>
-          is(k, v)
-            ? print(k, r)
-            : printLabel(makeForm('label', k, v), r))
-          .join(', ') +
-        chalk.cyan('}'),
+    )(isComplement(x)
+      ? ['~', complement]
+      : ['', identity]),
   square: (x, r) =>
     chalk.cyan('[') + printChildren(x, r, ', ') + chalk.cyan(']'),
   round: (x, r) =>

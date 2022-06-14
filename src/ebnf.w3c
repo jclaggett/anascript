@@ -5,7 +5,7 @@ forms           ::= (WS* form1)* WS*
 form1           ::= comment | spread | form2
 form2           ::= label | form3
 form3           ::= expand | quote | form4
-form4           ::= round | square | curly | complement | number | string | boolean | null | undefined | symbol
+form4           ::= round | square | curly | number | string | boolean | null | undefined | symbol
 
 /* Concrete (syntax) */
 comment         ::= NUMBER_SIGN form1
@@ -15,7 +15,6 @@ expand          ::= DOLLAR_SIGN form3
 quote           ::= BACKSLASH form3
 round           ::= LEFT_ROUND forms? RIGHT_ROUND
 square          ::= LEFT_SQUARE forms? RIGHT_SQUARE
-complement      ::= TILDA curly
 curly           ::= LEFT_CURLY forms? RIGHT_CURLY
 number          ::= "-"? ("0" | [1-9] [0-9]*) ("." [0-9]+)? (("e" | "E") ( "-" | "+" )? ("0" | [1-9] [0-9]*))?
 string          ::= '"' (([#x20-#x21] | [#x23-#x5B] | [#x5D-#xFFFF]) | #x5C (#x22 | #x5C | #x2F | #x62 | #x66 | #x6E | #x72 | #x74 | #x75 HEXDIG HEXDIG HEXDIG HEXDIG))* '"'
@@ -25,7 +24,7 @@ undefined       ::= "undefined"
 symbol          ::= (OCHAR | SCHAR) (OCHAR | SCHAR | [0-9])*
 
 /* Tokens */
-OCHAR           ::= ("=" | "!" | "@" | "%" | "^" | "&" | "*" | "-" | "+" | ">" | "<" | "?" | "/" | "|" )
+OCHAR           ::= ("=" | "!" | "@" | "%" | "~" | "^" | "&" | "*" | "-" | "+" | ">" | "<" | "?" | "/" | "|" )
 SCHAR           ::= ([a-z] | [A-Z] | "_")
 HEXDIG          ::= [a-fA-F0-9]
 ELLIPSIS        ::= WS* "..." WS*
@@ -33,10 +32,9 @@ BACKSLASH       ::= WS* "\\" WS*
 DOLLAR_SIGN     ::= WS* "$" WS*
 NUMBER_SIGN     ::= WS* "#" WS*
 COLON           ::= WS* ":" WS*
-TILDA           ::= WS* "~" WS*
 LEFT_ROUND      ::= WS* "(" WS*
 LEFT_SQUARE     ::= WS* "[" WS*
-LEFT_CURLY      ::= WS* "{" WS*
+LEFT_CURLY      ::= WS* "~"? "{" WS*
 RIGHT_ROUND     ::= WS* ")" WS*
 RIGHT_SQUARE    ::= WS* "]" WS*
 RIGHT_CURLY     ::= WS* "}" WS*

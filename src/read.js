@@ -44,6 +44,8 @@ const formSymList = (name, formFn) =>
   ast =>
     makeForm(name, ...formFn(ast))
 
+const formSetChild = formSymList('set', formChild)
+
 const formRules = {
   forms: formChildren,
   form1: formChild,
@@ -58,9 +60,9 @@ const formRules = {
   spread: formSymList('spread', formChildren),
   round: formChild,
   square: formSymList('list', formChild),
-  curly: formSymList('set', formChild),
-  complement: formSymList('complement', formChildren),
-
+  curly: ast => ast.text[0] === '~'
+    ? makeForm('~', formSetChild(ast))
+    : formSetChild(ast),
   number: ast => parseFloat(ast.text),
   string: ast => ast.text.substr(1, ast.text.length - 2),
   boolean: ast => ast.text === 'true',

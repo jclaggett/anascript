@@ -8,14 +8,16 @@ const throwError = msg => {
   throw new Error(msg)
 }
 
-// Language primitives
 const toJS = x =>
   x instanceof im.Collection
     ? x.toJS()
     : x
 
+// Language primitives
+const identity = x => x
+
+const compFlag = im.Record({}, 'complement')({})
 const Sym = im.Record({ sym: null }, 'Sym')
-const negValue = im.Record({}, 'negValue')({})
 const makeSym = sym => Sym({ sym })
 
 const syms = { env: makeSym('env') }
@@ -39,20 +41,11 @@ const isForm = (x, ...names) =>
   isList(x) && names.some(name => is(x.first(), sym(name)))
 const isNumber = x => typeof x === 'number'
 
-const isNegSet = x => x.contains(negValue)
-const isPosSet = x => !isNegSet(x)
+const isComplement = x => x.contains(compFlag)
 
-const isPos = x => isNumber(x)
-  ? x >= 0
-  : isSet(x)
-    ? isPosSet(x)
-    : null
-
-const isNeg = x => isNumber(x)
-  ? x < 0
-  : isSet(x)
-    ? isNegSet(x)
-    : null
+const isPos = x => x > 0
+const isZero = x => x === 0
+const isNeg = x => x < 0
 
 const getType = x =>
   isSet(x)
@@ -92,33 +85,71 @@ const conj = (col, ...xs) =>
   col)
 
 const complement = x =>
-  isSet(x)
-    ? isNegSet(x)
-      ? x.remove(negValue)
-      : x.set(negValue, negValue)
-    : isNumber(x)
-      ? -x
-      : x
+  isComplement(x)
+    ? x.remove(compFlag)
+    : x.set(compFlag, compFlag)
+
+const s = {
+  all: (x, y) => x.merge(y),
+  middle: (x, y) => x.deleteAll(x.deleteAll(y.keys()).keys()),
+  left: (x, y) => x.deleteAll(y.keys()),
+  right: (x, y) => s.left(y, x)
+}
+
+const cmdReducer = (a, b, c, d) =>
+  (x, y) =>
+    (isComplement(x)
+      ? isComplement(y) ? a : b
+      : isComplement(y) ? c : d)(x, y)
+
+const difference = (...xs) =>
+  xs.length === 0
+    ? null
+    : xs.length === 1
+      ? complement(xs[0])
+      : xs.reduce(cmdReducer(s.right, s.all, s.middle, s.left))
+
+const union = (...xs) =>
+  xs.length === 0
+    ? makeSet()
+    : xs.reduce(cmdReducer(s.middle, s.left, s.right, s.all))
+
+const intersection = (...xs) =>
+  xs.length === 0
+    ? complement(makeSet())
+    : xs.reduce(cmdReducer(s.all, s.right, s.left, s.middle))
+
+const symmetricDifference = (...xs) =>
+  xs.length === 0
+    ? makeSet()
+    : xs.reduce((x, y) => union(difference(x, y), difference(y, x)))
 
 module.exports = {
   complement,
   conj,
+  difference,
   getType,
+  identity,
+  intersection,
   is,
+  isComplement,
   isFn,
   isForm,
   isList,
-  isSet,
-  isSym,
+  isNeg,
   isNumber,
   isPos,
-  isNeg,
+  isSet,
+  isSym,
+  isZero,
   makeForm,
   makeList,
   makeSet,
   makeSym,
   sym,
+  symmetricDifference,
   syms,
   throwError,
-  toJS
+  toJS,
+  union
 }
