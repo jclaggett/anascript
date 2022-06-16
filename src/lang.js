@@ -90,7 +90,7 @@ const complement = x =>
     : x.set(compFlag, compFlag)
 
 const s = {
-  all: (x, y) => x.merge(y),
+  all: (x, y) => y.merge(x),
   middle: (x, y) => x.deleteAll(x.deleteAll(y.keys()).keys()),
   left: (x, y) => x.deleteAll(y.keys()),
   right: (x, y) => s.left(y, x)
@@ -124,10 +124,20 @@ const symmetricDifference = (...xs) =>
     ? makeSet()
     : xs.reduce((x, y) => union(difference(x, y), difference(y, x)))
 
+const keys = x =>
+  (x === undefined)
+    ? null // transducer here
+    : isSet(x)
+      ? makeSet(...x.keySeq().map(k => [k, k]))
+      : isList(x)
+        ? makeList(...x.keys())
+        : null
+
 module.exports = {
   complement,
   conj,
   difference,
+  keys,
   getType,
   identity,
   intersection,

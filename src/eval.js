@@ -324,6 +324,7 @@ const initialEnv = defEnv({
   'zero?': lang.isZero,
   'number?': lang.isNumber,
   complement: lang.complement,
+  keys: lang.keys,
   assoc,
   dissoc,
   push,

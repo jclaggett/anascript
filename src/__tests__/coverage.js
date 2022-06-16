@@ -230,6 +230,8 @@ test('collection functions', () => {
     .toStrictEqual([false, true])
   expect(REJ('[(count []) (count {1 2 3})]'))
     .toStrictEqual([0, 3])
+  expect(REJ('[(keys) (keys 42) (keys [1 2 3]) (keys {1:true 2:false 3:null})]'))
+    .toStrictEqual([null, null, [0, 1, 2], { 1: 1, 2: 2, 3: 3 }])
 })
 
 test('print', () => {

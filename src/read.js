@@ -16,7 +16,7 @@ const {
 // Parsing: converting text into an Abstract Syntax Tree (AST)
 
 const anaParser = new ebnf.Grammars.W3C.Parser(
-  fs.readFileSync(path.resolve(__dirname, 'ebnf.w3c'))
+  fs.readFileSync(path.resolve(__dirname, 'grammar.ebnf'))
     .toString())
 
 const parse = str => {
