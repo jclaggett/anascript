@@ -124,6 +124,62 @@ const symmetricDifference = (...xs) =>
     ? makeSet()
     : xs.reduce((x, y) => union(difference(x, y), difference(y, x)))
 
+const bitNot = (...xs) =>
+  xs.length === 0
+    ? null
+    : xs.length === 1
+      ? ~xs[0]
+      : xs.reduce((x, y) => x & ~y)
+
+const bitOr = (...xs) =>
+  xs.length === 0
+    ? 0
+    : xs.length === 1
+      ? xs[0]
+      : xs.reduce((x, y) => x | y)
+
+const bitAnd = (...xs) =>
+  xs.length === 0
+    ? -1
+    : xs.length === 1
+      ? xs[0]
+      : xs.reduce((x, y) => x & y)
+
+const bitXor = (...xs) =>
+  xs.length === 0
+    ? 0
+    : xs.length === 1
+      ? xs[0]
+      : xs.reduce((x, y) => x ^ y)
+
+const boolNot = (...xs) =>
+  xs.length === 0
+    ? null
+    : xs.length === 1
+      ? !xs[0]
+      : xs.reduce((x, y) => x && !y)
+
+const boolAnd = (...xs) =>
+  xs.length === 0
+    ? true
+    : xs.length === 1
+      ? xs[0]
+      : xs.reduce((x, y) => x && y)
+
+const boolOr = (...xs) =>
+  xs.length === 0
+    ? false
+    : xs.length === 1
+      ? xs[0]
+      : xs.reduce((x, y) => x || y)
+
+const boolXor = (...xs) =>
+  xs.length === 0
+    ? false
+    : xs.length === 1
+      ? xs[0]
+      : xs.reduce((x, y) => (x && !y) || (y && !x))
+
 const keys = x =>
   (x === undefined)
     ? null // transducer here
@@ -134,6 +190,14 @@ const keys = x =>
         : null
 
 module.exports = {
+  boolAnd,
+  boolNot,
+  boolOr,
+  boolXor,
+  bitAnd,
+  bitNot,
+  bitOr,
+  bitXor,
   complement,
   conj,
   difference,

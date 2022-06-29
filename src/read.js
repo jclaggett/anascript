@@ -61,7 +61,7 @@ const formRules = {
   round: formChild,
   square: formSymList('list', formChild),
   curly: ast => ast.text[0] === '~'
-    ? makeForm('~', formSetChild(ast))
+    ? makeForm('set-not', formSetChild(ast))
     : formSetChild(ast),
   number: ast => parseFloat(ast.text),
   string: ast => ast.text.substr(1, ast.text.length - 2),
