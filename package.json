@@ -6,7 +6,7 @@
   "email": "jonathan@claggett.org",
   "url": "https://github.com/jclaggett/anascript",
   "bugs": {
-    "url" : "https://github.com/jclaggett/anascript/issues",
+    "url": "https://github.com/jclaggett/anascript/issues",
     "email": "jonathan@claggett.org"
   },
   "description": "Anascript, a small experimental language.",
@@ -34,7 +34,8 @@
     "ebnf": "^1.9.0",
     "immutable": "^4.1.0",
     "marked": "^4.0.16",
-    "marked-terminal": "^5.1.1"
+    "marked-terminal": "^5.1.1",
+    "transducist": "^2.2.0"
   },
   "devDependencies": {
     "eslint": "^8.16.0",
