@@ -33,18 +33,18 @@
     "chalk": "^4.1.2",
     "ebnf": "^1.9.0",
     "immutable": "^4.1.0",
-    "marked": "^4.0.16",
+    "marked": "^4.0.17",
     "marked-terminal": "^5.1.1",
     "transducist": "^2.2.0"
   },
   "devDependencies": {
-    "eslint": "^8.16.0",
+    "eslint": "^8.18.0",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-import": "^2.26.0",
-    "eslint-plugin-jest": "^26.4.5",
-    "eslint-plugin-n": "^15.2.0",
+    "eslint-plugin-jest": "^26.5.3",
+    "eslint-plugin-n": "^15.2.3",
     "eslint-plugin-promise": "^6.0.0",
-    "jest": "^28.1.0",
-    "typescript": "^4.7.2"
+    "jest": "^28.1.2",
+    "typescript": "^4.7.4"
   }
 }
