@@ -178,6 +178,20 @@ const evalIf = (exp, env) =>
     ? evalSymCallAtom(exp.get(2), env)
     : evalSymCallAtom(exp.get(3), env)
 
+const evalNot = (exp, env) =>
+  exp.count() === 1
+    ? null
+    : exp.count() === 2
+      ? !evalSymCallAtom(exp.get(1), env)
+      : (evalSymCallAtom(exp.get(1), env) &&
+        exp.skip(2).every(x => !evalSymCallAtom(x, env)))
+
+const evalAnd = (exp, env) =>
+  exp.skip(1).every(x => evalSymCallAtom(x, env))
+
+const evalOr = (exp, env) =>
+  exp.skip(1).some(x => evalSymCallAtom(x, env))
+
 const evalLet = (exp, env) =>
   evalSymCallAtom(
     exp.get(2),
@@ -336,10 +350,9 @@ const initialEnv = defEnv({
   identity,
 
   '=': lang.is,
-  'not': lang.boolNot,
-  'and': lang.boolAnd,
-  'or': lang.boolOr,
-  'xor': lang.boolXor,
+  not: special(evalNot),
+  and: special(evalAnd),
+  or: special(evalOr),
   'set-not': lang.difference,
   'set-and': lang.intersection,
   'set-or': lang.union,

@@ -135,14 +135,12 @@ test('common functions', () => {
 })
 
 test('boolean functions', () => {
-  expect(REJ('[(not) (not false) (not true false) (not true true)]'))
+  expect(REJ('[(not) (not false) (not true false) (not true true (not-evaled))]'))
     .toStrictEqual([null, true, true, false])
-  expect(REJ('[(and) (and true) (and true false) (and true true false)]'))
-    .toStrictEqual([true, true, false, false])
-  expect(REJ('[(or) (or false) (or true false) (or false true false)]'))
-    .toStrictEqual([false, false, true, true])
-  expect(REJ('[(xor) (xor false) (xor true false) (xor true true)]'))
-    .toStrictEqual([false, false, true, false])
+  expect(REJ('[(and) (and true) (and true true) (and true false (not-evaled))]'))
+    .toStrictEqual([true, true, true, false])
+  expect(REJ('[(or) (or false) (or false false) (or false true (not-evaled))]'))
+    .toStrictEqual([false, false, false, true])
 })
 
 test('collection forms', () => {
