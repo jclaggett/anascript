@@ -227,6 +227,10 @@ test('math functions', () => {
 test('collection functions', () => {
   expect(REJ('(get {a:1} \\a)'))
     .toStrictEqual(1)
+  expect(REJ('(get ~{a:1} \\a)'))
+    .toStrictEqual(undefined)
+  expect(REJ('(get ~{a:1} "high")'))
+    .toStrictEqual('high')
   expect(() => REJ('(get 42 1)'))
     .toThrow()
   expect(REJ('(set* ["a" 2])'))
