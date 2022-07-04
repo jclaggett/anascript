@@ -285,11 +285,7 @@ const applyExp = (env, exp) => {
 
 const get = (col, k, d) =>
   lang.isList(col) || lang.isSet(col)
-    ? lang.isComplement(col)
-      ? col.has(k)
-        ? d
-        : k
-      : col.get(k, d)
+    ? col.get(k, d)
     : lang.throwError(`Unable to get from type ${lang.getType(col)}. Must be type set or list`)
 
 const assoc = (col, k, v) => col.set(k, v)
