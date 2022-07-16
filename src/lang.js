@@ -90,7 +90,7 @@ const complement = x =>
     : x.set(compFlag, compFlag)
 
 const s = {
-  all: (x, y) => y.merge(x),
+  all: (x, y) => x.merge(y),
   middle: (x, y) => x.deleteAll(x.deleteAll(y.keys()).keys()),
   left: (x, y) => x.deleteAll(y.keys()),
   right: (x, y) => s.left(y, x)
