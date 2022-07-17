@@ -179,6 +179,20 @@ test('set functions', () => {
     .toStrictEqual({ 1: 1, 3: 3 })
   expect(REJ('[(set-not) (set-or) (set-not (set-and)) (set-xor)]'))
     .toStrictEqual([null, {}, {}, {}])
+  expect(REJ(`
+    [(subset? {1 2} {2})
+     (subset? ~{1 2} {3})
+     (subset? ~{1 2} {3 4 5})
+     (subset? {3} ~{1 2})
+     (subset? ~{1} ~{1 2})]`))
+    .toStrictEqual([true, true, true, false, true])
+  expect(REJ(`
+    [(superset? {1 2} {2})
+     (superset? ~{1 2} {3})
+     (superset? {3} ~{1 2})
+     (superset? {3 4 5} ~{1 2})
+     (superset? ~{1} ~{1 2})]`))
+    .toStrictEqual([false, false, true, true, false])
 })
 
 test('math functions', () => {

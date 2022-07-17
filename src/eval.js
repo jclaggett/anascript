@@ -337,6 +337,8 @@ const initialEnv = defEnv({
   'pos?': lang.isPos,
   'zero?': lang.isZero,
   'number?': lang.isNumber,
+  'subset?': lang.isSubset,
+  'superset?': lang.isSuperset,
   complement: lang.complement,
   keys: lang.keys,
   assoc,

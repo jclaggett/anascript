@@ -124,6 +124,23 @@ const symmetricDifference = (...xs) =>
     ? makeSet()
     : xs.reduce((x, y) => union(difference(x, y), difference(y, x)))
 
+const everyKey = (a, f) =>
+  a.keySeq().every(f)
+
+const isSubset = (a, b) =>
+  isComplement(a)
+    ? isComplement(b)
+      ? a.count() <= b.count() && everyKey(a, k => b.has(k))
+      : a.count() <= b.count()
+        ? everyKey(a, k => !b.has(k))
+        : everyKey(b, k => !a.has(k))
+    : isComplement(b)
+      ? false
+      : b.count() <= a.count() && everyKey(b, k => a.has(k))
+
+const isSuperset = (a, b) =>
+  isSubset(b, a)
+
 const bitNot = (...xs) =>
   xs.length === 0
     ? null
@@ -182,6 +199,8 @@ module.exports = {
   isNumber,
   isPos,
   isSet,
+  isSubset,
+  isSuperset,
   isSym,
   isZero,
   makeForm,
