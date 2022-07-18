@@ -141,6 +141,17 @@ const isSubset = (a, b) =>
 const isSuperset = (a, b) =>
   isSubset(b, a)
 
+const abs = x =>
+  isSet(x)
+    ? isComplement(x)
+      ? complement(x)
+      : x
+    : isNumber(x)
+      ? isNeg(x)
+        ? -x
+        : x
+      : x
+
 const bitNot = (...xs) =>
   xs.length === 0
     ? null
@@ -179,6 +190,7 @@ const keys = x =>
         : null
 
 module.exports = {
+  abs,
   bitAnd,
   bitNot,
   bitOr,

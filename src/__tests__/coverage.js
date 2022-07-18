@@ -193,6 +193,8 @@ test('set functions', () => {
      (superset? {3 4 5} ~{1 2})
      (superset? ~{1} ~{1 2})]`))
     .toStrictEqual([false, false, true, true, false])
+  expect(REJ('[(abs {}) (abs ~{}) (abs "bar")]'))
+    .toStrictEqual([{}, {}, 'bar'])
 })
 
 test('math functions', () => {
@@ -236,6 +238,8 @@ test('math functions', () => {
     .toStrictEqual([0, 3, 3])
   expect(REJ('[(bit-xor) (bit-xor 3) (bit-xor 3 1)]'))
     .toStrictEqual([0, 3, 2])
+  expect(REJ('[(abs 42) (abs -3) (abs "foo")]'))
+    .toStrictEqual([42, 3, 'foo'])
 })
 
 test('collection functions', () => {

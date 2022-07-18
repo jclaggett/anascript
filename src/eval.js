@@ -324,6 +324,9 @@ const initialEnv = defEnv({
   let: special(evalLet),
   fn: special(evalFn),
   conj: special(evalConj),
+  not: special(evalNot),
+  and: special(evalAnd),
+  or: special(evalOr),
 
   read: read.read,
   type: lang.getType,
@@ -352,9 +355,7 @@ const initialEnv = defEnv({
   identity,
 
   '=': lang.is,
-  not: special(evalNot),
-  and: special(evalAnd),
-  or: special(evalOr),
+  abs: lang.abs,
   'set-not': lang.difference,
   'set-and': lang.intersection,
   'set-or': lang.union,
