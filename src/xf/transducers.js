@@ -1,5 +1,12 @@
 'use strict'
 
+const {
+  compose,
+  filter,
+  map,
+  takeWhile
+} = require('transducist')
+
 // Reduced protocol
 const isReduced = x =>
   x instanceof Object && x['@@transducer/reduced'] === true
@@ -87,7 +94,7 @@ const demultiplexTransformer = (state, t) =>
       state.running = true
       if (state.result == null) {
         state.refCount -= 1
-        if (state.refCount === 0 || state.reduced != null) {
+        if (state.refCount <= 0 || state.reduced != null) {
           state.result = result(t, a)
           return state.result
         } else {
@@ -115,6 +122,17 @@ const demultiplex = (xf) => {
   }
 }
 
+const tag = (k) =>
+  compose(
+    map(x => [k, x]),
+    final([k]))
+
+const detag = (k) =>
+  compose(
+    filter(x => x instanceof Array && x.length > 0 && x[0] === k),
+    takeWhile(x => x.length === 2),
+    map(x => x[1]))
+
 module.exports = {
   isReduced,
   reduced,
@@ -122,5 +140,7 @@ module.exports = {
 
   final,
   multiplex,
-  demultiplex
+  demultiplex,
+  tag,
+  detag
 }
