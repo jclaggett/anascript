@@ -1,20 +1,20 @@
 class GenericNode {
-  constructor (name) {
-    this.name = name
+  constructor (id) {
+    this.id = id
     this.inputs = []
   }
 }
 
 class InputNode extends GenericNode {
-  constructor (name) {
-    super(name)
+  constructor (id) {
+    super(id)
     this.type = 'input'
   }
 }
 
 class InternalNode extends GenericNode {
-  constructor (name, value, inputs) {
-    super(name)
+  constructor (id, value, inputs) {
+    super(id)
     this.type = 'node'
     this.inputs = inputs
     this.value = value
@@ -22,40 +22,40 @@ class InternalNode extends GenericNode {
 }
 
 class OutputNode extends GenericNode {
-  constructor (name, inputs) {
-    super(name)
+  constructor (id, inputs) {
+    super(id)
     this.type = 'output'
     this.inputs = inputs
   }
 }
 
 const makeNetMapEntry = (netMap, node) => {
-  netMap.nodes[node.name] = {
+  netMap.nodes[node.id] = {
     type: node.type,
     value: node.value,
     inputs: [],
     outputs: []
   }
 
-  if (node.type === 'input') netMap.inputs.push(node.name)
-  if (node.type === 'output') netMap.outputs.push(node.name)
+  if (node.type === 'input') netMap.inputs.push(node.id)
+  if (node.type === 'output') netMap.outputs.push(node.id)
 
   return node.inputs.reduce(
     (netMap, subnode) => {
-      if (netMap.nodes[subnode.name] == null) {
+      if (netMap.nodes[subnode.id] == null) {
         netMap = makeNetMapEntry(netMap, subnode)
       }
 
-      netMap.nodes[subnode.name].outputs.push(node.name)
-      netMap.nodes[node.name].inputs.push(subnode.name)
+      netMap.nodes[subnode.id].outputs.push(node.id)
+      netMap.nodes[node.id].inputs.push(subnode.id)
       return netMap
     },
     netMap)
 }
 
-const makeNetMap = (name, inputs) => {
+const makeNetMap = (id, inputs) => {
   const netMap = {
-    name,
+    id,
     inputs: [],
     nodes: {},
     outputs: []
@@ -63,35 +63,40 @@ const makeNetMap = (name, inputs) => {
   return inputs.reduce(makeNetMapEntry, netMap)
 }
 
-const walkNetMap = (netMap, rootKey, visitFn) => {
+const walkNetMap = (netMap, rootKey, walkFn) => {
   const childKey = rootKey === 'outputs' ? 'inputs' : 'outputs'
 
-  const walkNetMapNode = (visited, name) => {
-    if (visited[name] == null) {
-      const node = netMap.nodes[name]
-      visited = node[childKey].reduce(walkNetMapNode, visited)
-      visited[name] = visitFn(
-        name,
-        node,
-        node[childKey].map(name => visited[name]))
+  const walkNetMapNode = (walked, id) => {
+    if (walked[id] == null) {
+      const node = netMap.nodes[id]
+      walked = node[childKey].reduce(walkNetMapNode, walked)
+      walked[id] = walkFn(
+        id, node, node[childKey].map(id => walked[id]))
     }
-    return visited
+    return walked
   }
-  const visited = netMap[rootKey].reduce(walkNetMapNode, {})
-  return netMap[rootKey].map(name => visited[name])
+  const walked = netMap[rootKey].reduce(walkNetMapNode, {})
+  return walkFn(
+    netMap.id,
+    {
+      type: 'root',
+      [rootKey]: [],
+      [childKey]: netMap[rootKey]
+    },
+    netMap[rootKey].map(id => walked[id]))
 }
 
 const makeNetTransducer = (_netMap) =>
   x => x
 
-const input = (name) =>
-  new InputNode(name, [])
-const node = (name, value, ...inputs) =>
-  new InternalNode(name, value, inputs)
-const output = (name, ...inputs) =>
-  new OutputNode(name, inputs)
-const net = (name, ...inputs) => {
-  const netMap = makeNetMap(name, inputs)
+const input = (id) =>
+  new InputNode(id, [])
+const node = (id, value, ...inputs) =>
+  new InternalNode(id, value, inputs)
+const output = (id, ...inputs) =>
+  new OutputNode(id, inputs)
+const net = (id, ...inputs) => {
+  const netMap = makeNetMap(id, inputs)
   makeNetTransducer(netMap)
   return netMap
 }
