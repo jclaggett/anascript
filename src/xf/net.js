@@ -1,59 +1,16 @@
-const walkNetMap = (netMap, rootKey, walkFn) => {
-  const childKey = rootKey === 'outputs' ? 'inputs' : 'outputs'
-
-  const walkNetMapNode = (walked, id) => {
-    if (walked[id] == null) {
-      const node = netMap.nodes[id]
-      walked = node[childKey].reduce(walkNetMapNode, walked)
-      walked[id] = walkFn(
-        id, node, node[childKey].map(id => walked[id]))
-    }
-    return walked
-  }
-  const walked = netMap[rootKey].reduce(walkNetMapNode, {})
-  return walkFn(
-    netMap.id,
-    {
-      type: 'root',
-      [rootKey]: [],
-      [childKey]: netMap[rootKey]
-    },
-    netMap[rootKey].map(id => walked[id]))
-}
-
-const makeNetTransducer = (netMap) => {
-  let cachedTransducer
-  const applyCachedTransducer = (xf) => {
-    if (cachedTransducer == null) {
-      // TODO actually make the transducer from netMap
-      // walkNetMap(netMap, 'inputs', () => null)
-      cachedTransducer = x => x
-    }
-    return cachedTransducer(xf)
-  }
-
-  return (...args) =>
-    args.length === 0
-      ? netMap
-      : applyCachedTransducer(...args)
-}
-
-const input = () => ({ type: 'input', inputs: [] })
-const node = (xf, ...inputs) => ({ type: 'node', xf, inputs })
-const output = (...inputs) => ({ type: 'output', inputs })
-const embed = (nxf, inputs) => ({ type: 'embed', nxf, inputs })
-
-const sanitizeNetMap = (netMap) =>
-  netMap
+const isPair = (id) =>
+  id instanceof Array
 
 const pushValue = (obj, key, value) => {
-  const values = obj[key] ?? []
-  values.push(value)
+  if (obj[key] === undefined) {
+    obj[key] = []
+  }
+  obj[key].push(value)
   return obj
 }
 
-const connectNodeDirection = (netMap, a, b, dir) => {
-  if (a instanceof Array) {
+const connectNode = (netMap, a, b, dir) => {
+  if (isPair(a)) {
     pushValue(netMap.nodes[a[0]][dir], a[1], b)
   } else {
     netMap.nodes[a][dir].push(b)
@@ -62,8 +19,8 @@ const connectNodeDirection = (netMap, a, b, dir) => {
 }
 
 const connectNodes = (netMap, a, b) => {
-  netMap = connectNodeDirection(netMap, a, b, 'outputs')
-  netMap = connectNodeDirection(netMap, b, a, 'inputs')
+  netMap = connectNode(netMap, a, b, 'outputs')
+  netMap = connectNode(netMap, b, a, 'inputs')
   return netMap
 }
 
@@ -74,9 +31,9 @@ const initNetMapEntry = (node) => ({
     : { inputs: [], outputs: [] })
 })
 
-const makeNetMap = (id, netSpec) => {
+const makeNetMap = (id, netSpec = {}) => {
   const makeNetMapEntry = (netMap, fullId) => {
-    const id = fullId instanceof Array ? fullId[0] : fullId
+    const id = isPair(fullId) ? fullId[0] : fullId
 
     if (netMap.nodes[id] != null) return netMap
 
@@ -93,49 +50,98 @@ const makeNetMap = (id, netSpec) => {
       : [[fullId, node.inputs]])
       .reduce((netMap, [fullId, inputs]) =>
         inputs.reduce((netMap, fullSubId) =>
-          connectNodes(makeNetMapEntry(netMap, fullSubId), fullSubId, fullId),
+          connectNodes(
+            makeNetMapEntry(netMap, fullSubId), fullSubId, fullId),
         netMap),
       netMap)
   }
 
-  const netMap = Object
+  return Object
     .entries(netSpec)
     .filter(entry => entry[1].type === 'output')
     .map(entry => entry[0])
     .reduce(makeNetMapEntry, { id, nodes: {}, inputs: [], outputs: [] })
-
-  return sanitizeNetMap(netMap)
 }
 
-const net = (id, netSpec = {}) => {
-  const netMap = makeNetMap(id, netSpec)
-  return makeNetTransducer(netMap)
+const input = () => ({ type: 'input', inputs: [] })
+const node = (value, ...inputs) => ({ type: 'node', value, inputs })
+const output = (...inputs) => ({ type: 'output', inputs })
+const embed = (net, inputs) => ({ type: 'embed', net, inputs })
+const net = makeNetMap
+
+const getWalkedValue = (walked, [id, ...path]) =>
+  path.length === 0
+    ? walked[id]
+    : walked[id] === undefined
+      ? undefined
+      : getWalkedValue(walked[id], path)
+
+const setWalkedValue = (walked, [id, ...path], value) => {
+  if (path.length === 0) {
+    walked[id] = value
+  } else {
+    if (walked[id] === undefined) {
+      walked[id] = {}
+    }
+    setWalkedValue(walked[id], path, value)
+  }
+  return walked
 }
 
-const simple = net('simple', {
-  in: input(),
-  n: node(x => x, 'in'),
-  out: output('n')
-})
+const isUnwalked = (walked, path) =>
+  getWalkedValue(walked, path) === undefined
 
-const demo = {
-  empty: net('emptyNet'),
-  simple: net('simpleNet', {
-    i1: input(),
-    n1: node(x => x, 'i1'),
-    n2: node(x => x, 'i1', 'n1'),
-    e1: embed(simple, { in: ['i1', 'n2'] }),
-    e2: embed(simple, { foo: [['e1', 'out2'], 'n1'] }),
-    o1: output('n2', 'i1', ['e2', 'bar'])
-  })
+const getNode = (netMap, [id, ...path]) =>
+  path.length === 0
+    ? netMap.nodes[id]
+    : getNode(netMap.nodes[id].net, path)
+
+const walk = (netMap, parentKey, walkFn) => {
+  const childKey = parentKey === 'inputs' ? 'outputs' : 'inputs'
+  const exitingType = parentKey === 'inputs' ? 'output' : 'input'
+
+  const getChildPaths = (nodePath) => {
+    const node = getNode(netMap, nodePath)
+    let childIds = node[childKey]
+    let childPath = nodePath.slice(0, -1)
+
+    if (node.type === exitingType && nodePath.length > 1) {
+      const nodeId = nodePath[nodePath.length - 1]
+      const embedNode = getNode(netMap, childPath)
+      childIds = embedNode[childKey][nodeId]
+      childPath = nodePath.slice(0, -2) // Go Up
+    }
+
+    return childIds
+      .map(childId =>
+        isPair(childId)
+          ? [...childPath, ...childId] // Go Down
+          : [...childPath, childId])
+  }
+
+  const walkNode = (walked, path) => {
+    if (isUnwalked(walked, path)) {
+      const childPaths = getChildPaths(path)
+      walked = childPaths.reduce(walkNode, walked)
+      walked = setWalkedValue(walked, path,
+        walkFn(
+          path,
+          getNode(netMap, path),
+          childPaths.map(path => getWalkedValue(walked, path))))
+    }
+    return walked
+  }
+
+  return netMap[parentKey]
+    .map(id => [id])
+    .reduce(walkNode, {})
 }
 
 module.exports = {
-  demo,
+  embed,
   input,
-  makeNetMap,
   net,
   node,
   output,
-  walkNetMap
+  walk
 }
