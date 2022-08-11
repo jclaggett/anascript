@@ -7,6 +7,8 @@ const {
   takeWhile
 } = require('transducist')
 
+const net = require('./net')
+
 // Reduced protocol
 const isReduced = x =>
   x instanceof Object && x['@@transducer/reduced'] === true
@@ -133,6 +135,39 @@ const detag = (k) =>
     takeWhile(x => x.length === 2),
     map(x => x[1]))
 
+// xfnet section
+const initXfNet = (netMap) =>
+  multiplex(
+    net.walk(netMap,
+      'inputs',
+      (id, path, node, outputs) => {
+        const outputXfs = outputs.flatMap(x => x)
+        const outputXfs2 = outputXfs.length === 0 ? [x => x] : outputXfs
+        const multiplex2 = outputXfs2.length === 1 ? x => x[0] : multiplex
+        const demultiplex2 = node.inputs.length === 1 ? x => x : demultiplex
+
+        return node.type === 'output'
+          ? path.length === 0
+            ? [demultiplex2(tag(id))]
+            : outputXfs2
+          : node.type === 'input'
+            ? path.length === 0
+              ? compose(detag(id), multiplex2(outputXfs2))
+              : outputXfs2
+            : [demultiplex2(compose(node.value, multiplex2(outputXfs2)))]
+      }))
+
+const xfnet = (spec) => {
+  const netMap = net.net(spec)
+  return (...args) =>
+    args.length === 0
+      ? netMap
+      : initXfNet(netMap)(args[0])
+}
+
+const embed = (xfn, inputs) =>
+  net.embed(xfn(), inputs)
+
 module.exports = {
   isReduced,
   reduced,
@@ -142,5 +177,10 @@ module.exports = {
   multiplex,
   demultiplex,
   tag,
-  detag
+  detag,
+  xfnet,
+  embed,
+  input: net.input,
+  output: net.output,
+  node: net.node
 }

@@ -31,7 +31,7 @@ const initNetMapEntry = (node) => ({
     : { inputs: [], outputs: [] })
 })
 
-const makeNetMap = (id, netSpec = {}) => {
+const makeNetMap = (netSpec = {}) => {
   const makeNetMapEntry = (netMap, fullId) => {
     const id = isPair(fullId) ? fullId[0] : fullId
 
@@ -60,14 +60,8 @@ const makeNetMap = (id, netSpec = {}) => {
     .entries(netSpec)
     .filter(entry => entry[1].type === 'output')
     .map(entry => entry[0])
-    .reduce(makeNetMapEntry, { id, nodes: {}, inputs: [], outputs: [] })
+    .reduce(makeNetMapEntry, { nodes: {}, inputs: [], outputs: [] })
 }
-
-const input = () => ({ type: 'input', inputs: [] })
-const node = (value, ...inputs) => ({ type: 'node', value, inputs })
-const output = (...inputs) => ({ type: 'output', inputs })
-const embed = (net, inputs) => ({ type: 'embed', net, inputs })
-const net = makeNetMap
 
 const getWalkedValue = (walked, [id, ...path]) =>
   path.length === 0
@@ -125,17 +119,26 @@ const walk = (netMap, parentKey, walkFn) => {
       walked = childPaths.reduce(walkNode, walked)
       walked = setWalkedValue(walked, path,
         walkFn(
-          path,
+          path[path.length - 1],
+          path.slice(0, -1),
           getNode(netMap, path),
           childPaths.map(path => getWalkedValue(walked, path))))
     }
     return walked
   }
 
-  return netMap[parentKey]
+  const walked = netMap[parentKey]
     .map(id => [id])
     .reduce(walkNode, {})
+
+  return netMap[parentKey].map(id => walked[id])
 }
+
+const input = () => ({ type: 'input', inputs: [] })
+const node = (value, inputs) => ({ type: 'node', value, inputs })
+const output = (inputs) => ({ type: 'output', inputs })
+const embed = (net, inputs) => ({ type: 'embed', net, inputs })
+const net = makeNetMap
 
 module.exports = {
   embed,
