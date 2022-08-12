@@ -1,4 +1,13 @@
-const { embed, input, xfnet, node, output } = require('./transducers')
+const {
+  tag,
+  embed,
+  input,
+  join,
+  node,
+  output,
+  passive,
+  xfnet
+} = require('./transducers')
 
 const empty = xfnet()
 
@@ -37,11 +46,23 @@ const complex = xfnet({
   o2: output([['e2', 'out']])
 })
 
+const joining = xfnet({
+  i1: input(),
+  i2: input(),
+  j1: join(['i1'], ['i2']),
+  j2: join(['i1'], passive(['i2'])),
+  t1: node(tag('i1&i2-active'), ['j1']),
+  t2: node(tag('i1-active'), ['j2']),
+  o1: output(['t1']),
+  o2: output(['t2'])
+})
+
 module.exports = {
   empty,
   io,
   i2o2,
   ino,
   ieo,
-  complex
+  complex,
+  joining
 }

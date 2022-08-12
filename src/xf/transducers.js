@@ -168,6 +168,68 @@ const xfnet = (spec) => {
 const embed = (xfn, inputs) =>
   net.embed(xfn(), inputs)
 
+// xfnet join section
+
+class Passive { constructor (x) { this.x = x } }
+const isPassive = (x) => x instanceof Passive
+const passive = (x) => isPassive(x) ? x : new Passive(x)
+const isActive = (x) => !isPassive(x)
+const active = (x) => isActive(x) ? x : x.x
+
+const joinIntake = (sharedState, inputIndex, isActive) =>
+  (t) => {
+    let stepFirstCall = true
+    return transformer({
+      init: () => init(t),
+      step: (a, v) => {
+        if (stepFirstCall) {
+          sharedState.neededInputs -= 1
+          stepFirstCall = false
+        }
+        sharedState.inputIndex = inputIndex
+        sharedState.isActive = isActive
+        return step(t, a, v)
+      },
+      result: (a) => result(t, a)
+    })
+  }
+
+const joinCollector = (sharedState, inputs) =>
+  (t) => {
+    sharedState.neededInputs = inputs.length
+    const currentOutput = new Array(inputs.length)
+    return transformer({
+      init: () => init(t),
+      step: (a, v) => {
+        currentOutput[sharedState.inputIndex] = v
+        return (sharedState.neededInputs < 1 && sharedState.isActive)
+          ? step(t, a, [...currentOutput]) // shallow copy output to be safe
+          : a
+      },
+      result: (a) => result(t, a)
+    })
+  }
+
+const label = (s, n) => s + n.toString()
+
+const join = (...inputs) => {
+  // this state is mutated by all joinIntake and joinCollector transducers.
+  const sharedState = {}
+
+  return embed(
+    xfnet({
+      ...Object.fromEntries(inputs.map((_, i) =>
+        [label('i', i), net.input()])),
+      ...Object.fromEntries(inputs.map((x, i) =>
+        [label('n', i), net.node(joinIntake(sharedState, i, isActive(x)), [label('i', i)])])),
+      collector: net.node(joinCollector(sharedState, inputs), inputs.map((_, i) =>
+        label('n', i))),
+      out: net.output(['collector'])
+    }),
+    Object.fromEntries(inputs.map(active).map((input, i) =>
+      [label('i', i), input])))
+}
+
 module.exports = {
   isReduced,
   reduced,
@@ -182,5 +244,11 @@ module.exports = {
   embed,
   input: net.input,
   output: net.output,
-  node: net.node
+  node: net.node,
+
+  join,
+  active,
+  isActive,
+  passive,
+  isPassive
 }

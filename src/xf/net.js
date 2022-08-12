@@ -18,9 +18,17 @@ const connectNode = (netMap, a, b, dir) => {
   return netMap
 }
 
+const normalizeEmbedRef = (netMap, x) =>
+  isPair(x) || netMap.nodes[x].type !== 'embed'
+    ? x
+    : [x, 'out']
+
 const connectNodes = (netMap, a, b) => {
-  netMap = connectNode(netMap, a, b, 'outputs')
-  netMap = connectNode(netMap, b, a, 'inputs')
+  const a2 = normalizeEmbedRef(netMap, a)
+  const b2 = normalizeEmbedRef(netMap, b)
+
+  netMap = connectNode(netMap, a2, b2, 'outputs')
+  netMap = connectNode(netMap, b2, a2, 'inputs')
   return netMap
 }
 
