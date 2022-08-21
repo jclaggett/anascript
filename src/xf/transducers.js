@@ -9,6 +9,11 @@ const {
 
 const net = require('./net')
 
+// Generic code
+const identity = x => x
+const first = x => x[0]
+const second = x => x[1]
+
 // Reduced protocol
 const isReduced = x =>
   x instanceof Object && x['@@transducer/reduced'] === true
@@ -133,29 +138,50 @@ const detag = (k) =>
   compose(
     filter(x => x instanceof Array && x.length > 0 && x[0] === k),
     takeWhile(x => x.length === 2),
-    map(x => x[1]))
+    map(second))
 
 // xfnet section
-const initXfNet = (netMap) =>
-  multiplex(
-    net.walk(netMap,
-      'inputs',
-      (id, path, node, outputs) => {
-        const outputXfs = outputs.flatMap(x => x)
-        const outputXfs2 = outputXfs.length === 0 ? [x => x] : outputXfs
-        const multiplex2 = outputXfs2.length === 1 ? x => x[0] : multiplex
-        const demultiplex2 = node.inputs.length === 1 ? x => x : demultiplex
+const isMultipleInputs = (node, embedNode, id) =>
+  (node.inputs.length +
+    ((embedNode ?? { inputs: {} })
+      .inputs[id] ?? [])
+      .length) > 1
 
-        return node.type === 'output'
-          ? path.length === 0
-            ? [demultiplex2(tag(id))]
-            : outputXfs2
-          : node.type === 'input'
-            ? path.length === 0
-              ? compose(detag(id), multiplex2(outputXfs2))
-              : outputXfs2
-            : [demultiplex2(compose(node.value, multiplex2(outputXfs2)))]
-      }))
+const initXfNet = (netMap) => {
+  const xfs = net.walk(netMap,
+    'inputs',
+    // eslint-disable-next-line
+    (id, node, embedNode, xfs) => {
+      // if root level output, replace (empty) outputs with tag(id)
+      if (node.outputs.length === 0 && embedNode == null) {
+        xfs = [[tag(id)]]
+      }
+
+      // flatten xfs
+      xfs = xfs.flatMap(identity)
+
+      // if node.value is not identity, compose it with outputs (if any)
+      if (node.value !== identity) {
+        // if multiple xfs, use multiplex when composing
+        if (xfs.length > 1) {
+          xfs = [compose(node.value, multiplex(xfs))]
+          // if single xf, compose it directly
+        } else if (xfs.length === 1) {
+          xfs = [compose(node.value, first(xfs))]
+        }
+      }
+
+      // if root level input, compose detag(id) with xfs
+      if (node.inputs.length === 0 && embedNode == null) {
+        xfs = xfs.map(xf => compose(detag(id), xf))
+        // else if multiple inputs, use demultiplex...
+      } else if (isMultipleInputs(node, embedNode, id)) {
+        xfs = xfs.map(xf => demultiplex(xf))
+      }
+      return xfs
+    })
+  return multiplex(xfs.flatMap(identity))
+}
 
 const xfnet = (spec) => {
   const netMap = net.net(spec)
@@ -168,6 +194,9 @@ const xfnet = (spec) => {
 const embed = (xfn, inputs) =>
   net.embed(xfn(), inputs)
 
+const output = (inputs) => net.node(identity, inputs)
+const input = () => output([])
+
 // xfnet join section
 
 class Passive { constructor (x) { this.x = x } }
@@ -176,33 +205,44 @@ const passive = (x) => isPassive(x) ? x : new Passive(x)
 const isActive = (x) => !isPassive(x)
 const active = (x) => isActive(x) ? x : x.x
 
-const joinIntake = (sharedState, inputIndex, isActive) =>
+const joinIntake = (sharedState, index, active) =>
   (t) => {
-    let stepFirstCall = true
+    let stepIsUncalled = true
     return transformer({
       init: () => init(t),
       step: (a, v) => {
-        if (stepFirstCall) {
-          sharedState.neededInputs -= 1
-          stepFirstCall = false
+        if (stepIsUncalled) {
+          stepIsUncalled = false
+          sharedState.neededIntakes -= 1
         }
-        sharedState.inputIndex = inputIndex
-        sharedState.isActive = isActive
+        sharedState.intakeIndex = index
+        sharedState.intakeActive = active
         return step(t, a, v)
       },
-      result: (a) => result(t, a)
+      result: (a) => {
+        if (stepIsUncalled) {
+          sharedState.activeIntakes = 0
+        } else if (active) {
+          sharedState.activeIntakes -= 1
+        }
+        return result(t, a)
+      }
     })
   }
 
 const joinCollector = (sharedState, inputs) =>
   (t) => {
-    sharedState.neededInputs = inputs.length
+    sharedState.activeIntakes = inputs.filter(isActive).length
+    sharedState.neededIntakes = inputs.length
     const currentOutput = new Array(inputs.length)
     return transformer({
       init: () => init(t),
       step: (a, v) => {
-        currentOutput[sharedState.inputIndex] = v
-        return (sharedState.neededInputs < 1 && sharedState.isActive)
+        if (sharedState.activeIntakes < 1) {
+          return reduced(a)
+        }
+        currentOutput[sharedState.intakeIndex] = v
+        return (sharedState.neededIntakes < 1 && sharedState.intakeActive)
           ? step(t, a, [...currentOutput]) // shallow copy output to be safe
           : a
       },
@@ -218,13 +258,10 @@ const join = (...inputs) => {
 
   return embed(
     xfnet({
-      ...Object.fromEntries(inputs.map((_, i) =>
-        [label('i', i), net.input()])),
       ...Object.fromEntries(inputs.map((x, i) =>
-        [label('n', i), net.node(joinIntake(sharedState, i, isActive(x)), [label('i', i)])])),
-      collector: net.node(joinCollector(sharedState, inputs), inputs.map((_, i) =>
-        label('n', i))),
-      out: net.output(['collector'])
+        [label('i', i), net.node(joinIntake(sharedState, i, isActive(x)), [])])),
+      out: net.node(joinCollector(sharedState, inputs), inputs.map((_, i) =>
+        net.$[label('i', i)]))
     }),
     Object.fromEntries(inputs.map(active).map((input, i) =>
       [label('i', i), input])))
@@ -240,11 +277,13 @@ module.exports = {
   demultiplex,
   tag,
   detag,
+
+  $: net.$,
+  node: net.node,
   xfnet,
   embed,
-  input: net.input,
-  output: net.output,
-  node: net.node,
+  input,
+  output,
 
   join,
   active,
