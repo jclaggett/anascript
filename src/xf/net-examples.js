@@ -1,4 +1,4 @@
-import {
+const {
   tag,
   embed,
   input,
@@ -7,29 +7,29 @@ import {
   output,
   active,
   passive,
-  xfnet,
+  net,
   $
-} from './transducers.mjs'
+} = require('./index')
 
-export const empty = xfnet({})
+const empty = net({})
 
-export const single = xfnet({
+const single = net({
   n: input()
 })
 
-export const double = xfnet({
+const double = net({
   n1: input(),
   n2: input()
 })
 
-export const embedding = xfnet({
+const embedding = net({
   i1: input(),
   e1: embed(double, { n1: $.i1, n2: $.i1 }),
   o1: output($.e1.n1),
   o2: output($.e1.n2)
 })
 
-export const embedding2 = xfnet({
+const embedding2 = net({
   i1: input(),
   i2: input(),
   e1: embed(double, { n1: [$.i1, $.i2] }),
@@ -37,7 +37,7 @@ export const embedding2 = xfnet({
   o2: output([$.e2.o1, $.e2.o2])
 })
 
-export const joining = xfnet({
+const joining = net({
   i1: input(),
   i2: input(),
   j1: join((a, b) => a + b, $.i1, $.i2),
@@ -45,3 +45,5 @@ export const joining = xfnet({
   o1: node(tag('i1&i2-active'), $.j1),
   o2: node(tag('i1-active'), $.j2)
 })
+
+module.exports = { empty, single, double, embedding, embedding2, joining }

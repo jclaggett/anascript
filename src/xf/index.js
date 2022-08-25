@@ -1,10 +1,10 @@
-import { compose, filter, map, takeWhile } from 'transducist'
+const { compose, filter, map, takeWhile } = require('transducist')
 
-import { identity, first, second } from './core.mjs'
-import * as net from './net.mjs'
+const { identity, first, second } = require('./core')
+const net2 = require('./net')
 
-export const node = net.node
-export const $ = net.$
+const node = net2.node
+const $ = net2.$
 
 // Reduced protocol
 const isReduced = x =>
@@ -32,14 +32,14 @@ const step = (t, a, v) => t['@@transducer/step'](a, v)
 const result = (t, a) => t['@@transducer/result'](a)
 
 // Transducer functions
-export const final = x =>
+const final = x =>
   t => transformer({
     init: () => init(t),
     step: (a, v) => step(t, a, v),
     result: (a) => result(t, unreduced(step(t, a, x)))
   })
 
-export const multiplex = (xfs) =>
+const multiplex = (xfs) =>
   t => {
     let ts = xfs.map(xf => xf(t))
     return transformer({
@@ -105,7 +105,7 @@ const demultiplexTransformer = (state, t) =>
     }
   })
 
-export const demultiplex = (xf) => {
+const demultiplex = (xf) => {
   // Shared, mutable state across multiple calls to the transducer.
   // This makes this function not thread safe.
   let state = { running: true }
@@ -121,18 +121,18 @@ export const demultiplex = (xf) => {
   }
 }
 
-export const tag = (k) =>
+const tag = (k) =>
   compose(
     map(x => [k, x]),
     final([k]))
 
-export const detag = (k) =>
+const detag = (k) =>
   compose(
     filter(x => x instanceof Array && x.length > 0 && x[0] === k),
     takeWhile(x => x.length === 2),
     map(second))
 
-// xfnet section
+// net section
 const isMultipleInputs = (node, embedNode, id) =>
   (node.inputs.length +
     ((embedNode ?? { inputs: {} })
@@ -140,7 +140,7 @@ const isMultipleInputs = (node, embedNode, id) =>
       .length) > 1
 
 const initXfNet = (netMap) => {
-  const xfs = net.walk(netMap,
+  const xfs = net2.walk(netMap,
     'inputs',
     // eslint-disable-next-line
     (id, node, embedNode, xfs) => {
@@ -175,27 +175,27 @@ const initXfNet = (netMap) => {
   return multiplex(xfs.flatMap(identity))
 }
 
-export const xfnet = (spec) => {
-  const netMap = net.net(spec)
+const net = (spec) => {
+  const netMap = net2.net(spec)
   return (...args) =>
     args.length === 0
       ? netMap
       : initXfNet(netMap)(args[0])
 }
 
-export const embed = (xfn, inputs) =>
-  net.embed(xfn(), inputs)
+const embed = (xfn, inputs) =>
+  net2.embed(xfn(), inputs)
 
-export const output = (inputs) => net.node(identity, inputs)
-export const input = () => output([])
+const output = (inputs) => net2.node(identity, inputs)
+const input = () => output([])
 
-// xfnet join section
+// join section
 
 class Passive { constructor (x) { this.x = x } }
-export const isPassive = (x) => x instanceof Passive
-export const passive = (x) => isPassive(x) ? x : new Passive(x)
-export const isActive = (x) => !isPassive(x)
-export const active = (x) => isActive(x) ? x : x.x
+const isPassive = (x) => x instanceof Passive
+const passive = (x) => isPassive(x) ? x : new Passive(x)
+const isActive = (x) => !isPassive(x)
+const active = (x) => isActive(x) ? x : x.x
 
 const joinIntake = (sharedState, index, active) =>
   (t) => {
@@ -242,18 +242,37 @@ const joinCollector = (sharedState, fn, inputs) =>
     })
   }
 
-export const join = (fn, ...inputs) => {
+const join = (fn, ...inputs) => {
   // this state is mutated by all joinIntake and joinCollector transducers.
   const state = {}
 
   return embed(
-    xfnet({
+    net({
       ...Object.fromEntries(inputs.map((x, i) =>
-        [i, net.node(joinIntake(state, i, isActive(x)), [])])),
-      out: net.node(joinCollector(state, fn, inputs), inputs.map((_, i) =>
-        net.$[i]))
+        [i, net2.node(joinIntake(state, i, isActive(x)), [])])),
+      out: net2.node(joinCollector(state, fn, inputs), inputs.map((_, i) =>
+        net2.$[i]))
     }),
     Object.fromEntries(inputs
       .map(active)
       .map((input, i) => [i, input])))
+}
+
+module.exports = {
+  $,
+  active,
+  demultiplex,
+  detag,
+  embed,
+  final,
+  input,
+  isActive,
+  isPassive,
+  join,
+  multiplex,
+  net,
+  node,
+  output,
+  passive,
+  tag
 }

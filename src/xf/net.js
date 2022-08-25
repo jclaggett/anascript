@@ -1,4 +1,4 @@
-import { last, butLast } from './core.mjs'
+const { last, butLast } = require('./core')
 
 // References
 const nodeRef = (path) => {
@@ -11,7 +11,7 @@ const nodeRef = (path) => {
   return ref
 }
 
-export const $ = nodeRef([])
+const $ = nodeRef([])
 
 const getFullId = (r) =>
   r['@@path']
@@ -116,7 +116,7 @@ const setWalkedValue = (walked, [id, ...path], value) => {
 const prependPaths = (basePath) =>
   childPath => basePath.concat(childPath)
 
-export const walk = (netMap, parentKey, walkFn) => {
+const walk = (netMap, parentKey, walkFn) => {
   const childKey = parentKey === 'inputs' ? 'outputs' : 'inputs'
 
   const getEmbedChildPaths = (path) => {
@@ -155,6 +155,8 @@ export const walk = (netMap, parentKey, walkFn) => {
   return rootPaths.map(([id]) => walked[id])
 }
 
-export const node = (value, inputs = []) => ({ type: 'node', value, inputs })
-export const embed = (net, inputs = {}) => ({ type: 'embed', net, inputs })
-export const net = makeNetMap
+const node = (value, inputs = []) => ({ type: 'node', value, inputs })
+const embed = (net, inputs = {}) => ({ type: 'embed', net, inputs })
+const net = makeNetMap
+
+module.exports = { $, embed, net, node, walk }
