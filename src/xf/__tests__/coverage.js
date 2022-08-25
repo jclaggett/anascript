@@ -19,9 +19,8 @@ test('examples still work', () => {
     .toStrictEqual([['n', 1], ['n', 2], ['n']])
   expect(T(ex.embedding, [['i1', 1], ['i1', 2], ['i1'], ['i1', 3]]))
     .toStrictEqual([
-    ['o1', 1], ['o2', 1],
-    ['o1', 2], ['o2', 2],
-    ['o1'], ['o2'],
+      ['o1', 1], ['o2', 1],
+      ['o1', 2], ['o2', 2],
+      ['o1'], ['o2']
     ])
 })
-
