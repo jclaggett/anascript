@@ -1,18 +1,10 @@
-'use strict'
+import { compose, filter, map, takeWhile } from 'transducist'
 
-const {
-  compose,
-  filter,
-  map,
-  takeWhile
-} = require('transducist')
+import { identity, first, second } from './core.mjs'
+import * as net from './net.mjs'
 
-const net = require('./net')
-
-// Generic code
-const identity = x => x
-const first = x => x[0]
-const second = x => x[1]
+export const node = net.node
+export const $ = net.$
 
 // Reduced protocol
 const isReduced = x =>
@@ -40,14 +32,14 @@ const step = (t, a, v) => t['@@transducer/step'](a, v)
 const result = (t, a) => t['@@transducer/result'](a)
 
 // Transducer functions
-const final = x =>
+export const final = x =>
   t => transformer({
     init: () => init(t),
     step: (a, v) => step(t, a, v),
     result: (a) => result(t, unreduced(step(t, a, x)))
   })
 
-const multiplex = (xfs) =>
+export const multiplex = (xfs) =>
   t => {
     let ts = xfs.map(xf => xf(t))
     return transformer({
@@ -113,7 +105,7 @@ const demultiplexTransformer = (state, t) =>
     }
   })
 
-const demultiplex = (xf) => {
+export const demultiplex = (xf) => {
   // Shared, mutable state across multiple calls to the transducer.
   // This makes this function not thread safe.
   let state = { running: true }
@@ -129,12 +121,12 @@ const demultiplex = (xf) => {
   }
 }
 
-const tag = (k) =>
+export const tag = (k) =>
   compose(
     map(x => [k, x]),
     final([k]))
 
-const detag = (k) =>
+export const detag = (k) =>
   compose(
     filter(x => x instanceof Array && x.length > 0 && x[0] === k),
     takeWhile(x => x.length === 2),
@@ -183,7 +175,7 @@ const initXfNet = (netMap) => {
   return multiplex(xfs.flatMap(identity))
 }
 
-const xfnet = (spec) => {
+export const xfnet = (spec) => {
   const netMap = net.net(spec)
   return (...args) =>
     args.length === 0
@@ -191,19 +183,19 @@ const xfnet = (spec) => {
       : initXfNet(netMap)(args[0])
 }
 
-const embed = (xfn, inputs) =>
+export const embed = (xfn, inputs) =>
   net.embed(xfn(), inputs)
 
-const output = (inputs) => net.node(identity, inputs)
-const input = () => output([])
+export const output = (inputs) => net.node(identity, inputs)
+export const input = () => output([])
 
 // xfnet join section
 
 class Passive { constructor (x) { this.x = x } }
-const isPassive = (x) => x instanceof Passive
-const passive = (x) => isPassive(x) ? x : new Passive(x)
-const isActive = (x) => !isPassive(x)
-const active = (x) => isActive(x) ? x : x.x
+export const isPassive = (x) => x instanceof Passive
+export const passive = (x) => isPassive(x) ? x : new Passive(x)
+export const isActive = (x) => !isPassive(x)
+export const active = (x) => isActive(x) ? x : x.x
 
 const joinIntake = (sharedState, index, active) =>
   (t) => {
@@ -230,7 +222,7 @@ const joinIntake = (sharedState, index, active) =>
     })
   }
 
-const joinCollector = (sharedState, inputs) =>
+const joinCollector = (sharedState, fn, inputs) =>
   (t) => {
     sharedState.activeIntakes = inputs.filter(isActive).length
     sharedState.neededIntakes = inputs.length
@@ -243,51 +235,25 @@ const joinCollector = (sharedState, inputs) =>
         }
         currentOutput[sharedState.intakeIndex] = v
         return (sharedState.neededIntakes < 1 && sharedState.intakeActive)
-          ? step(t, a, [...currentOutput]) // shallow copy output to be safe
+          ? step(t, a, fn(...currentOutput))
           : a
       },
       result: (a) => result(t, a)
     })
   }
 
-const label = (s, n) => s + n.toString()
-
-const join = (...inputs) => {
+export const join = (fn, ...inputs) => {
   // this state is mutated by all joinIntake and joinCollector transducers.
-  const sharedState = {}
+  const state = {}
 
   return embed(
     xfnet({
       ...Object.fromEntries(inputs.map((x, i) =>
-        [label('i', i), net.node(joinIntake(sharedState, i, isActive(x)), [])])),
-      out: net.node(joinCollector(sharedState, inputs), inputs.map((_, i) =>
-        net.$[label('i', i)]))
+        [i, net.node(joinIntake(state, i, isActive(x)), [])])),
+      out: net.node(joinCollector(state, fn, inputs), inputs.map((_, i) =>
+        net.$[i]))
     }),
-    Object.fromEntries(inputs.map(active).map((input, i) =>
-      [label('i', i), input])))
-}
-
-module.exports = {
-  isReduced,
-  reduced,
-  unreduced,
-
-  final,
-  multiplex,
-  demultiplex,
-  tag,
-  detag,
-
-  $: net.$,
-  node: net.node,
-  xfnet,
-  embed,
-  input,
-  output,
-
-  join,
-  active,
-  isActive,
-  passive,
-  isPassive
+    Object.fromEntries(inputs
+      .map(active)
+      .map((input, i) => [i, input])))
 }

@@ -1,3 +1,5 @@
+import { last, butLast } from './core.mjs'
+
 // References
 const nodeRef = (path) => {
   const ref = new Proxy({}, {
@@ -9,7 +11,7 @@ const nodeRef = (path) => {
   return ref
 }
 
-const $ = nodeRef([])
+export const $ = nodeRef([])
 
 const getFullId = (r) =>
   r['@@path']
@@ -111,13 +113,10 @@ const setWalkedValue = (walked, [id, ...path], value) => {
   return walked
 }
 
-const last = (x) => x[x.length - 1]
-const butLast = (x) => x.slice(0, -1)
-
 const prependPaths = (basePath) =>
   childPath => basePath.concat(childPath)
 
-const walk = (netMap, parentKey, walkFn) => {
+export const walk = (netMap, parentKey, walkFn) => {
   const childKey = parentKey === 'inputs' ? 'outputs' : 'inputs'
 
   const getEmbedChildPaths = (path) => {
@@ -156,14 +155,6 @@ const walk = (netMap, parentKey, walkFn) => {
   return rootPaths.map(([id]) => walked[id])
 }
 
-const node = (value, inputs = []) => ({ type: 'node', value, inputs })
-const embed = (net, inputs = {}) => ({ type: 'embed', net, inputs })
-const net = makeNetMap
-
-module.exports = {
-  embed,
-  net,
-  node,
-  walk,
-  $
-}
+export const node = (value, inputs = []) => ({ type: 'node', value, inputs })
+export const embed = (net, inputs = {}) => ({ type: 'embed', net, inputs })
+export const net = makeNetMap
