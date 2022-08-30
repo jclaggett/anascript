@@ -1,4 +1,4 @@
-const { last, butLast } = require('./core')
+const { last, butLast } = require('./util')
 
 // References
 const nodeRef = (path) => {
@@ -116,8 +116,10 @@ const setWalkedValue = (walked, [id, ...path], value) => {
 const prependPaths = (basePath) =>
   childPath => basePath.concat(childPath)
 
-const walk = (netMap, parentKey, walkFn) => {
-  const childKey = parentKey === 'inputs' ? 'outputs' : 'inputs'
+const walkNetMap = (netMap, walkFn) => {
+  // For now, always walk from inputs to outputs
+  const parentKey = 'inputs'
+  const childKey = 'outputs'
 
   const getEmbedChildPaths = (path) => {
     const id = last(path)
@@ -156,7 +158,6 @@ const walk = (netMap, parentKey, walkFn) => {
 }
 
 const node = (value, inputs = []) => ({ type: 'node', value, inputs })
-const embed = (net, inputs = {}) => ({ type: 'embed', net, inputs })
-const net = makeNetMap
+const embedNetMap = (net, inputs) => ({ type: 'embed', net, inputs })
 
-module.exports = { $, embed, net, node, walk }
+module.exports = { $, node, embedNetMap, makeNetMap, walkNetMap }

@@ -1,15 +1,13 @@
 const {
-  tag,
   embed,
   input,
   join,
-  node,
   output,
   active,
   passive,
   net,
   $
-} = require('./index')
+} = require('.')
 
 const empty = net({})
 
@@ -42,8 +40,8 @@ const joining = net({
   i2: input(),
   j1: join((a, b) => a + b, $.i1, $.i2),
   j2: join((a, b) => a + b, active($.i1), passive($.i2)),
-  o1: node(tag('i1&i2-active'), $.j1),
-  o2: node(tag('i1-active'), $.j2)
+  o1: output($.j1),
+  o2: output($.j2)
 })
 
 module.exports = { empty, single, double, embedding, embedding2, joining }
