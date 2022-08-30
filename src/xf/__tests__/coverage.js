@@ -88,10 +88,10 @@ test('transducer nets', () => {
     d: output([$.a, $.b])
   }), [['a', 1], ['b', 2]]))
     .toStrictEqual([
-    ['c', 1], ['d', 1],
-    ['c', 2], ['d', 2],
-    ['c'], ['d']
-  ])
+      ['c', 1], ['d', 1],
+      ['c', 2], ['d', 2],
+      ['c'], ['d']
+    ])
 
   expect(T(net({
     a: input(),
@@ -118,5 +118,4 @@ test('transducer nets', () => {
     c: output($.b.bb)
   }), [['a', 1]]))
     .toStrictEqual([['c', 1], ['c']])
-
 })

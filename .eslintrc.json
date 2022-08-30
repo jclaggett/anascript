@@ -12,10 +12,14 @@
   },
   "overrides": [
     {
-      "files": ["*/__tests__/*"],
+      "files": ["**/__tests__/*"],
       "env": { "jest": true },
       "plugins": ["jest"],
-      "extends": ["plugin:jest/recommended"]
+      "extends": ["plugin:jest/recommended"],
+      "rules": {
+        "max-lines-per-function": "off",
+        "max-statements": "off"
+      }
     }
   ],
   "rules": {
@@ -24,7 +28,6 @@
     "max-lines-per-function": ["error", { "max": 40, "skipBlankLines": true, "skipComments": true}],
     "max-nested-callbacks": ["error", { "max": 3 }],
     "max-statements": ["error", { "max": 10 }],
-    //"no-constant-binary-expression": ["error", {}],
     "no-constant-condition": ["error", { "checkLoops": false }]
   }
 }
