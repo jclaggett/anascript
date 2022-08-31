@@ -204,7 +204,9 @@ const evalFn = (exp, env) =>
     evalSymCallAtom(
       lang.makeForm('do',
         relabel(exp.get(1), x =>
-          lang.makeForm('label', x, lang.makeForm('list', ...args))),
+          lang.makeForm('label', x,
+            lang.makeForm('list', ...args.map(arg =>
+              lang.makeForm('quote', arg))))),
         ...exp.slice(2)
       ), env)
 
