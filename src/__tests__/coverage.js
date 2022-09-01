@@ -6,9 +6,10 @@ const {
   parse,
   print,
   printLabel,
+  printSyntax,
   read,
   toJS
-} = require('../index')
+} = require('..')
 
 const RE = str =>
   makeEnv().eval(str)?.last()?.last()?.last()
@@ -280,6 +281,14 @@ test('print', () => {
     .toBeDefined()
   expect(print(makeEnv().eval('42').last().last().last(), {}))
     .toStrictEqual(42)
+})
+
+test('printLabel', () => {
   expect(printLabel(makeEnv().eval('42')))
     .toStrictEqual('')
+})
+
+test('printSyntax', () => {
+  expect(printSyntax(makeEnv().eval('[env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null) ~{1 2 3}]')))
+    .toBeDefined()
 })

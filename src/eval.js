@@ -194,8 +194,8 @@ const evalLet = (exp, env) =>
       exp.get(1),
       env)))
 
-const evalFn = (exp, env) =>
-  (...args) =>
+const evalFn = (exp, env) => {
+  const fn = (...args) =>
     evalSymCallAtom(
       lang.makeForm('do',
         relabel(exp.get(1), x =>
@@ -204,6 +204,9 @@ const evalFn = (exp, env) =>
               lang.makeForm('quote', arg))))),
         ...exp.slice(2)
       ), env)
+  fn.anaSig = print.printSyntax(exp.get(1))
+  return fn
+}
 
 const evalConj = (exp, env) =>
   lang.conj(...exp

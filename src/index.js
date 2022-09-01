@@ -1,7 +1,7 @@
-const lang = require('./lang')
-const read = require('./read')
-const eval2 = require('./eval')
-const print = require('./print')
+const { makeList, toJS } = require('./lang')
+const { read, parse } = require('./read')
+const { applyExp, initialEnv } = require('./eval')
+const { print, printLabel, printSyntax } = require('./print')
 
 class Env {
   constructor (envMap) {
@@ -9,23 +9,23 @@ class Env {
   }
 
   eval (s) {
-    this.envMap = read.read(s)
-      .reduce(
-        eval2.applyExp,
-        this.envMap.set('vals', lang.makeList()))
+    this.envMap = read(s)
+      .reduce(applyExp,
+        this.envMap.set('vals', makeList()))
     return this.envMap
       .get('vals')
   }
 }
 
-const makeEnv = (envMap = eval2.initialEnv) =>
+const makeEnv = (envMap = initialEnv) =>
   new Env(envMap)
 
 module.exports = {
   makeEnv,
-  parse: read.parse,
-  read: read.read,
-  print: print.print,
-  printLabel: print.printLabel,
-  toJS: lang.toJS
+  parse,
+  read,
+  print,
+  printLabel,
+  printSyntax,
+  toJS
 }

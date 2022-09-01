@@ -8,6 +8,7 @@ const {
   getType,
   is,
   isComplement,
+  isForm,
   isSym,
   makeForm,
   syms
@@ -31,6 +32,8 @@ const printRules = {
     )(isComplement(x)
       ? ['~', complement]
       : ['', identity]),
+  curly: (x, r) =>
+    chalk.cyan('{') + printChildren(x, r, ', ') + chalk.cyan('}'),
   square: (x, r) =>
     chalk.cyan('[') + printChildren(x, r, ', ') + chalk.cyan(']'),
   round: (x, r) =>
@@ -41,13 +44,27 @@ const printRules = {
   number: x => chalk.yellow(x),
   undefined: x => chalk.yellow(x),
   object: x => chalk.yellow(x),
-  function: x => chalk.yellow(`<fn-${x.name}>`),
+  function: x => chalk.yellow(`<fn ${x.anaSig}>`),
   label: (x, r) => printChildren(x.rest(), r, chalk.cyan(': '))
 
   // For now, these forms are just printed as lists
   // comment: (x, r) => chalk.dim.strikethrough('#' + printChildren(x.rest(), r)),
   // expand: x => chalk.cyan('$') + printChildren(x.rest()),
   // quote: x => chalk.cyan('\\') + printChildren(x.rest())
+}
+
+const printRulesAsSyntax = {
+  ...printRules,
+  list: (x, r) =>
+    isForm(x, 'label')
+      ? r.label(x, r)
+      : isForm(x, 'list')
+        ? r.square(x.rest(), r)
+        : isForm(x, 'set')
+          ? r.curly(x.rest(), r)
+          : isSym(x.first())
+            ? r.round(x, r)
+            : r.square(x, r)
 }
 
 const printLabel = (x, r = printRules) =>
@@ -65,8 +82,12 @@ const print = (x, r = printRules) => {
   }
 }
 
+const printSyntax = (x) =>
+  print(x, printRulesAsSyntax)
+
 // General
 module.exports = {
   print,
-  printLabel
+  printLabel,
+  printSyntax
 }
