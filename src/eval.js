@@ -12,11 +12,6 @@ const getEnv = (env, exp) =>
     ? env
     : env.get(exp)
 
-const asLabel = exp =>
-  lang.isForm(exp, 'label')
-    ? exp
-    : lang.makeForm('label', exp, exp)
-
 const relabel = (exp, fn) =>
   lang.isForm(exp, 'label')
     ? exp.update(-1, x => relabel(x, fn))
@@ -90,8 +85,8 @@ const evalBindLabelSetList = (exp, env, val) =>
             evalLabelInner(lang.isForm(x, 'spread')
               ? relabel(x.get(1), z =>
                 lang.makeForm('label', z, lang.makeForm('quote', val.slice(r.get('maxKey') + 1))))
-              : relabel(asLabel(x), _ =>
-                lang.makeForm('quote', val.get(key))),
+              : relabel(x, z =>
+                lang.makeForm('label', z, lang.makeForm('quote', val.get(key)))),
             env)))
         .update('maxKey', y =>
           key > y
@@ -114,8 +109,8 @@ const evalBindLabelSetSet = (exp, env, val) =>
             evalLabelInner(lang.isForm(x, 'spread')
               ? relabel(x.get(1), z =>
                 lang.makeForm('label', z, lang.makeForm('quote', val.deleteAll(r.get('keysTaken')))))
-              : relabel(asLabel(x), _ =>
-                lang.makeForm('quote', val.get(key))),
+              : relabel(x, z =>
+                lang.makeForm('label', z, lang.makeForm('quote', val.get(key)))),
             env)))
         .update('keysTaken', y =>
           key !== undefined
