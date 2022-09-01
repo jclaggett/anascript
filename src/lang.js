@@ -56,33 +56,53 @@ const getType = x =>
         ? 'list'
         : typeof x
 
-const conjReducer = fn => {
-  const reducer = (col, x) =>
-    isForm(x, 'bind')
-      ? col.set(x.get(1), x.get(2))
-      : isForm(x, 'binds')
-        ? x.rest().reduce(reducer, col)
-        : isForm(x, 'spread')
-          ? isList(x.get(1))
-            ? x.get(1)
-              .reduce(reducer, col)
-            : x.get(1)
-              .map((v, k) => makeForm('bind', k, v))
-              .reduce(reducer, col)
-          : fn(col, x)
-  return reducer
+class ConjCollection {
+  constructor (col) {
+    this.col = col
+    this.pushIndex = 0
+    this.push = isList(col)
+      ? this.pushList
+      : isSet(col)
+        ? this.pushSet
+        : throwError(`Unable to conj onto type ${getType(col)}. Must be type set or list`)
+  }
+
+  set (k, v) {
+    this.col = ((isList(this.col) && !isNumber(k))
+      ? this.col.toMap()
+      : this.col)
+      .set(k, v)
+    return this
+  }
+
+  pushList (v) {
+    this.col = this.col.set(this.pushIndex++, v)
+    return this
+  }
+
+  pushSet (v) {
+    this.col = this.col.set(v, v)
+    return this
+  }
 }
 
-const conjReducerList = conjReducer((col, x) => col.push(x))
-const conjReducerSet = conjReducer((col, x) => col.set(x, x))
+const conjReducer = (col, x) =>
+  isForm(x, 'bind')
+    ? col.set(x.get(1), x.get(2))
+    : isForm(x, 'binds')
+      ? x.rest().reduce(conjReducer, col)
+      : isForm(x, 'spread')
+        ? isList(x.get(1))
+          ? x.get(1)
+            .reduce(conjReducer, col)
+          : x.get(1)
+            .map((v, k) => makeForm('bind', k, v))
+            .reduce(conjReducer, col)
+        : col.push(x)
 
 const conj = (col, ...xs) =>
-  xs.reduce(isList(col)
-    ? conjReducerList
-    : isSet(col)
-      ? conjReducerSet
-      : throwError(`Unable to conj onto type ${getType(col)}. Must be type set or list`),
-  col)
+  xs.reduce(conjReducer, new ConjCollection(col))
+    .col
 
 const complement = x =>
   isComplement(x)
