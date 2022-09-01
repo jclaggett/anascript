@@ -8,7 +8,7 @@ const {
   isActive, isPassive, active, passive,
   multiplex, demultiplex, detag, final,
   $, embed, input, join, net, node, output
-} = require('../index')
+} = require('..')
 const ex = require('../examples')
 
 const T = (n, xs) =>
