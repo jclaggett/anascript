@@ -59,12 +59,12 @@ const getType = x =>
 class ConjCollection {
   constructor (col) {
     this.col = col
-    this.pushIndex = 0
     this.push = isList(col)
       ? this.pushList
       : isSet(col)
         ? this.pushSet
         : throwError(`Unable to conj onto type ${getType(col)}. Must be type set or list`)
+    this.pushIndex = col.count()
   }
 
   set (k, v) {
