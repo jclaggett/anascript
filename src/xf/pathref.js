@@ -1,25 +1,36 @@
-const pathRefs = new WeakMap()
 
-/*
-class PathRef extends Array {
+/* TODO create a custom inspector method on the Proxy object so that debug
+   messages with pathRefs are more readable. challenge: derive a customized
+   Proxy class.
+
+const util = require('util')
+class MyProxy {
+  constructor (value, handler) {
+    Object.setPrototypeOf(
+      Object.getPrototypeOf(this),
+      new Proxy(value, handler))
+  }
+
   [util.inspect.custom] (depth, options, _) {
     if (depth < 0) {
       return options.stylize('[$]', 'special')
     }
-    return [options.stylize('$'), ...this].join('.')
+    return [options.stylize('$', 'special'), ...this].join('.')
   }
 }
+
 */
 
+// All pathRefs defined will be stored in the following WeakMap.
+const pathRefs = new WeakMap()
+
 const newPathRef = (path) => {
-  return new Proxy(path, {
-    get: (_, name) => {
-      const newPath = [...path, name]
-      const ref = newPathRef(newPath)
-      pathRefs.set(ref, newPath)
-      return ref
-    }
+  const ref = new Proxy(path, {
+    get: (path, name) =>
+      newPathRef([...path, name])
   })
+  pathRefs.set(ref, path)
+  return ref
 }
 
 const isPathRef = (x) =>

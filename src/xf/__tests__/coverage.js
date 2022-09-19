@@ -93,6 +93,9 @@ test('transducer nets', () => {
       ['c'], ['d']
     ])
 
+  expect(() => T(net({ a: output([$.foo, 42]) }), []))
+    .toThrow()
+
   expect(T(net({
     a: input(),
     b: input(),
