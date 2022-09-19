@@ -13,13 +13,13 @@ const isMultipleInputs = (node, embedNode, id) =>
       .inputs[id] ?? [])
       .length) > 1
 
-const makeTransducer = (netMap) => {
+const integrate = (netMap, { inputer, outputer, finisher }) => {
   const xfs = walkNetMap(netMap,
     // eslint-disable-next-line
     (id, node, embedNode, xfs) => {
       // if root level output, replace (empty) outputs with tag(id)
       if (node.outputs.length === 0 && embedNode == null) {
-        xfs = [[tag(id)]]
+        xfs = [[outputer(id)]]
       }
 
       // flatten xfs
@@ -38,14 +38,14 @@ const makeTransducer = (netMap) => {
 
       // if root level input, compose detag(id) with xfs
       if (node.inputs.length === 0 && embedNode == null) {
-        xfs = xfs.map(xf => compose(detag(id), xf))
+        xfs = xfs.map(xf => inputer(id, xf))
         // else if multiple inputs, use demultiplex...
       } else if (isMultipleInputs(node, embedNode, id)) {
         xfs = xfs.map(xf => demultiplex(xf))
       }
       return xfs
     })
-  return multiplex(xfs.flatMap(identity))
+  return finisher(xfs.flatMap(identity))
 }
 
 const net = (spec) => {
@@ -53,7 +53,11 @@ const net = (spec) => {
   return (...args) =>
     args.length === 0
       ? netMap
-      : makeTransducer(netMap)(args[0])
+      : integrate(netMap, {
+        inputer: (id, xf) => compose(detag(id), xf),
+        outputer: tag,
+        finisher: multiplex
+      })(args[0])
 }
 
 const embed = (xfn, inputs) =>
@@ -62,4 +66,4 @@ const embed = (xfn, inputs) =>
 const output = (inputs) => node(identity, inputs)
 const input = () => output([])
 
-module.exports = { embed, input, net, output, $, node }
+module.exports = { embed, input, net, output, $, node, integrate }
