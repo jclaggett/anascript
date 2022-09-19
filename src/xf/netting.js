@@ -1,25 +1,6 @@
+const util = require('util')
 const { last, butLast } = require('./util')
-
-// References
-const nodeRef = (path) => {
-  const ref = new Proxy({}, {
-    get: (_, name) =>
-      name === '@@path'
-        ? path
-        : nodeRef([...path, name])
-  })
-  return ref
-}
-
-const $ = nodeRef([])
-
-const getFullId = (r) =>
-  r['@@path']
-
-const normalizeRefs = (x) =>
-  x instanceof Array
-    ? x.flatMap(normalizeRefs)
-    : [getFullId(x)]
+const { $, normalizeRefs } = require('./pathref')
 
 // Making a netMap
 
@@ -76,15 +57,24 @@ const makeNetMap = (netSpec = {}) => {
 
     return (node.type === 'embed'
       ? Object.entries(node.inputs).map(([inputId, inputs]) =>
-        [[id, inputId], normalizeRefs(inputs)])
-      : [[fullId, normalizeRefs(node.inputs)]])
+        [[id, inputId], inputs])
+      : [[fullId, node.inputs]])
       .reduce((netMap, [fullId, inputs]) =>
-        inputs.reduce((netMap, fullSubId) =>
-          connectNodes(
-            makeNetMapEntry(netMap, fullSubId),
-            fullSubId,
-            fullId),
-        netMap),
+        normalizeRefs(inputs)
+          .map(fullSubId => {
+            if (!(fullSubId[0] in netSpec)) {
+              throw new Error(
+                `Invalid reference '${fullSubId[0]}' detected in net spec:
+                 ${util.inspect(netSpec)}`)
+            }
+            return fullSubId
+          })
+          .reduce((netMap, fullSubId) =>
+            connectNodes(
+              makeNetMapEntry(netMap, fullSubId),
+              fullSubId,
+              fullId),
+          netMap),
       netMap)
   }
 
