@@ -1,5 +1,3 @@
-'use strict'
-
 const im = require('immutable')
 
 // Utils
@@ -139,11 +137,6 @@ const intersection = (...xs) =>
     ? complement(makeSet())
     : xs.reduce(cmdReducer(s.all, s.right, s.left, s.middle))
 
-const symmetricDifference = (...xs) =>
-  xs.length === 0
-    ? makeSet()
-    : xs.reduce((x, y) => union(difference(x, y), difference(y, x)))
-
 const everyKey = (a, f) =>
   a.keySeq().every(f)
 
@@ -240,7 +233,6 @@ module.exports = {
   makeSet,
   makeSym,
   sym,
-  symmetricDifference,
   syms,
   throwError,
   toJS,

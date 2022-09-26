@@ -298,7 +298,9 @@ const count = col => col.count()
 const add = (...xs) => xs.reduce((t, x) => t + x, 0)
 const subtract = (...xs) => xs.length === 0
   ? NaN
-  : xs.reduce((t, x) => t - x)
+  : xs.length === 1
+    ? -xs[0]
+    : xs.reduce((t, x) => t - x)
 const multiply = (...xs) => xs.reduce((t, x) => t * x, 1)
 const divide = (...xs) => xs.length === 0
   ? NaN
@@ -356,10 +358,9 @@ const initialEnv = defEnv({
 
   '=': lang.is,
   abs: lang.abs,
-  'set-not': lang.difference,
-  'set-and': lang.intersection,
-  'set-or': lang.union,
-  'set-xor': lang.symmetricDifference,
+  remove: lang.difference,
+  keep: lang.intersection,
+  merge: lang.union,
   'bit-not': lang.bitNot,
   'bit-and': lang.bitAnd,
   'bit-or': lang.bitOr,
