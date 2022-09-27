@@ -7,7 +7,7 @@ specifiers:
   eslint-config-standard: 17.0.0
   eslint-plugin-import: 2.26.0
   eslint-plugin-jest: 27.0.4
-  eslint-plugin-n: 15.2.5
+  eslint-plugin-n: 15.3.0
   eslint-plugin-promise: 6.0.1
   immutable: ^4.1.0
   jest: 29.0.3
@@ -26,10 +26,10 @@ dependencies:
 
 devDependencies:
   eslint: 8.23.1
-  eslint-config-standard: 17.0.0_4nulviyjkaspo7v2xlghuwxbf4
+  eslint-config-standard: 17.0.0_p6gl7hlfuayuj4pnyydm4qj6t4
   eslint-plugin-import: 2.26.0_eslint@8.23.1
   eslint-plugin-jest: 27.0.4_burw6dpmugejqdbipomausbjjm
-  eslint-plugin-n: 15.2.5_eslint@8.23.1
+  eslint-plugin-n: 15.3.0_eslint@8.23.1
   eslint-plugin-promise: 6.0.1_eslint@8.23.1
   jest: 29.0.3
   typescript: 4.8.3
@@ -1207,7 +1207,7 @@ packages:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
 
   /concat-map/0.0.1:
-    resolution: {integrity: sha1-2Klr13/Wjfd5OnMDajug1UBdR3s=}
+    resolution: {integrity: sha512-/Srv4dswyQNBfohGpz9o6Yb3Gz3SrUDqBH5rTuhGR7ahtlbYKnVxw2bCFMRljaA7EXHaXZ8wsHdodFvbkhKmqg==}
     dev: true
 
   /convert-source-map/1.8.0:
@@ -1398,7 +1398,7 @@ packages:
     engines: {node: '>=10'}
     dev: true
 
-  /eslint-config-standard/17.0.0_4nulviyjkaspo7v2xlghuwxbf4:
+  /eslint-config-standard/17.0.0_p6gl7hlfuayuj4pnyydm4qj6t4:
     resolution: {integrity: sha512-/2ks1GKyqSOkH7JFvXJicu0iMpoojkwB+f5Du/1SC0PtBL+s8v30k9njRZ21pm2drKYm2342jFnGWzttxPmZVg==}
     peerDependencies:
       eslint: ^8.0.1
@@ -1408,7 +1408,7 @@ packages:
     dependencies:
       eslint: 8.23.1
       eslint-plugin-import: 2.26.0_eslint@8.23.1
-      eslint-plugin-n: 15.2.5_eslint@8.23.1
+      eslint-plugin-n: 15.3.0_eslint@8.23.1
       eslint-plugin-promise: 6.0.1_eslint@8.23.1
     dev: true
 
@@ -1511,8 +1511,8 @@ packages:
       - typescript
     dev: true
 
-  /eslint-plugin-n/15.2.5_eslint@8.23.1:
-    resolution: {integrity: sha512-8+BYsqiyZfpu6NXmdLOXVUfk8IocpCjpd8nMRRH0A9ulrcemhb2VI9RSJMEy5udx++A/YcVPD11zT8hpFq368g==}
+  /eslint-plugin-n/15.3.0_eslint@8.23.1:
+    resolution: {integrity: sha512-IyzPnEWHypCWasDpxeJnim60jhlumbmq0pubL6IOcnk8u2y53s5QfT8JnXy7skjHJ44yWHRb11PLtDHuu1kg/Q==}
     engines: {node: '>=12.22.0'}
     peerDependencies:
       eslint: '>=7.0.0'
