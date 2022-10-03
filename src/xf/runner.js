@@ -1,57 +1,69 @@
 const t = require('transducist')
 const {
   $,
-  input,
+  source,
   integrate,
+  isReduced,
   net,
-  node,
-  output,
+  xfnode,
+  sink,
   step
 } = require('.')
 
-// Inputs are a map of async iterables that emit a sequence of values
-const inputs = {
+// A source is a map of async iterables that emit a sequence of values
+const sources = {
   init: async function * () {
-    yield { env: process.env }
+    yield { env: process.env, argv: process.argv }
   },
 
   N: async function * () {
-    for (let i = 0; i < 10; i++) {
-      yield i
+    let i = 0
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 500))
+      yield i++
     }
   }
 }
 
-// Outputs are a map of 'functions' that perform side effects
-const outputs = {
-  log: console.log
+// A sink is a map of 'functions' that perform side effects
+const sinks = {
+  log: console.log,
+  debug: console.debug,
+  dir: console.dir
 }
 
-const defaultInput = (id) => {
-  console.warn('Unexpected input:', id)
+const defaultSource = (id) => {
+  console.warn('Unexpected source:', id)
   return async function * () {
     return undefined
   }
 }
 
-const defaultOutputHandler = (id) => {
-  console.warn('Unexpected output:', id)
-  return (x) => console.debug(`DEBUG: output ${id} received '${x}`)
+const defaultSink = (id) => {
+  console.warn('Unexpected sink:', id)
+  return (x) => console.debug(`DEBUG: sink ${id} received '${x}`)
 }
 
 const run = (netMap) => {
   return integrate(netMap, {
-    inputer: async (id, xf) => {
-      const input = inputs[id] ?? defaultInput(id)
-      const transformer = xf(t.count())
+    inputer: async (_, node, xf) => {
+      if (node.type === 'source') {
+        const source = sources[node.value] ?? defaultSource(node.value)
+        const transformer = xf(t.count())
 
-      let accumulator
-      for await (const value of input()) {
-        accumulator = step(transformer, accumulator, value)
+        let accumulator
+        for await (const value of source()) {
+          // TODO handle reduced values
+          accumulator = step(transformer, accumulator, value)
+          if (isReduced(accumulator)) {
+            break
+          }
+        }
       }
     },
 
-    outputer: (id) => t.map(outputs[id] ?? defaultOutputHandler(id)),
+    outputer: (_, node) =>
+      t.map(sinks[node.value] ?? defaultSink(node.value)),
 
     finisher: async (results) => {
       await Promise.all(results)
@@ -60,15 +72,14 @@ const run = (netMap) => {
 }
 
 const ex1 = net({
-  init: input(),
-  log: output($.init)
+  init: source({ name: 'init' }),
+  log: sink({ name: 'log' }, $.init)
 })()
 
-const ex2 = net({
-  init: input(),
-  user: node(t.map(x => x.env.USER), $.init),
-  shell: node(t.map(x => x.env.SHELL), $.init),
-  log: output([$.user, $.shell])
+const ex3 = net({
+  N: source({ name: 'time', freq: 500 }),
+  t5: xfnode(t.take(5), $.N),
+  log: sink({ name: 'log' }, $.t5)
 })()
 
-module.exports = { run, ex1, ex2, inputs, outputs }
+module.exports = { run, ex1, ex3, sources, sinks }

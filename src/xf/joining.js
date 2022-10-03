@@ -1,5 +1,6 @@
 const { transformer, step, result, reduced } = require('./reducing')
-const { $, embed, net, node } = require('./xfnetting')
+const { $, embed, net } = require('./netting')
+const { xfmap, xfnode } = require('./xfnetting')
 
 class Passive { constructor (x) { this.x = x } }
 const isPassive = (x) => x instanceof Passive
@@ -49,15 +50,15 @@ const joinCollector = (sharedState, fn, inputs) =>
     })
   }
 
-const join = (fn, ...inputs) => {
+const join = (fn, inputs) => {
   // State is mutated by all joinIntake and joinCollector transducers.
   const state = {}
 
   return embed(
     net({
       ...Object.fromEntries(inputs.map((x, i) =>
-        [i, node(joinIntake(state, i, isActive(x)), [])])),
-      out: node(
+        [i, xfnode(joinIntake(state, i, isActive(x)), [])])),
+      out: xfnode(
         joinCollector(state, fn, inputs),
         inputs.map((_, i) => $[i]))
     }),
@@ -66,10 +67,15 @@ const join = (fn, ...inputs) => {
       .map((input, i) => [i, input])))
 }
 
+const map = (fn, ...inputs) =>
+  inputs.length <= 1 && isActive(inputs[0])
+    ? xfmap(fn, inputs[0] ?? [])
+    : join(fn, inputs)
+
 module.exports = {
   active,
   isActive,
   isPassive,
-  join,
+  map,
   passive
 }

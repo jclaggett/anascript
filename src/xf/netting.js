@@ -1,4 +1,3 @@
-const util = require('util')
 const { last, butLast } = require('./util')
 const { $, normalizeRefs } = require('./pathref')
 
@@ -46,36 +45,70 @@ const initNetMapEntry = (node) => ({
     : { inputs: [], outputs: [] })
 })
 
-const makeNetMap = (netSpec = {}) => {
-  const makeNetMapEntry = (netMap, fullId) => {
-    const id = fullId[0]
+/*
+embed(foo, {
+  bar: $.bar1,
+  baz: {
+    biz: $.bar1
+  }
+})
 
-    if (netMap[id] != null) return netMap
+[
+  [['foo', 'bar'], $.bar1],
+  [['foo', 'baz', 'biz'], $.bar1]
+]
+*/
 
-    const node = netSpec[id]
-    netMap[id] = initNetMapEntry(node)
+const getEmbedRefs = (inputs, id) =>
+  Object.entries(inputs)
+    .flatMap(([inputId, inputRefs]) =>
+      Array.isArray(inputRefs)
+        ? [[id.concat(inputId), inputRefs]]
+        : getEmbedRefs(inputRefs, id.concat(inputId)))
 
-    return (node.type === 'embed'
-      ? Object.entries(node.inputs).map(([inputId, inputs]) =>
-        [[id, inputId], inputs])
-      : [[fullId, node.inputs]])
-      .reduce((netMap, [fullId, inputs]) =>
-        normalizeRefs(inputs)
-          .map(fullSubId => {
-            if (!(fullSubId[0] in netSpec)) {
-              throw new Error(
-                `Invalid reference '${fullSubId[0]}' detected in net spec:
-                 ${util.inspect(netSpec)}`)
-            }
-            return fullSubId
-          })
-          .reduce((netMap, fullSubId) =>
+const getInputRefs = (node, nodeId) =>
+  node.type === 'embed'
+    ? getEmbedRefs(node.inputs, nodeId)
+    : [[nodeId, node.inputs]]
+
+const validateRef = (netSpec, id) =>
+  (ref) => {
+    const node = netSpec[ref[0]]
+
+    if (node == null ||
+      (node.type === 'node' &&
+        ref.length > 1) ||
+      (node.type === 'embed' &&
+        getNode(node.net, ref.slice(1)) == null &&
+        getNode(node.net, ref.slice(1).concat(['out'])) == null)) {
+      throw new Error(`Unknown node $.${ref.join('.')} referenced by node ${id}.`)
+    }
+
+    return ref
+  }
+
+const net = (netSpec = {}) => {
+  const makeNetMapEntry = (netMap, nodeId) => {
+    const nodeId0 = nodeId[0]
+
+    if (netMap[nodeId0] != null) return netMap
+
+    const node = netSpec[nodeId0]
+    netMap[nodeId0] = initNetMapEntry(node)
+
+    netMap = getInputRefs(node, nodeId)
+      .reduce((netMap, [nodeId, inputsNodeIds]) =>
+        normalizeRefs(inputsNodeIds)
+          .map(validateRef(netSpec, nodeId))
+          .reduce((netMap, inputNodeId) =>
             connectNodes(
-              makeNetMapEntry(netMap, fullSubId),
-              fullSubId,
-              fullId),
+              makeNetMapEntry(netMap, inputNodeId),
+              inputNodeId,
+              nodeId),
           netMap),
       netMap)
+
+    return netMap
   }
 
   return Object
@@ -106,7 +139,7 @@ const setWalkedValue = (walked, [id, ...path], value) => {
 const prependPaths = (basePath) =>
   childPath => basePath.concat(childPath)
 
-const walkNetMap = (netMap, walkFn) => {
+const walk = (netMap, walkFn) => {
   // For now, always walk from inputs to outputs
   const parentKey = 'inputs'
   const childKey = 'outputs'
@@ -148,6 +181,6 @@ const walkNetMap = (netMap, walkFn) => {
 }
 
 const node = (value, inputs = []) => ({ type: 'node', value, inputs })
-const embedNetMap = (net, inputs) => ({ type: 'embed', net, inputs })
+const embed = (net, inputs = {}) => ({ type: 'embed', net, inputs })
 
-module.exports = { $, node, embedNetMap, makeNetMap, walkNetMap }
+module.exports = { $, node, embed, net, walk }
