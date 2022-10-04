@@ -20,29 +20,28 @@ const integrate = (netMap, { inputer, outputer }) =>
   walk(netMap,
     // eslint-disable-next-line
     (id, node, enclosingNode, xfs) => {
-      // if root level output, replace (empty) outputs with tag(id)
-      if (node.outputs.length === 0 && enclosingNode == null) {
-        xfs = [[outputer(id)]]
-      }
-
-      // flatten xfs
-      xfs = xfs.flatMap(identity)
-
+      const inputNode = (node.inputs.length === 0 && enclosingNode == null)
+      const outputNode = (node.outputs.length === 0 && enclosingNode == null)
       const xf = getXf(node)
 
-      // if xf is not identity, compose with xfs
-      if (xf !== identity) {
-        // if xfs has only one xf, compose it directly
-        if (xfs.length === 1) {
-          xfs = [t.compose(xf, first(xfs))]
-        // else if multiple xfs, use multiplex when composing
-        } else if (xfs.length > 1) {
-          xfs = [t.compose(xf, multiplex(xfs))]
-        }
+      // if root level output, replace (empty) xfs
+      if (outputNode) {
+        xfs = outputer(id, node.value)
+      } else {
+        // flatten xfs
+        xfs = xfs.flatMap(identity)
       }
 
-      // if root level input, compose detag(id) with xfs
-      if (node.inputs.length === 0 && enclosingNode == null) {
+      // if single xfs and xf is not identity compose directly
+      if (xfs.length === 1 && xf !== identity) {
+        xfs = [t.compose(xf, first(xfs))]
+        // if multiple xfs and xf is not identity compose directly
+      } else if (xfs.length > 1 && (xf !== identity || inputNode)) {
+        xfs = [t.compose(xf, multiplex(xfs))]
+      }
+
+      // if inputNode pass to inputer
+      if (inputNode) {
         xfs = xfs.map(xf => inputer(id, node.value, xf))
         // else if multiple inputs, use demultiplex...
       } else if (isMultipleInputs(node, enclosingNode, id)) {
@@ -56,7 +55,7 @@ const xfnet = (netMap) =>
   multiplex(
     integrate(netMap, {
       inputer: (id, _, xf) => t.compose(detag(id), xf),
-      outputer: tag
+      outputer: (id) => [tag(id)]
     }))
 
 const xfnode = (value, inputs) =>

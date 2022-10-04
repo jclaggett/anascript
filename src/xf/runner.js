@@ -4,10 +4,13 @@ const {
   source,
   integrate,
   isReduced,
+  map,
   net,
   sink,
   step,
-  take
+  take,
+  active,
+  passive
 } = require('.')
 
 // A source is a map of async iterables that emit a sequence of values
@@ -16,11 +19,10 @@ const sources = {
     yield { env: process.env, argv: process.argv }
   },
 
-  N: async function * () {
-    let i = 0
+  time: async function * ({ freq }) {
     while (true) {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      yield i++
+      yield Date.now()
+      await new Promise(resolve => setTimeout(resolve, freq))
     }
   }
 }
@@ -33,53 +35,85 @@ const sinks = {
 }
 
 const defaultSource = (id) => {
-  console.warn('Unexpected source:', id)
+  console.warn('Unknown source:', id)
   return async function * () {
     return undefined
   }
 }
 
 const defaultSink = (id) => {
-  console.warn('Unexpected sink:', id)
+  console.warn('Unknown sink:', id)
   return (x) => console.debug(`DEBUG: sink ${id} received '${x}`)
 }
 
-const run = (netMap) => {
-  return integrate(netMap, {
-    inputer: async (_, node, xf) => {
-      if (node.type === 'source') {
-        const source = sources[node.value] ?? defaultSource(node.value)
+const run = async (netMap) => {
+  await Promise.all(
+    integrate(netMap, {
+      inputer: async (id, value, xf) => {
+        if (value.type !== 'source') {
+          return
+        }
+
+        const name = (value.value?.name ?? id)
+        const source = sources[name] ?? defaultSource(name)
         const transformer = xf(t.count())
 
-        let accumulator
-        for await (const value of source()) {
-          // TODO handle reduced values
-          accumulator = step(transformer, accumulator, value)
-          if (isReduced(accumulator)) {
+        for await (const x of source(value.value)) {
+          if (isReduced(step(transformer, undefined, x))) {
             break
           }
         }
+      },
+
+      outputer: (id, value) => {
+        if (value.type !== 'sink') {
+          return []
+        }
+        const name = value.value?.name ?? id
+        return [t.map(sinks[name] ?? defaultSink(name))]
       }
-    },
-
-    outputer: (_, node) =>
-      t.map(sinks[node.value] ?? defaultSink(node.value)),
-
-    finisher: async (results) => {
-      await Promise.all(results)
-    }
-  })
+    }))
 }
 
 const ex1 = net({
-  init: source({ name: 'init' }),
-  log: sink({ name: 'log' }, $.init)
-})()
+  init: source({}),
+  log: sink({}, $.init)
+})
+
+const ex2 = net({
+  N: source({ name: 'time', freq: 100 }),
+  t5: take(5, $.N),
+  t10: take(10, $.N),
+  msg: map((x, y) => `logging ${x} ${y}`, active($.t5), passive($.t10)),
+  log: sink({}, $.msg),
+  dir: sink({}, [$.t10, $.t5])
+})
 
 const ex3 = net({
-  N: source({ name: 'time', freq: 500 }),
-  t5: take(5, $.N),
-  log: sink({ name: 'log' }, $.t5)
-})()
+  time: source({ freq: 99 }),
+  t5a: take(5, $.time),
+  t5b: take(5, $.time),
+  log: sink({}, [$.t5a, $.t5b])
+})
+/*
+const any = (...x) => x
+const all = (...x) => x
 
-module.exports = { run, ex1, ex3, sources, sinks }
+const exampleB = net({
+  nodes: {
+    N: source({ name: 'time', freq: 100 }),
+    t5: take(5),
+    msg: map((x, y) => `logging ${x} ${y}}`),
+    log: sink(),
+    dir: sink()
+  },
+  edges: { // to: from
+    t5: $.N,
+    msg: all(active($.t5), passive($.N)),
+    log: $.msg,
+    dir: any($.N, $.t5)
+  }
+})
+*/
+
+module.exports = { run, ex1, ex2, ex3, sources, sinks }
