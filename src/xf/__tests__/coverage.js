@@ -8,7 +8,7 @@ const {
   isActive, isPassive, active, passive,
   multiplex, demultiplex, detag, final,
   $, embed, source, map, net, node,
-  sink, walk, xfnet, xfnode
+  sink, take, walk, xfnet
 } = require('..')
 const ex = require('../examples')
 
@@ -165,18 +165,18 @@ test('transducer nets', () => {
     .toStrictEqual([['c']])
 
   expect(T(net({
-    a: xfnode(t.take(3)),
+    a: take(3),
     b: sink(1, $.a),
     c: sink(2, $.a)
   }), [['a', 1]]))
     .toStrictEqual([['b', 1], ['c', 1], ['b'], ['c']])
 
   expect(T(net({
-    a: xfnode(t.take(1)),
+    a: take(1),
     b: embed(net({
-      ba: xfnode(t.take(1)),
-      bb: xfnode(t.take(1), $.ba),
-      bc: xfnode(t.take(1), $.ba)
+      ba: take(1),
+      bb: take(1, $.ba),
+      bc: take(1, $.ba)
     }), { ba: $.a }),
     c: sink(1, $.b.bb)
   }), [['a', 1]]))

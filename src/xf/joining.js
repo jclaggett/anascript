@@ -1,6 +1,6 @@
 const { transformer, step, result, reduced } = require('./reducing')
 const { $, embed, net } = require('./netting')
-const { xfmap, xfnode } = require('./xfnetting')
+const { simpleMap, xfnode } = require('./xfnetting')
 
 class Passive { constructor (x) { this.x = x } }
 const isPassive = (x) => x instanceof Passive
@@ -69,7 +69,7 @@ const join = (fn, inputs) => {
 
 const map = (fn, ...inputs) =>
   inputs.length <= 1 && isActive(inputs[0])
-    ? xfmap(fn, inputs[0] ?? [])
+    ? simpleMap(fn, inputs[0] ?? [])
     : join(fn, inputs)
 
 module.exports = {

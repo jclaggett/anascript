@@ -5,9 +5,9 @@ const {
   integrate,
   isReduced,
   net,
-  xfnode,
   sink,
-  step
+  step,
+  take
 } = require('.')
 
 // A source is a map of async iterables that emit a sequence of values
@@ -78,7 +78,7 @@ const ex1 = net({
 
 const ex3 = net({
   N: source({ name: 'time', freq: 500 }),
-  t5: xfnode(t.take(5), $.N),
+  t5: take(5, $.N),
   log: sink({ name: 'log' }, $.t5)
 })()
 

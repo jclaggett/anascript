@@ -66,7 +66,11 @@ const source = (value) =>
 const sink = (value, inputs) =>
   node({ type: 'sink', value }, inputs)
 
-const xfmap = (f, inputs) =>
+// this map is used within joining map for the trivial case
+const simpleMap = (f, inputs) =>
   xfnode(t.map(f), inputs)
 
-module.exports = { integrate, sink, source, xfmap, xfnet, xfnode }
+const take = (n, inputs) =>
+  xfnode(t.take(n), inputs)
+
+module.exports = { integrate, sink, source, simpleMap, take, xfnet, xfnode }
