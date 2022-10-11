@@ -2,6 +2,18 @@ const {
   transformer, step, result, isReduced, reduced, unreduced
 } = require('./reducing')
 
+// TODO Add this somewhere more appropriate
+const remap = (reducer, initialState) =>
+  t => {
+    let state = initialState
+    return transformer(t, {
+      step: (a, v) => {
+        state = reducer(state, v)
+        return step(t, a, state)
+      }
+    })
+  }
+
 const multiplex = (xfs) =>
   t => {
     let ts = xfs.map(xf => xf(t))
@@ -76,4 +88,4 @@ const demultiplex = (xf) => {
   }
 }
 
-module.exports = { demultiplex, multiplex }
+module.exports = { demultiplex, multiplex, remap }
