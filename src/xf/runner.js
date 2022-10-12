@@ -30,12 +30,6 @@ const sources = {
 }
 
 // A sink is a map of 'functions' that perform side effects
-const sinks = {
-  log: console.log,
-  debug: console.debug,
-  dir: console.dir
-}
-
 const defaultSource = (id) => {
   console.warn('Unknown source:', id)
   return async function * () {
@@ -77,14 +71,13 @@ const run = async (netMap) => {
         }
 
         const transformer = xf(t.count())
+        const type = (value.value?.type ?? id)
 
-        if (value.value?.type === 'pipe') {
+        if (type === 'pipe') {
           return setPipe(value.value?.name, transformer)
         }
 
-        const type = (value.value?.type ?? id)
         const source = sources[type] ?? defaultSource(type)
-
         for await (const x of source(value.value)) {
           if (isReduced(step(transformer, undefined, x))) {
             break
@@ -104,6 +97,13 @@ const run = async (netMap) => {
         return [t.map(sink)]
       }
     }))
+}
+
+const sinks = {
+  log: console.log,
+  debug: console.debug,
+  dir: console.dir,
+  run
 }
 
 const ex1 = net({
@@ -166,6 +166,27 @@ const ex5 = net({
   log: sink({}, [$.n1, $.n2])
 })
 
+const ex6 = net({
+  time: source({ freq: 500 }),
+  pipe: source({ name: 'root' }),
+
+  time5: take(5, $.time),
+  net: map(_ => net({
+    init: source({}),
+    whee: map(x => x.env.USER, $.init),
+    pipe: sink({ name: 'root' }, $.whee),
+    log: sink({}, $.whee)
+  }),
+  $.time5),
+
+  netmsg: map(n => Object.keys(n), $.net),
+
+  pipemsg: map(x => `root pipe received: ${x}`, $.pipe),
+
+  run: sink({}, $.net),
+  log: sink({}, [$.netmsg, $.pipemsg])
+})
+
 /*
 const any = (...x) => x
 const all = (...x) => x
@@ -187,4 +208,4 @@ const exampleB = net({
 })
 */
 
-module.exports = { run, foo, ex1, ex2, ex3, ex4, ex5, sources, sinks }
+module.exports = { run, foo, ex1, ex2, ex3, ex4, ex5, ex6, sources, sinks }
