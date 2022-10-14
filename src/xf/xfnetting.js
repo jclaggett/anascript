@@ -18,7 +18,6 @@ const getXf = (node) =>
 
 const integrate = (netMap, { inputer, outputer }) =>
   walk(netMap,
-    // eslint-disable-next-line
     (id, node, enclosingNode, xfs) => {
       const inputNode = (node.inputs.length === 0 && enclosingNode == null)
       const outputNode = (node.outputs.length === 0 && enclosingNode == null)
