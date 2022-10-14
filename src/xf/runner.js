@@ -40,18 +40,22 @@ const defaultSource = (id) => {
   }
 }
 
+const sinks = {
+  log: console.log,
+  debug: console.debug,
+  dir: console.dir
+}
+
 const defaultSink = (id) => {
   console.warn('Unknown sink:', id)
   return (x) => console.debug(`DEBUG: sink ${id} received:`, x)
 }
 
-const pipes = {}
-
 const defaultPipe = (name) =>
   (x) => console.debug(
     `Unknonwn or closed pipe ${name}. ignoring:`, x)
 
-const setPipe = (name, transformer) => {
+const setPipe = (pipes, name, transformer) => {
   pipes[name] = (x) =>
     setImmediate(() => {
       if (isReduced(step(transformer, undefined, x))) {
@@ -60,54 +64,52 @@ const setPipe = (name, transformer) => {
     })
 }
 
-const getPipe = (name) =>
+const getPipe = (pipes, name) =>
   (x) => ((pipes[name] == null)
     ? defaultPipe(name)
     : pipes[name])(x)
 
-const inputer = async (value, xf) => {
-  if (value.type !== 'source') {
-    return
-  }
+const run = async (netMap, parentPipes = {}) => {
+  const localPipes = Object.setPrototypeOf({}, parentPipes)
+  const localSinks = Object.setPrototypeOf({
+    run: (netMap) => run(netMap, localPipes)
+  }, sinks)
 
-  const type = value.value?.type
-  const transformer = xf(t.count())
+  await Promise.all(integrate(netMap, {
+    inputer: async (value, xf) => {
+      if (value.type !== 'source') {
+        return
+      }
 
-  if (type === 'pipe') {
-    return setPipe(value.value?.name, transformer)
-  }
+      const type = value.value?.type
+      const transformer = xf(t.count())
 
-  const source = sources[type] ?? defaultSource(type)
-  for await (const x of source(value.value)) {
-    if (isReduced(step(transformer, undefined, x))) {
-      return
+      if (type === 'pipe') {
+        return setPipe(localPipes, value.value?.name, transformer)
+      }
+
+      const source = sources[type] ?? defaultSource(type)
+      for await (const x of source(value.value)) {
+        if (isReduced(step(transformer, undefined, x))) {
+          return
+        }
+      }
+
+      result(transformer, undefined)
+    },
+
+    outputer: (value) => {
+      if (value.type !== 'sink') {
+        return []
+      }
+
+      const type = value.value?.type
+      const sink = type === 'pipe'
+        ? getPipe(localPipes, value.value?.name)
+        : localSinks[type] ?? defaultSink(type)
+      return [t.map(sink)]
     }
-  }
-
-  result(transformer, undefined)
-}
-
-const outputer = (value) => {
-  if (value.type !== 'sink') {
-    return []
-  }
-
-  const type = value.value?.type
-  const sink = type === 'pipe'
-    ? getPipe(value.value?.name)
-    : sinks[type] ?? defaultSink(type)
-  return [t.map(sink)]
-}
-
-const run = async (netMap) => {
-  await Promise.all(integrate(netMap, { inputer, outputer }))
-}
-
-const sinks = {
-  log: console.log,
-  debug: console.debug,
-  dir: console.dir,
-  run
+  }))
 }
 
 const ex1 = net({
@@ -183,16 +185,15 @@ const ex6 = net({
   pipe: source({ type: 'pipe', name: 'root' }),
 
   time5: take(5, $.time),
-  net: map(_ => net({
+  net: map(ts => net({
     init: source({ type: 'init' }),
-    whee: map(x => x.env.USER, $.init),
+    whee: map(x => [ts, x.env.USER], $.init),
     pipe: sink({ type: 'pipe', name: 'root' }, $.whee),
     log: sink({ type: 'log' }, $.whee)
   }),
   $.time5),
 
   netmsg: map(n => Object.keys(n), $.net),
-
   pipemsg: map(x => `root pipe received: ${x}`, $.pipe),
 
   run: sink({ type: 'run' }, $.net),
