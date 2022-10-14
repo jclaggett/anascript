@@ -7,7 +7,10 @@ const {
   map,
   net,
   sink,
+
   step,
+  result,
+
   take,
   active,
   passive,
@@ -62,41 +65,42 @@ const getPipe = (name) =>
     ? defaultPipe(name)
     : pipes[name])(x)
 
+const inputer = async (value, xf) => {
+  if (value.type !== 'source') {
+    return
+  }
+
+  const type = value.value?.type
+  const transformer = xf(t.count())
+
+  if (type === 'pipe') {
+    return setPipe(value.value?.name, transformer)
+  }
+
+  const source = sources[type] ?? defaultSource(type)
+  for await (const x of source(value.value)) {
+    if (isReduced(step(transformer, undefined, x))) {
+      return
+    }
+  }
+
+  result(transformer, undefined)
+}
+
+const outputer = (value) => {
+  if (value.type !== 'sink') {
+    return []
+  }
+
+  const type = value.value?.type
+  const sink = type === 'pipe'
+    ? getPipe(value.value?.name)
+    : sinks[type] ?? defaultSink(type)
+  return [t.map(sink)]
+}
+
 const run = async (netMap) => {
-  await Promise.all(
-    integrate(netMap, {
-      inputer: async (id, value, xf) => {
-        if (value.type !== 'source') {
-          return
-        }
-
-        const transformer = xf(t.count())
-        const type = (value.value?.type ?? id)
-
-        if (type === 'pipe') {
-          return setPipe(value.value?.name, transformer)
-        }
-
-        const source = sources[type] ?? defaultSource(type)
-        for await (const x of source(value.value)) {
-          if (isReduced(step(transformer, undefined, x))) {
-            break
-          }
-        }
-      },
-
-      outputer: (id, value) => {
-        if (value.type !== 'sink') {
-          return []
-        }
-
-        const type = value.value?.type ?? id
-        const sink = type === 'pipe'
-          ? getPipe(value.value?.name)
-          : sinks[type] ?? defaultSink(type)
-        return [t.map(sink)]
-      }
-    }))
+  await Promise.all(integrate(netMap, { inputer, outputer }))
 }
 
 const sinks = {
@@ -107,44 +111,52 @@ const sinks = {
 }
 
 const ex1 = net({
-  init: source({}),
-  time: source({ freq: 500 }),
+  init: source({ type: 'init' }),
+  time: source({ type: 'time', freq: 500 }),
+
   take5: take(5, $.time),
   user: map(x => x.env.USER, $.init),
   usertime: map((user, time) => [user, time],
     $.user,
     $.take5),
-  log: sink({}, $.usertime),
   debugtake: map(x => `debugging take 5: ${x}`, $.take5),
-  debug: sink({}, $.debugtake)
+
+  log: sink({ type: 'log' }, $.usertime),
+  debug: sink({ type: 'debug' }, $.debugtake)
 })
 
 const foo = net({
-  init: source({}),
-  time: source({ freq: 0 }),
+  init: source({ type: 'init' }),
+  time: source({ type: 'time', freq: 0 }),
+
   myinit: map(_ => ({ env: { USER: 'nmosher' } }), $.init),
   ex1: embed(ex1, { init: $.myinit, time: $.time }),
-  debug: sink({}, [$.ex1.log])
+
+  debug: sink({ type: 'debug' }, [$.ex1.log])
 })
 
 const ex2 = net({
   N: source({ type: 'time', freq: 100 }),
+
   t5: take(5, $.N),
   t10: take(10, $.N),
   msg: map((x, y) => `logging ${x} ${y}`, active($.t5), passive($.t10)),
-  log: sink({}, $.msg),
-  dir: sink({}, [$.t10, $.t5])
+
+  log: sink({ type: 'log' }, $.msg),
+  dir: sink({ type: 'dir' }, [$.t10, $.t5])
 })
 
 const ex3 = net({
-  time: source({ freq: 99 }),
+  time: source({ type: 'time', freq: 99 }),
+
   t5a: take(5, $.time),
   t5b: take(5, $.time),
-  log: sink({}, [$.t5a, $.t5b])
+
+  log: sink({ type: 'log' }, [$.t5a, $.t5b])
 })
 
 const ex4 = net({
-  time: source({ freq: 500 }),
+  time: source({ type: 'time', freq: 500 }),
   pipeOut: source({ type: 'pipe', name: 'foo' }),
 
   time5: take(5, $.time),
@@ -154,28 +166,28 @@ const ex4 = net({
   node5: take(5, $.node1),
 
   pipeIn: sink({ type: 'pipe', name: 'foo' }, $.node5),
-  log: sink({}, $.node5)
+  log: sink({ type: 'log' }, $.node5)
 })
 
 const ex5 = net({
-  init: source({}),
+  init: source({ type: 'init' }),
 
   n1: map(x => x.env.USER, $.init),
   n2: xfnode(t.mapIndexed((x, i) => [x, i]), $.init),
 
-  log: sink({}, [$.n1, $.n2])
+  log: sink({ type: 'log' }, [$.n1, $.n2])
 })
 
 const ex6 = net({
-  time: source({ freq: 500 }),
-  pipe: source({ name: 'root' }),
+  time: source({ type: 'time', freq: 500 }),
+  pipe: source({ type: 'pipe', name: 'root' }),
 
   time5: take(5, $.time),
   net: map(_ => net({
-    init: source({}),
+    init: source({ type: 'init' }),
     whee: map(x => x.env.USER, $.init),
-    pipe: sink({ name: 'root' }, $.whee),
-    log: sink({}, $.whee)
+    pipe: sink({ type: 'pipe', name: 'root' }, $.whee),
+    log: sink({ type: 'log' }, $.whee)
   }),
   $.time5),
 
@@ -183,8 +195,8 @@ const ex6 = net({
 
   pipemsg: map(x => `root pipe received: ${x}`, $.pipe),
 
-  run: sink({}, $.net),
-  log: sink({}, [$.netmsg, $.pipemsg])
+  run: sink({ type: 'run' }, $.net),
+  log: sink({ type: 'log' }, [$.netmsg, $.pipemsg])
 })
 
 /*
