@@ -95,7 +95,6 @@ const run = (netMap, ...argv) =>
       },
 
       dir: async function * ({ path }) {
-        yield `Opening ${path}`
         const dir = await opendir(path)
         for await (const dirent of dir) {
           yield dirent
