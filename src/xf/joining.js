@@ -10,19 +10,21 @@ const active = (x) => isActive(x) ? x : x.x
 
 const joinIntake = (sharedState, index, active) =>
   (t) => {
-    let stepIsUncalled = true
+    let stepNeverCalled = true
     return transformer(t, {
       step: (a, v) => {
-        if (stepIsUncalled) {
-          stepIsUncalled = false
+        if (stepNeverCalled) {
+          stepNeverCalled = false
           sharedState.neededIntakes -= 1
+          sharedState.intakeActive = true
+        } else {
+          sharedState.intakeActive = active
         }
         sharedState.intakeIndex = index
-        sharedState.intakeActive = active
         return step(t, a, v)
       },
       result: (a) => {
-        if (stepIsUncalled) {
+        if (stepNeverCalled) {
           sharedState.activeIntakes = 0
         } else if (active) {
           sharedState.activeIntakes -= 1

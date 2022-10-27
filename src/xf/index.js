@@ -1,7 +1,7 @@
 module.exports = {
+  ...require('./util'),
   ...require('./reducing'),
-  ...require('./tagging'),
-  ...require('./plexing'),
+  ...require('./xflib'),
   ...require('./netting'),
   ...require('./xfnetting'),
   ...require('./joining')

@@ -2,8 +2,7 @@ const t = require('transducist')
 
 const { identity, first } = require('./util')
 const { walk, node } = require('./netting')
-const { tag, detag } = require('./tagging')
-const { multiplex, demultiplex } = require('./plexing')
+const { tag, detag, multiplex, demultiplex } = require('./xflib')
 
 const isMultipleInputs = (node, enclosingNode, id) =>
   (node.inputs.length +
@@ -25,7 +24,7 @@ const integrate = (netMap, { inputer, outputer }) =>
 
       // if root level output, replace (empty) xfs
       if (outputNode) {
-        xfs = outputer(node.value)
+        xfs = outputer(id, node.value)
       } else {
         // flatten xfs
         xfs = xfs.flatMap(identity)
@@ -41,7 +40,7 @@ const integrate = (netMap, { inputer, outputer }) =>
 
       // if inputNode pass to inputer
       if (inputNode) {
-        xfs = xfs.map(xf => inputer(node.value, xf))
+        xfs = xfs.map(xf => inputer(id, node.value, xf))
         // else if multiple inputs, use demultiplex...
       } else if (isMultipleInputs(node, enclosingNode, id)) {
         xfs = xfs.map(xf => demultiplex(xf))

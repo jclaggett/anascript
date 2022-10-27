@@ -8,7 +8,7 @@ const {
   isActive, isPassive, active, passive,
   multiplex, demultiplex, detag, final,
   $, embed, source, map, net, node,
-  sink, take, walk, xfnet
+  sink, take, walk, xfnet, remap
 } = require('..')
 const ex = require('../examples')
 
@@ -114,7 +114,9 @@ test('examples still work', () => {
     ])
 })
 
-test('transducing with initial values', () => {
+test('various tranducers', () => {
+  expect(t.transduce([1, 2, 3], remap((r, v) => r + v, 42), t.toArray()))
+    .toStrictEqual([43, 45, 48])
   expect(t.transduce([2, 3, 4], final(42), t.toArray(), null))
     .toStrictEqual([2, 3, 4, 42])
   expect(t.transduce([[1, 1], [1], [1, 2]],
@@ -130,19 +132,19 @@ test('transducing with initial values', () => {
 test('transducer nets', () => {
   expect(T(net(), []))
     .toStrictEqual([])
-  expect(T(net({ n: source(1) }), []))
+  expect(T(net({ n: source({ type: 'init' }) }), []))
     .toStrictEqual([['n']])
-  expect(T(net({ n: source(1) }), [['n']]))
+  expect(T(net({ n: source({ type: 'init' }) }), [['n']]))
     .toStrictEqual([['n']])
-  expect(T(net({ n: source(1) }), [['n', 1]]))
+  expect(T(net({ n: source({ type: 'init' }) }), [['n', 1]]))
     .toStrictEqual([['n', 1], ['n']])
-  expect(T(net({ n: source(1) }), [['n', 1]]))
+  expect(T(net({ n: source({ type: 'init' }) }), [['n', 1]]))
     .toStrictEqual([['n', 1], ['n']])
   expect(T(net({
-    a: source({ name: 'init' }),
-    b: source({ name: 'init2' }),
-    c: sink({ name: 'stdout' }, [$.a, $.b]),
-    d: sink({ name: 'stderr' }, [$.a, $.b])
+    a: source({ type: 'init' }),
+    b: source({ type: 'time' }),
+    c: sink({ type: 'log' }, [$.a, $.b]),
+    d: sink({ type: 'debug' }, [$.a, $.b])
   }), [['a', 1], ['b', 2]]))
     .toStrictEqual([
       ['c', 1], ['d', 1],
@@ -150,24 +152,24 @@ test('transducer nets', () => {
       ['c'], ['d']
     ])
 
-  expect(() => T(net({ a: sink(1, [$.foo]) }), []))
+  expect(() => T(net({ a: sink({ type: 'log' }, [$.foo]) }), []))
     .toThrow()
 
-  expect(T(net({ a: sink(1, 42) }), []))
+  expect(T(net({ a: sink({ type: 'log' }, 42) }), []))
     .toStrictEqual([['a']])
 
   expect(T(net({
-    a: source(1),
-    b: source(2),
+    a: source({ type: 'init' }),
+    b: source({ type: 'init' }),
     j: map((a, b) => a + b, $.a, $.b),
-    c: sink(42, $.j)
+    c: sink({ type: 'log' }, $.j)
   }), [['a', 1], ['b']]))
     .toStrictEqual([['c']])
 
   expect(T(net({
     a: take(3),
-    b: sink(1, $.a),
-    c: sink(2, $.a)
+    b: sink({ type: 'log' }, $.a),
+    c: sink({ type: 'debug' }, $.a)
   }), [['a', 1]]))
     .toStrictEqual([['b', 1], ['c', 1], ['b'], ['c']])
 
@@ -178,7 +180,7 @@ test('transducer nets', () => {
       bb: take(1, $.ba),
       bc: take(1, $.ba)
     }), { ba: $.a }),
-    c: sink(1, $.b.bb)
+    c: sink({ type: 'log' }, $.b.bb)
   }), [['a', 1]]))
     .toStrictEqual([['c', 1], ['c']])
 })
