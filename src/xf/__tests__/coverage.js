@@ -4,11 +4,9 @@
 
 const t = require('transducist')
 const {
-  isReduced, reduced, unreduced,
-  isActive, isPassive, active, passive,
-  multiplex, demultiplex, detag, final,
-  $, embed, source, map, net, node,
-  sink, take, walk, xfnet, remap
+  isReduced, reduced, unreduced, isActive, isPassive, active, passive,
+  multiplex, demultiplex, detag, epilog, $, embed, source, map, net, node,
+  sink, take, walk, xfnet, remap, dropAll, after, prolog
 } = require('..')
 const ex = require('../examples')
 
@@ -117,8 +115,18 @@ test('examples still work', () => {
 test('various tranducers', () => {
   expect(t.transduce([1, 2, 3], remap((r, v) => r + v, 42), t.toArray()))
     .toStrictEqual([43, 45, 48])
-  expect(t.transduce([2, 3, 4], final(42), t.toArray(), null))
+  expect(t.transduce([2, 3, 4], epilog(42), t.toArray(), null))
     .toStrictEqual([2, 3, 4, 42])
+  expect(t.transduce([2, 3, 4], prolog(42), t.toArray(), null))
+    .toStrictEqual([42, 2, 3, 4])
+  expect(t.transduce([], prolog(42), t.toArray(), null))
+    .toStrictEqual([42])
+  expect(t.transduce([1, 2, 3], t.compose(prolog(42), t.take(1)), t.toArray(), null))
+    .toStrictEqual([42])
+  expect(t.transduce([1, 2, 3], dropAll, t.toArray()))
+    .toStrictEqual([])
+  expect(t.transduce([1, 2, 3], after(42), t.toArray()))
+    .toStrictEqual([42])
   expect(t.transduce([[1, 1], [1], [1, 2]],
     demultiplex(detag(1)), t.toArray(), null))
     .toStrictEqual([1])

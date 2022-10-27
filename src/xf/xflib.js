@@ -9,28 +9,72 @@ const {
 } = require('./reducing')
 const { first, second } = require('./util')
 
-const remap = (reducer, initialState) =>
-  t => {
-    let state = initialState
+// remap: map f over each value and the results of the previous mapping.
+const remap = (f, initialValue) =>
+  (t) => {
+    let state = initialValue
     return transformer(t, {
       step: (a, v) => {
-        state = reducer(state, v)
+        state = f(state, v)
         return step(t, a, state)
       }
     })
   }
 
-const final = (x) =>
-  t => transformer(t, {
+// prolog & epilog: step an initial value before first step and a final value
+// after last step.
+
+const prolog = (x) =>
+  (t) => {
+    let prologNeverEmitted = true
+    return transformer(t, {
+      step: (a, v) => {
+        if (prologNeverEmitted) {
+          prologNeverEmitted = false
+          const a2 = step(t, a, x)
+          if (isReduced(a2)) {
+            return a2
+          } else {
+            return step(t, a2, v)
+          }
+        } else {
+          return step(t, a, v)
+        }
+      },
+      result: (a) => {
+        if (prologNeverEmitted) {
+          prologNeverEmitted = false
+          return result(t, unreduced(step(t, a, x)))
+        } else {
+          return result(t, a)
+        }
+      }
+    })
+  }
+
+const epilog = (x) =>
+  (t) => transformer(t, {
     result: (a) => result(t, unreduced(step(t, a, x)))
   })
+
+// dropAll & after: ignore all steps and send a single value at end.
+
+const dropAll =
+  (t) => transformer(t, {
+    step: (a, _v) => a
+  })
+
+const after = (x) =>
+  compose(
+    dropAll,
+    epilog(x))
 
 // tag & detag tranducers
 
 const tag = (k) =>
   compose(
     map(x => [k, x]),
-    final([k]))
+    epilog([k]))
 
 const detag = (k) =>
   compose(
@@ -115,10 +159,13 @@ const demultiplex = (xf) => {
 }
 
 module.exports = {
+  after,
   demultiplex,
   detag,
-  final,
+  epilog,
+  dropAll,
   multiplex,
+  prolog,
   remap,
   tag
 }
