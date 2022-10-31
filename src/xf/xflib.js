@@ -91,7 +91,7 @@ const multiplex = (xfs) =>
   // ts: the transformers corresponding to the multiplexed transducers
   // returned: the multiplex transformer that handles `step` and `result`
   (t1) => {
-    const t2 = demultiplexTransformer({ refCount: xfs.length }, t1)
+    const t2 = demultiplexTransformer(t1, { refCount: xfs.length })
     let ts = xfs.map(xf => xf(t2))
     return transformer(t1, {
       step: (a, v) => {
@@ -110,14 +110,14 @@ const multiplex = (xfs) =>
         if (ts.length === 0) {
           return reduced(a3)
         } else {
-          return unreduced(a3)
+          return a3
         }
       },
       result: (a) => ts.reduce((a, t) => result(t, a), a)
     })
   }
 
-const demultiplexTransformer = (state, t) =>
+const demultiplexTransformer = (t, state) =>
   // Warning: state is mutated by the transformer created in this function
   transformer(t, {
     step: (a, v) => {
@@ -158,7 +158,7 @@ const demultiplex = (xf) => {
     }
     state.refCount += 1
     if (state.transformer == null) {
-      state.transformer = demultiplexTransformer(state, xf(t))
+      state.transformer = demultiplexTransformer(xf(t), state)
     }
     return state.transformer
   }
