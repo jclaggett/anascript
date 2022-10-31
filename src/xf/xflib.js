@@ -85,9 +85,15 @@ const detag = (k) =>
 // multiplex & demultiplex tranducers
 
 const multiplex = (xfs) =>
-  t => {
-    let ts = xfs.map(xf => xf(t))
-    return transformer(t, {
+  // There are 4 layers of tranformers in multiplex:
+  // t1: the given, following transformer in the chain
+  // t2: a demultiplex transformer to allow sharing of t1
+  // ts: the transformers corresponding to the multiplexed transducers
+  // returned: the multiplex transformer that handles `step` and `result`
+  (t1) => {
+    const t2 = demultiplexTransformer({ refCount: xfs.length }, t1)
+    let ts = xfs.map(xf => xf(t2))
+    return transformer(t1, {
       step: (a, v) => {
         const a3 = ts.reduce(
           (a, t, i) => {

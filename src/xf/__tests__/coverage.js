@@ -127,6 +127,12 @@ test('various tranducers', () => {
     .toStrictEqual([])
   expect(t.transduce([1, 2, 3], after(42), t.toArray()))
     .toStrictEqual([42])
+  expect(t.transduce(
+    [1, 2, 3, 4, 5],
+    t.compose(multiplex([t.take(1), t.map(x => -x)]), t.take(3)),
+    t.toArray(),
+    null))
+    .toStrictEqual([1, -1, -2])
   expect(t.transduce([[1, 1], [1], [1, 2]],
     demultiplex(detag(1)), t.toArray(), null))
     .toStrictEqual([1])
