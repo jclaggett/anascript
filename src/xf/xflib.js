@@ -84,7 +84,6 @@ const detag = (k) =>
     map(second))
 
 // multiplex & demultiplex tranducers
-
 const multiplex = (xfs) =>
   // There are 4 layers of reducers in multiplex:
   // r1: the given, next reducer in the chain
@@ -92,7 +91,7 @@ const multiplex = (xfs) =>
   // rs: the muliplexed reducers all sharing r2
   // returned reducer: applies all rs reducers
   transducer(r1 => {
-    const r2 = demultiplexReducer(r1, { refCount: xfs.length })
+    const r2 = demultiplex(xfs.length)(r1)
     let rs = xfs.map(xf => xf(r2))
     return {
       [STEP]: (a, v) => {
@@ -119,49 +118,34 @@ const multiplex = (xfs) =>
     }
   })
 
-const demultiplexReducer = (r, state) =>
-  transducer(r => ({
-    [STEP]: (a, v) => {
-      state.running = true
-      if (state.reduced == null) {
-        const a2 = r[STEP](a, v)
-        if (isReduced(a2)) {
-          state.reduced = a2
-        }
-        return a2
-      } else {
-        return state.reduced
-      }
-    },
-    [RESULT]: (a) => {
-      state.running = true
-      if (state.result == null) {
-        state.refCount -= 1
-        if (state.refCount <= 0 || state.reduced != null) {
-          state.result = r[RESULT](a)
-          return state.result
-        } else {
+const demultiplex = (n) => {
+  let refCount = n
+  let reducer = null
+  let reducedValue = null
+  return transducer(r => {
+    if (reducer == null) {
+      reducer = {
+        [STEP]: (a, v) => {
+          if (reducedValue != null) {
+            a = reducedValue
+          } else {
+            a = r[STEP](a, v)
+            if (isReduced(a)) {
+              reducedValue = a
+            }
+          }
+          return a
+        },
+
+        [RESULT]: (a) => {
+          if (--refCount <= 0) {
+            a = r[RESULT](a)
+          }
           return a
         }
-      } else {
-        return state.result
       }
     }
-  }))(r)
-
-const demultiplex = (xf) => {
-  // Shared, mutable state across multiple calls to the transducer.
-  // This makes this function not thread safe.
-  let state = { running: true }
-  return transducer(r => {
-    if (state.running) {
-      state = { running: false, refCount: 0, reducer: null }
-    }
-    state.refCount += 1
-    if (state.reducer == null) {
-      state.reducer = demultiplexReducer(xf(r), state)
-    }
-    return state.reducer
+    return reducer
   })
 }
 

@@ -4,11 +4,11 @@ const { identity, first } = require('./util')
 const { walk, node } = require('./netting')
 const { tag, detag, multiplex, demultiplex } = require('./xflib')
 
-const isMultipleInputs = (node, enclosingNode, id) =>
+const countNodeInputs = (node, enclosingNode, id) =>
   (node.inputs.length +
     ((enclosingNode ?? { inputs: {} })
       .inputs[id] ?? [])
-      .length) > 1
+      .length)
 
 const getXf = (node) =>
   node.value?.type === 'xf'
@@ -42,8 +42,11 @@ const integrate = (netMap, { inputer, outputer }) =>
       if (inputNode) {
         xfs = xfs.map(xf => inputer(id, node.value, xf))
         // else if multiple inputs, use demultiplex...
-      } else if (isMultipleInputs(node, enclosingNode, id)) {
-        xfs = xfs.map(xf => demultiplex(xf))
+      } else {
+        const inputCount = countNodeInputs(node, enclosingNode, id)
+        if (inputCount > 1) {
+          xfs = xfs.map(xf => t.compose(demultiplex(inputCount), xf))
+        }
       }
       return xfs
     })

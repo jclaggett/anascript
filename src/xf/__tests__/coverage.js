@@ -134,10 +134,10 @@ test('various tranducers', () => {
     null))
     .toStrictEqual([1, -1, -2])
   expect(t.transduce([[1, 1], [1], [1, 2]],
-    demultiplex(detag(1)), t.toArray(), null))
+    t.compose(demultiplex(1), detag(1)), t.toArray(), null))
     .toStrictEqual([1])
 
-  const demult = demultiplex(t.take(3))
+  const demult = t.compose(demultiplex(2), t.take(3))
   const mult = multiplex([demult, demult])
   expect(t.transduce([1, 2, 3], mult, t.toArray(), 42))
     .toStrictEqual([1, 1, 2])
