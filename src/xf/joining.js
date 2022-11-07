@@ -1,4 +1,4 @@
-const { transformer, step, result, reduced } = require('./reducing')
+const { reduced, transducer, STEP, RESULT } = require('./reducing')
 const { $, embed, net } = require('./netting')
 const { simpleMap, xfnode } = require('./xfnetting')
 
@@ -9,10 +9,10 @@ const isActive = (x) => !isPassive(x)
 const active = (x) => isActive(x) ? x : x.x
 
 const joinIntake = (sharedState, index, active) =>
-  (t) => {
+  transducer(r => {
     let stepNeverCalled = true
-    return transformer(t, {
-      step: (a, v) => {
+    return {
+      [STEP]: (a, v) => {
         if (stepNeverCalled) {
           stepNeverCalled = false
           sharedState.neededIntakes -= 1
@@ -21,36 +21,37 @@ const joinIntake = (sharedState, index, active) =>
           sharedState.intakeActive = active
         }
         sharedState.intakeIndex = index
-        return step(t, a, v)
+        return r[STEP](a, v)
       },
-      result: (a) => {
+
+      [RESULT]: (a) => {
         if (stepNeverCalled) {
           sharedState.activeIntakes = 0
         } else if (active) {
           sharedState.activeIntakes -= 1
         }
-        return result(t, a)
+        return r[RESULT](a)
       }
-    })
-  }
+    }
+  })
 
 const joinCollector = (sharedState, fn, inputs) =>
-  (t) => {
+  transducer(r => {
     sharedState.activeIntakes = inputs.filter(isActive).length
     sharedState.neededIntakes = inputs.length
     const currentOutput = new Array(inputs.length)
-    return transformer(t, {
-      step: (a, v) => {
+    return {
+      [STEP]: (a, v) => {
         if (sharedState.activeIntakes < 1) {
           return reduced(a)
         }
         currentOutput[sharedState.intakeIndex] = v
         return (sharedState.neededIntakes < 1 && sharedState.intakeActive)
-          ? step(t, a, fn(...currentOutput))
+          ? r[STEP](a, fn(...currentOutput))
           : a
       }
-    })
-  }
+    }
+  })
 
 const join = (fn, inputs) => {
   // State is mutated by all joinIntake and joinCollector transducers.

@@ -1,6 +1,6 @@
 const { opendir } = require('fs/promises')
 const t = require('transducist')
-const { integrate, isReduced, step, result } = require('.')
+const { integrate, isReduced, STEP, RESULT } = require('.')
 
 const defaultSource = (id) => {
   console.warn('Unknown source:', id)
@@ -18,10 +18,10 @@ const defaultPipe = (name) =>
   (x) => console.debug(
     `Unknonwn or closed pipe ${name}. ignoring:`, x)
 
-const setPipe = (pipes, name, transformer) => {
+const setPipe = (pipes, name, reducer) => {
   pipes[name] = (x) =>
     setImmediate(() => {
-      if (isReduced(step(transformer, undefined, x))) {
+      if (isReduced(reducer[STEP](undefined, x))) {
         pipes[name] = undefined
       }
     })
@@ -49,20 +49,20 @@ const runNet = async (netMap, env) => {
       }
 
       const type = value.value?.type
-      const transformer = xf(t.count())
+      const reducer = xf(t.count())
 
       if (type === 'pipe') {
-        return setPipe(env.pipes, value.value?.name, transformer)
+        return setPipe(env.pipes, value.value?.name, reducer)
       }
 
       const source = localEnv.sources[type] ?? defaultSource(type)
       for await (const x of source(value.value)) {
-        if (isReduced(step(transformer, undefined, x))) {
+        if (isReduced(reducer[STEP](undefined, x))) {
           return
         }
       }
 
-      result(transformer, undefined)
+      reducer[RESULT](undefined)
     },
 
     outputer: (_id, value) => {

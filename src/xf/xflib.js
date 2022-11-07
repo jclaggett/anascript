@@ -5,64 +5,65 @@
 const { compose, filter, map, takeWhile } = require('transducist')
 
 const {
-  transformer, step, result, isReduced, reduced, unreduced
+  STEP, RESULT,
+  transducer, isReduced, reduced, unreduced
 } = require('./reducing')
 const { first, second } = require('./util')
 
 // remap: map f over each value and the results of the previous mapping.
 const remap = (f, initialValue) =>
-  (t) => {
+  transducer(reducer => {
     let state = initialValue
-    return transformer(t, {
-      step: (a, v) => {
+    return {
+      [STEP]: (a, v) => {
         state = f(state, v)
-        return step(t, a, state)
+        return reducer[STEP](a, state)
       }
-    })
-  }
+    }
+  })
 
 // prolog & epilog: step an initial value before first step and a final value
 // after last step.
 
 const prolog = (x) =>
-  (t) => {
+  transducer(r => {
     let prologNeverEmitted = true
-    return transformer(t, {
-      step: (a, v) => {
+    return {
+      [STEP]: (a, v) => {
         if (prologNeverEmitted) {
           prologNeverEmitted = false
-          const a2 = step(t, a, x)
+          const a2 = r[STEP](a, x)
           if (isReduced(a2)) {
             return a2
           } else {
-            return step(t, a2, v)
+            return r[STEP](a2, v)
           }
         } else {
-          return step(t, a, v)
+          return r[STEP](a, v)
         }
       },
-      result: (a) => {
+      [RESULT]: (a) => {
         if (prologNeverEmitted) {
           prologNeverEmitted = false
-          return result(t, unreduced(step(t, a, x)))
+          return r[RESULT](unreduced(r[STEP](a, x)))
         } else {
-          return result(t, a)
+          return r[RESULT](a)
         }
       }
-    })
-  }
+    }
+  })
 
 const epilog = (x) =>
-  (t) => transformer(t, {
-    result: (a) => result(t, unreduced(step(t, a, x)))
-  })
+  transducer(r => ({
+    [RESULT]: (a) => r[RESULT](unreduced(r[STEP](a, x)))
+  }))
 
 // dropAll & after: ignore all steps and send a single value at end.
 
 const dropAll =
-  (t) => transformer(t, {
-    step: (a, _v) => a
-  })
+  transducer(_r => ({
+    [STEP]: (a, _v) => a
+  }))
 
 const after = (x) =>
   compose(
@@ -85,45 +86,45 @@ const detag = (k) =>
 // multiplex & demultiplex tranducers
 
 const multiplex = (xfs) =>
-  // There are 4 layers of tranformers in multiplex:
-  // t1: the given, following transformer in the chain
-  // t2: a demultiplex transformer to allow sharing of t1
-  // ts: the transformers corresponding to the multiplexed transducers
-  // returned: the multiplex transformer that handles `step` and `result`
-  (t1) => {
-    const t2 = demultiplexTransformer(t1, { refCount: xfs.length })
-    let ts = xfs.map(xf => xf(t2))
-    return transformer(t1, {
-      step: (a, v) => {
-        const a3 = ts.reduce(
-          (a, t, i) => {
-            const a2 = step(t, a, v)
+  // There are 4 layers of reducers in multiplex:
+  // r1: the given, next reducer in the chain
+  // r2: a demultiplex reducer over r1
+  // rs: the muliplexed reducers all sharing r2
+  // returned reducer: applies all rs reducers
+  transducer(r1 => {
+    const r2 = demultiplexReducer(r1, { refCount: xfs.length })
+    let rs = xfs.map(xf => xf(r2))
+    return {
+      [STEP]: (a, v) => {
+        const a3 = rs.reduce(
+          (a, r, i) => {
+            const a2 = r[STEP](a, v)
             if (isReduced(a2)) {
-              ts[i] = null // Remove t from ts
-              return result(t, unreduced(a2))
+              rs[i] = null
+              return r[RESULT](unreduced(a2))
             } else {
               return a2
             }
           },
           a)
-        ts = ts.filter(x => x != null)
-        if (ts.length === 0) {
+        rs = rs.filter(x => x != null)
+        if (rs.length === 0) {
           return reduced(a3)
         } else {
           return a3
         }
       },
-      result: (a) => ts.reduce((a, t) => result(t, a), a)
-    })
-  }
 
-const demultiplexTransformer = (t, state) =>
-  // Warning: state is mutated by the transformer created in this function
-  transformer(t, {
-    step: (a, v) => {
+      [RESULT]: (a) => rs.reduce((a, r) => r[RESULT](a), a)
+    }
+  })
+
+const demultiplexReducer = (r, state) =>
+  transducer(r => ({
+    [STEP]: (a, v) => {
       state.running = true
       if (state.reduced == null) {
-        const a2 = step(t, a, v)
+        const a2 = r[STEP](a, v)
         if (isReduced(a2)) {
           state.reduced = a2
         }
@@ -132,12 +133,12 @@ const demultiplexTransformer = (t, state) =>
         return state.reduced
       }
     },
-    result: (a) => {
+    [RESULT]: (a) => {
       state.running = true
       if (state.result == null) {
         state.refCount -= 1
         if (state.refCount <= 0 || state.reduced != null) {
-          state.result = result(t, a)
+          state.result = r[RESULT](a)
           return state.result
         } else {
           return a
@@ -146,22 +147,22 @@ const demultiplexTransformer = (t, state) =>
         return state.result
       }
     }
-  })
+  }))(r)
 
 const demultiplex = (xf) => {
   // Shared, mutable state across multiple calls to the transducer.
   // This makes this function not thread safe.
   let state = { running: true }
-  return t => {
+  return transducer(r => {
     if (state.running) {
-      state = { running: false, refCount: 0, transformer: null }
+      state = { running: false, refCount: 0, reducer: null }
     }
     state.refCount += 1
-    if (state.transformer == null) {
-      state.transformer = demultiplexTransformer(xf(t), state)
+    if (state.reducer == null) {
+      state.reducer = demultiplexReducer(xf(r), state)
     }
-    return state.transformer
-  }
+    return state.reducer
+  })
 }
 
 module.exports = {

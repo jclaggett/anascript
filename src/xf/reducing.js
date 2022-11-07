@@ -1,35 +1,33 @@
-// Reduced protocol
-const isReduced = x =>
-  x instanceof Object && x['@@transducer/reduced'] === true
+// Reducer Protocol as described by:
+// https://github.com/cognitect-labs/transducers-js#the-transducer-protocol
 
-const unreduced = x =>
-  isReduced(x)
-    ? x['@@transducer/value']
-    : x
+const INIT = '@@transducer/init'
+const STEP = '@@transducer/step'
+const RESULT = '@@transducer/result'
+const REDUCED = '@@transducer/reduced'
+const VALUE = '@@transducer/value'
 
-const reduced = x =>
-  isReduced(x)
-    ? x
-    : { '@@transducer/reduced': true, '@@transducer/value': x }
+const isReduced = (x) => x instanceof Object && x[REDUCED] === true
+const reduced = (x) => isReduced(x) ? x : { [REDUCED]: true, [VALUE]: x }
+const unreduced = (x) => isReduced(x) ? x[VALUE] : x
 
-// Transformer protocol
-const init = (t) => t['@@transducer/init']()
-const step = (t, a, v) => t['@@transducer/step'](a, v)
-const result = (t, a) => t['@@transducer/result'](a)
-
-const transformer = (t, obj) => ({
-  '@@transducer/init': obj.init ?? (() => init(t)),
-  '@@transducer/step': obj.step ?? ((a, v) => step(t, a, v)),
-  '@@transducer/result': obj.result ?? ((a) => result(t, a))
-})
+// This transducer implementation leverages prototype inheritance to provide
+// default behavior for the new reducer by inheriting methods from of the old
+// reducer. Reasons for this approach:
+// 1. Protoype inheritance is a low level and optimized javascript feature.
+// 2. The constructor doesn't define wrapper INIT, STEP, and RESULT methods.
+const transducer = (constructor) =>
+  (reducer) =>
+    Object.setPrototypeOf(
+      constructor(reducer),
+      reducer)
 
 module.exports = {
+  INIT,
+  STEP,
+  RESULT,
   isReduced,
   unreduced,
   reduced,
-
-  transformer,
-  init,
-  step,
-  result
+  transducer
 }
