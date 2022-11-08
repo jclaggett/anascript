@@ -44,9 +44,7 @@ const integrate = (netMap, { inputer, outputer }) =>
         // else if multiple inputs, use demultiplex...
       } else {
         const inputCount = countNodeInputs(node, enclosingNode, id)
-        if (inputCount > 1) {
-          xfs = xfs.map(xf => t.compose(demultiplex(inputCount), xf))
-        }
+        xfs = xfs.map(xf => t.compose(demultiplex(inputCount), xf))
       }
       return xfs
     })

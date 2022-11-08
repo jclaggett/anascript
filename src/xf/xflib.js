@@ -8,7 +8,7 @@ const {
   STEP, RESULT,
   transducer, isReduced, reduced, unreduced
 } = require('./reducing')
-const { first, second } = require('./util')
+const { identity, first, second } = require('./util')
 
 // remap: map f over each value and the results of the previous mapping.
 const remap = (f, initialValue) =>
@@ -90,63 +90,67 @@ const multiplex = (xfs) =>
   // r2: a demultiplex reducer over r1
   // rs: the muliplexed reducers all sharing r2
   // returned reducer: applies all rs reducers
-  transducer(r1 => {
-    const r2 = demultiplex(xfs.length)(r1)
-    let rs = xfs.map(xf => xf(r2))
-    return {
-      [STEP]: (a, v) => {
-        const a3 = rs.reduce(
-          (a, r, i) => {
-            const a2 = r[STEP](a, v)
-            if (isReduced(a2)) {
-              rs[i] = null
-              return r[RESULT](unreduced(a2))
-            } else {
-              return a2
-            }
-          },
-          a)
-        rs = rs.filter(x => x != null)
-        if (rs.length === 0) {
-          return reduced(a3)
-        } else {
-          return a3
-        }
-      },
-
-      [RESULT]: (a) => rs.reduce((a, r) => r[RESULT](a), a)
-    }
-  })
-
-const demultiplex = (n) => {
-  let refCount = n
-  let reducer = null
-  let reducedValue = null
-  return transducer(r => {
-    if (reducer == null) {
-      reducer = {
+  (xfs.length === 1)
+    ? xfs[0] // trivial case
+    : transducer(r1 => {
+      const r2 = demultiplex(xfs.length)(r1)
+      let rs = xfs.map(xf => xf(r2))
+      return {
         [STEP]: (a, v) => {
-          if (reducedValue != null) {
-            a = reducedValue
+          const a3 = rs.reduce(
+            (a, r, i) => {
+              const a2 = r[STEP](a, v)
+              if (isReduced(a2)) {
+                rs[i] = null
+                return r[RESULT](unreduced(a2))
+              } else {
+                return a2
+              }
+            },
+            a)
+          rs = rs.filter(x => x != null)
+          if (rs.length === 0) {
+            return reduced(a3)
           } else {
-            a = r[STEP](a, v)
-            if (isReduced(a)) {
-              reducedValue = a
-            }
+            return a3
           }
-          return a
         },
 
-        [RESULT]: (a) => {
-          if (--refCount <= 0) {
-            a = r[RESULT](a)
+        [RESULT]: (a) => rs.reduce((a, r) => r[RESULT](a), a)
+      }
+    })
+
+const demultiplex = (n) => {
+  let expectedResultCalls = n
+  let sharedReducer = null
+  let reducedValue = null
+  return (n === 1)
+    ? identity // trivial case
+    : transducer(r => {
+      if (sharedReducer == null) {
+        sharedReducer = {
+          [STEP]: (a, v) => {
+            if (reducedValue != null) {
+              a = reducedValue
+            } else {
+              a = r[STEP](a, v)
+              if (isReduced(a)) {
+                reducedValue = a
+              }
+            }
+            return a
+          },
+
+          [RESULT]: (a) => {
+            if (--expectedResultCalls <= 0) {
+              a = r[RESULT](a)
+            }
+            return a
           }
-          return a
         }
       }
-    }
-    return reducer
-  })
+      return sharedReducer
+    })
 }
 
 module.exports = {
