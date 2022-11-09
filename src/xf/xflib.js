@@ -97,26 +97,25 @@ const multiplex = (xfs) =>
       let rs = xfs.map(xf => xf(r2))
       return {
         [STEP]: (a, v) => {
-          const a3 = rs.reduce(
+          a = rs.reduce(
             (a, r, i) => {
-              const a2 = r[STEP](a, v)
-              if (isReduced(a2)) {
+              a = r[STEP](a, v)
+              if (isReduced(a)) {
                 rs[i] = null
-                return r[RESULT](unreduced(a2))
-              } else {
-                return a2
+                a = r[RESULT](unreduced(a))
               }
+              return a
             },
             a)
           rs = rs.filter(x => x != null)
           if (rs.length === 0) {
-            return reduced(a3)
-          } else {
-            return a3
+            a = reduced(a)
           }
+          return a
         },
 
-        [RESULT]: (a) => rs.reduce((a, r) => r[RESULT](a), a)
+        [RESULT]: (a) =>
+          rs.reduce((a, r) => r[RESULT](a), a)
       }
     })
 
