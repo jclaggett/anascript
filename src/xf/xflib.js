@@ -120,12 +120,13 @@ const multiplex = (xfs) =>
     })
 
 const demultiplex = (n) => {
-  let expectedResultCalls = n
-  let sharedReducer = null
-  let reducedValue = null
-  return (n === 1)
-    ? identity // trivial case
-    : transducer(r => {
+  if (n === 1) {
+    return identity // trivial case
+  } else {
+    let expectedResultCalls = n
+    let sharedReducer = null
+    let reducedValue = null
+    return transducer(r => {
       if (sharedReducer == null) {
         sharedReducer = {
           [STEP]: (a, v) => {
@@ -150,6 +151,7 @@ const demultiplex = (n) => {
       }
       return sharedReducer
     })
+  }
 }
 
 module.exports = {
