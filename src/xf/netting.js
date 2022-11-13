@@ -45,20 +45,6 @@ const initNetMapEntry = (node) => ({
     : { inputs: [], outputs: [] })
 })
 
-/*
-embed(foo, {
-  bar: $.bar1,
-  baz: {
-    biz: $.bar1
-  }
-})
-
-[
-  [['foo', 'bar'], $.bar1],
-  [['foo', 'baz', 'biz'], $.bar1]
-]
-*/
-
 const getEmbedRefs = (inputs, id) =>
   Object.entries(inputs)
     .flatMap(([inputId, inputRefs]) =>
