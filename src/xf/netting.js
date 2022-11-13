@@ -3,6 +3,9 @@ const { $, normalizeRefs } = require('./pathref')
 
 // Making a netMap
 
+const isNet = (x) =>
+  Object.prototype.isPrototypeOf.call(Net, x)
+
 const getNode = (netMap, [id, ...path]) =>
   path.length === 0
     ? netMap[id]
@@ -26,7 +29,7 @@ const connectNode = (netMap, a, b, dir) => {
 }
 
 const normalizeEmbedRef = (netMap, x) =>
-  getNode(netMap, x).type === 'embed'
+  isNet(getNode(netMap, x).value)
     ? x.concat(['out'])
     : x
 
@@ -40,7 +43,7 @@ const connectNodes = (netMap, a, b) => {
 
 const initNetMapEntry = (node) => ({
   ...node,
-  ...(node.type === 'embed'
+  ...(isNet(node.value)
     ? { inputs: {}, outputs: {} }
     : { inputs: [], outputs: [] })
 })
@@ -53,7 +56,7 @@ const getEmbedRefs = (inputs, id) =>
         : getEmbedRefs(inputRefs, id.concat(inputId)))
 
 const getInputRefs = (node, nodeId) =>
-  node.type === 'embed'
+  isNet(node.value)
     ? getEmbedRefs(node.inputs, nodeId)
     : [[nodeId, node.inputs]]
 
@@ -62,9 +65,9 @@ const validateRef = (netSpec, id) =>
     const node = netSpec[ref[0]]
 
     if (node == null ||
-      (node.type === 'node' &&
+      (!isNet(node.value) &&
         ref.length > 1) ||
-      (node.type === 'embed' &&
+      (isNet(node.value) &&
         getNode(node.value, ref.slice(1)) == null &&
         getNode(node.value, ref.slice(1).concat(['out'])) == null)) {
       throw new Error(`Unknown node $.${ref.join('.')} referenced by node ${id}.`)
@@ -161,14 +164,14 @@ const walk = (netMap, walkFn) => {
 
   const rootPaths = Object.entries(netMap)
     .filter(([_, node]) =>
-      node.type === 'node' && node[parentKey].length === 0)
+      !isNet(node.value) && node[parentKey].length === 0)
     .map(([id]) => [id])
 
   const walked = rootPaths.reduce(walkNode, {})
   return rootPaths.map(([id]) => walked[id])
 }
 
-const node = (value, inputs = []) => ({ type: 'node', value, inputs })
-const embed = (value, inputs = {}) => ({ type: 'embed', value, inputs })
+const node = (value, inputs = []) => ({ value, inputs })
+const embed = (value, inputs = {}) => ({ value, inputs })
 
 module.exports = { $, node, embed, net, walk }

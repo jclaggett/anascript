@@ -35,7 +35,7 @@ test('net creation', () => {
     a: node(1)
   }))
     .toStrictEqual({
-      a: { type: 'node', value: 1, inputs: [], outputs: [] }
+      a: { value: 1, inputs: [], outputs: [] }
     })
   expect(() => net({
     a: node(1, $.x)
@@ -47,8 +47,8 @@ test('net creation', () => {
     b: node(2, $.a)
   }))
     .toStrictEqual({
-      a: { type: 'node', value: 1, inputs: [], outputs: [['b']] },
-      b: { type: 'node', value: 2, inputs: [['a']], outputs: [] }
+      a: { value: 1, inputs: [], outputs: [['b']] },
+      b: { value: 2, inputs: [['a']], outputs: [] }
     })
 
   expect(net({
@@ -57,9 +57,9 @@ test('net creation', () => {
     c: node(3, [$.a, $.b])
   }))
     .toStrictEqual({
-      a: { type: 'node', value: 1, inputs: [], outputs: [['b'], ['c']] },
-      b: { type: 'node', value: 2, inputs: [['a']], outputs: [['c']] },
-      c: { type: 'node', value: 3, inputs: [['a'], ['b']], outputs: [] }
+      a: { value: 1, inputs: [], outputs: [['b'], ['c']] },
+      b: { value: 2, inputs: [['a']], outputs: [['c']] },
+      c: { value: 3, inputs: [['a'], ['b']], outputs: [] }
     })
 })
 
