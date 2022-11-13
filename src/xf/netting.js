@@ -6,7 +6,7 @@ const { $, normalizeRefs } = require('./pathref')
 const getNode = (netMap, [id, ...path]) =>
   path.length === 0
     ? netMap[id]
-    : getNode(netMap[id].net, path)
+    : getNode(netMap[id].value, path)
 
 const pushValue = (obj, key, value) => {
   if (obj[key] === undefined) {
@@ -65,13 +65,15 @@ const validateRef = (netSpec, id) =>
       (node.type === 'node' &&
         ref.length > 1) ||
       (node.type === 'embed' &&
-        getNode(node.net, ref.slice(1)) == null &&
-        getNode(node.net, ref.slice(1).concat(['out'])) == null)) {
+        getNode(node.value, ref.slice(1)) == null &&
+        getNode(node.value, ref.slice(1).concat(['out'])) == null)) {
       throw new Error(`Unknown node $.${ref.join('.')} referenced by node ${id}.`)
     }
 
     return ref
   }
+
+const Net = {}
 
 const net = (netSpec = {}) => {
   const makeNetMapEntry = (netMap, nodeId) => {
@@ -100,7 +102,7 @@ const net = (netSpec = {}) => {
   return Object
     .keys(netSpec)
     .map(id => [id])
-    .reduce(makeNetMapEntry, {})
+    .reduce(makeNetMapEntry, Object.setPrototypeOf({}, Net))
 }
 
 const getWalkedValue = (walked, [id, ...path]) =>
@@ -167,6 +169,6 @@ const walk = (netMap, walkFn) => {
 }
 
 const node = (value, inputs = []) => ({ type: 'node', value, inputs })
-const embed = (net, inputs = {}) => ({ type: 'embed', net, inputs })
+const embed = (value, inputs = {}) => ({ type: 'embed', value, inputs })
 
 module.exports = { $, node, embed, net, walk }
