@@ -1,5 +1,8 @@
 const { last, butLast } = require('./util')
-const { $, normalizeRefs } = require('./pathref')
+const {
+  $, normalizeRefs,
+  pathRefToArray, pathRefToString, arrayToPathRef
+} = require('./pathref')
 
 // Making a netMap
 
@@ -108,6 +111,88 @@ const net = (netSpec = {}) => {
     .reduce(makeNetMapEntry, Object.setPrototypeOf({}, Net))
 }
 
+/*
+ * net({
+ *   a: 1, b: 2
+ *   }, [
+ *   [$.a, $.b]
+ *   ])
+ */
+
+const normalizePath = ([name, ...subPath], netMap, defaultName) => {
+  let resultPath = null
+
+  const node = netMap[name]
+
+  if (node != null) {
+    if (isNet(node.value)) {
+      subPath = normalizePath(
+        subPath.length > 0 ? subPath : [defaultName],
+        node.value,
+        defaultName)
+      if (subPath != null) {
+        resultPath = [name, ...subPath]
+      }
+    } else if (subPath.length === 0) {
+      resultPath = [name]
+    }
+  }
+
+  return resultPath
+}
+
+const addPath = (paths, [name, ...path], targetPath) => {
+  if (name == null) {
+    if (paths == null) {
+      paths = new Set()
+    }
+    paths.add(targetPath)
+  } else {
+    if (paths == null) {
+      paths = {}
+    }
+    paths[name] = addPath(paths[name], path, targetPath)
+  }
+  return paths
+}
+
+const net2 = (nodes = {}, links = []) => {
+  let netMap = Object.setPrototypeOf({}, Net)
+
+  // Define nodes
+  netMap = Object.entries(nodes)
+    .reduce((netMap, [key, value]) => {
+      netMap[key] = { value }
+      return netMap
+    },
+    netMap)
+
+  // Connect nodes
+  netMap = links
+    .reduce((netMap, [src, dst]) => {
+      const srcPath = normalizePath(pathRefToArray(src), netMap, 'out')
+      if (srcPath == null) {
+        throw new Error(`Invalid source ref: ${pathRefToString(src)}`)
+      }
+
+      const dstPath = normalizePath(pathRefToArray(dst), netMap, 'in')
+      if (dstPath == null) {
+        throw new Error(`Invalid destination ref: ${pathRefToString(dst)}`)
+      }
+
+      const srcNode = netMap[srcPath[0]]
+      const dstNode = netMap[dstPath[0]]
+
+      srcNode.outputs = addPath(srcNode.outputs, srcPath.slice(1), dstPath)
+      dstNode.inputs = addPath(dstNode.inputs, dstPath.slice(1), srcPath)
+
+      return netMap
+    },
+    netMap)
+
+  return netMap
+}
+
 const getWalkedValue = (walked, [id, ...path]) =>
   path.length === 0
     ? walked[id]
@@ -171,7 +256,62 @@ const walk = (netMap, walkFn) => {
   return rootPaths.map(([id]) => walked[id])
 }
 
+// TODO: Implement getPaths and getAllPaths as iterators
+const getPaths = (paths, [name, ...path]) =>
+  (paths == null)
+    ? new Set()
+    : (name == null)
+        ? paths
+        : getPaths(paths[name], path)
+
+const getAllPaths = (netMap, [name, ...path], dir) =>
+  (name == null)
+    ? []
+    : [
+        ...getPaths(netMap[name][dir], path),
+        ...Array.from(getAllPaths(netMap[name].value, path, dir),
+          path => [name, ...path])
+      ]
+
+const dedupePaths = (paths) =>
+  [...new Set(paths
+    .map(path => arrayToPathRef(path))
+    .map(pathRef => pathRefToArray(pathRef)))]
+
+const walk2 = (netMap, walkFn) => {
+  // For now, always walk from inputs to outputs
+  const parentKey = 'inputs'
+  const childKey = 'outputs'
+
+  const walkNode = (walked, path) => {
+    if (getWalkedValue(walked, path) === undefined) {
+      const parentPaths = dedupePaths(getAllPaths(netMap, path, parentKey))
+      const childPaths = dedupePaths(getAllPaths(netMap, path, childKey))
+      walked = childPaths.reduce(walkNode, walked)
+      walked = setWalkedValue(walked, path,
+        walkFn({
+          path,
+          [parentKey]: parentPaths,
+          [childKey]: childPaths,
+          value: getNode(netMap, path).value,
+          netMap,
+          walked: childPaths.map(path => getWalkedValue(walked, path))
+        }))
+    }
+    return walked
+  }
+
+  const rootPaths = Object.entries(netMap)
+    .filter(([_, node]) =>
+      !isNet(node.value) &&
+      (node[parentKey] == null || node[parentKey].length === 0))
+    .map(([id]) => [id])
+
+  const walked = rootPaths.reduce(walkNode, {})
+  return rootPaths.map(([id]) => walked[id])
+}
+
 const node = (value, inputs = []) => ({ value, inputs })
 const embed = (value, inputs = {}) => ({ value, inputs })
 
-module.exports = { $, node, embed, net, walk }
+module.exports = { $, net2, isNet, node, embed, net, walk, walk2 }
