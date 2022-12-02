@@ -6,7 +6,9 @@ const t = require('transducist')
 const {
   isReduced, reduced, unreduced, isActive, isPassive, active, passive,
   multiplex, demultiplex, detag, epilog, $, embed, source, map, net, node,
-  sink, take, walk, xfnet, remap, dropAll, after, prolog
+  sink, take, walk, xfnet, remap, dropAll, after, prolog,
+
+  net2, walk2
 } = require('..')
 const ex = require('../examples')
 
@@ -141,6 +143,13 @@ test('various tranducers', () => {
   const mult = multiplex([demult, demult])
   expect(t.transduce([1, 2, 3], mult, t.toArray(), 42))
     .toStrictEqual([1, 1, 2])
+})
+
+test('transducer nets2', () => {
+  expect(T(net2(), []))
+    .toStrictEqual([])
+  expect(T(net2({ n: { type: 'source', value: { type: 'init' } } }), []))
+    .toStrictEqual([['n']])
 })
 
 test('transducer nets', () => {

@@ -25,7 +25,7 @@ class MyProxy {
 const pathRefs = new WeakMap()
 
 const newPathRef = (path) => {
-  const ref = new Proxy([], {
+  const ref = new Proxy({}, {
     get: (subpaths, name) => {
       if (!(name in subpaths)) {
         subpaths[name] = newPathRef([...path, name])
@@ -45,17 +45,10 @@ const isPathRef = (x) =>
 const derefPathRef = (x) =>
   pathRefs.get(x)
 
-const normalizeRefs = (x) =>
-  isPathRef(x)
-    ? [derefPathRef(x)]
-    : Array.isArray(x)
-      ? x.flatMap(normalizeRefs)
-      : []
-
 const pathRefToArray = (x) =>
   isPathRef(x)
     ? derefPathRef(x)
-    : []
+    : x
 
 const pathRefToString = (x) =>
   isPathRef(x)
@@ -69,16 +62,11 @@ const arrayToPathRef = ([name, ...path], pathRef = $) =>
     ? pathRef
     : arrayToPathRef(path, pathRef[name])
 
-const concatPathRefs = (a, b) =>
-  arrayToPathRef(pathRefToArray(b), a)
-
 module.exports = {
   $,
   isPathRef,
   derefPathRef,
   pathRefToArray,
   pathRefToString,
-  arrayToPathRef,
-  concatPathRefs,
-  normalizeRefs
+  arrayToPathRef
 }
