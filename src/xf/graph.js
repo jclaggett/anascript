@@ -42,13 +42,13 @@ const getNode = (x, [name, ...subpath]) =>
       ? getNode(getGraph(x).nodes[name], subpath)
       : null
 
-const normalizePath = (pathRef, g, dir) => {
+const normalizePath = (g, dir, pathRef) => {
   // This takes a pathRef and returns either the same or new pathPath or null.
   const node = getNode(g, pathRefToArray(pathRef))
   if (node == null) {
     pathRef = null
   } else if (isGraphable(node)) {
-    pathRef = normalizePath(pathRef[dir], g, dir)
+    pathRef = normalizePath(g, dir, pathRef[dir])
   }
   return pathRefToArray(pathRef)
 }
@@ -70,12 +70,12 @@ const addPath = (paths, [name, ...path], targetPath) => {
 }
 
 const addLink = (g, [src, dst]) => {
-  const srcPath = normalizePath(src, g, 'out')
+  const srcPath = normalizePath(g, 'out', src)
 
   if (srcPath == null) {
     throw new Error(`Invalid source ref: ${pathRefToString(src)}`)
   }
-  const dstPath = normalizePath(dst, g, 'in')
+  const dstPath = normalizePath(g, 'in', dst)
   if (dstPath == null) {
     throw new Error(`Invalid destination ref: ${pathRefToString(dst)}`)
   }
@@ -92,34 +92,25 @@ const graph = (nodes = {}, links = []) =>
       Graph))
 
 // Walking Graphs
-class CycleChecker {
-  constructor () {
-    this.array = []
-    this.set = new Set()
+const pushCycleCheck = (cycle, x) => {
+  if (cycle.set.has(x)) {
+    const cycleIndex = cycle.stack.findIndex(y => x === y)
+    const nodeStr = util.inspect(cycle.stack
+      .slice(cycleIndex)
+      .map(x => ['$', ...x].join('.')))
+    throw new Error(`Cycle detected when walking graph: ${nodeStr}`)
   }
 
-  push (x) {
-    if (this.set.has(x)) {
-      const cycleIndex = this.array.findIndex(y => x === y)
-      const nodeStr = util.inspect(this.array
-        .slice(cycleIndex)
-        .map(x => ['$', ...x].join('.')))
-      throw new Error(`Cycle detected when walking graph: ${nodeStr}`)
-    }
-
-    this.set.add(x)
-    this.array.push(x)
-    return -1
-  }
-
-  pop () {
-    this.set.delete(
-      this.array.pop())
-  }
+  cycle.set.add(x)
+  cycle.stack.push(x)
+  return cycle
 }
 
-const isEdgePath = (path, dir) =>
-  path.slice(1).every(name => name === dir)
+const popCycleCheck = (cycle) => {
+  cycle.set.delete(
+    cycle.stack.pop())
+  return cycle
+}
 
 const getPaths = (g, dir, path, ref = $) => {
   const [name, ...subpath] = path
@@ -136,7 +127,7 @@ const getPaths = (g, dir, path, ref = $) => {
 const getEdgePaths = (g, dir) =>
   new Set(Object.keys(g.nodes)
     .map(name => {
-      const path = normalizePath($[name], g, dir)
+      const path = normalizePath(g, dir, $[name])
       const rootPaths = getPaths(g, dir, path)
       return rootPaths.size === 0
         ? path
@@ -145,9 +136,7 @@ const getEdgePaths = (g, dir) =>
     .filter(path => path != null))
 
 const prewalk = (rootPaths, getChildPaths) => {
-  const cycleChecker = new CycleChecker()
   const prewalkNode = (result, [path, parentPath]) => {
-    console.dir({ result, path, parentPath })
     const childPaths = getChildPaths(path)
 
     result.allParentPaths = updateIn(result.allParentPaths, path,
@@ -156,29 +145,32 @@ const prewalk = (rootPaths, getChildPaths) => {
         : x.add(parentPath))
     result.allChildPaths = setIn(result.allChildPaths, path, childPaths)
 
-    cycleChecker.push(path)
+    result.cycle = pushCycleCheck(result.cycle, path)
     result = Array.from(childPaths)
       .map(childPath => [childPath, path])
       .reduce(prewalkNode, result)
-    cycleChecker.pop()
+    result.cycle = popCycleCheck(result.cycle)
 
     return result
   }
 
   return rootPaths
     .map(path => [path])
-    .reduce(prewalkNode, {})
+    .reduce(prewalkNode, {
+      cycle: {
+        stack: [],
+        set: new Set()
+      }
+    })
 }
 
 const walk = (g, walkFn, in2out = true) => {
   const [rootDir, leafDir] = in2out
     ? ['in', 'out']
     : ['out', 'in']
-  console.dir({ rootDir, leafDir })
   const rootPaths = getEdgePaths(g, rootDir)
   const leafPaths = getEdgePaths(g, leafDir)
   const rootPaths2 = Array.from(rootPaths) // .map and .reduce don't work on sets :-(
-  console.dir({ rootPaths, leafPaths, rootPaths2 })
   const { allParentPaths, allChildPaths } = prewalk(
     rootPaths2, (path) => getPaths(g, leafDir, path))
   const walkNode = (walked, path) => {
