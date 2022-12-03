@@ -15,17 +15,20 @@ const getGraph = (x) =>
   x[graphable]()
 
 // General Code
-const setIn = (x, [name, ...path], value) => {
+const updateIn = (x, [name, ...path], f) => {
   if (name == null) {
-    x = value
+    x = f(x)
   } else {
     if (x == null) {
       x = {}
     }
-    x[name] = setIn(x[name], path, value)
+    x[name] = updateIn(x[name], path, f)
   }
   return x
 }
+
+const setIn = (x, path, value) =>
+  updateIn(x, path, _ => value)
 
 const getIn = (x, [name, ...path]) =>
   (name == null || x == null)
@@ -118,7 +121,7 @@ class CycleChecker {
 const isEdgePath = (path, dir) =>
   path.slice(1).every(name => name === dir)
 
-const getPaths = (path, g, dir, ref = $) => {
+const getPaths = (g, dir, path, ref = $) => {
   const [name, ...subpath] = path
   const paths = getIn(g[dir], path)
   return new Set([
@@ -126,53 +129,82 @@ const getPaths = (path, g, dir, ref = $) => {
       ? Array.from(paths, path => pathRefToArray(arrayToPathRef(path, ref)))
       : []),
     ...(isGraphable(g.nodes[name])
-      ? getPaths(subpath, getGraph(g.nodes[name]), dir, ref[name])
+      ? getPaths(getGraph(g.nodes[name]), dir, subpath, ref[name])
       : [])])
+}
+
+const getEdgePaths = (g, dir) =>
+  new Set(Object.keys(g.nodes)
+    .map(name => {
+      const path = normalizePath($[name], g, dir)
+      const rootPaths = getPaths(g, dir, path)
+      return rootPaths.size === 0
+        ? path
+        : null
+    })
+    .filter(path => path != null))
+
+const prewalk = (rootPaths, getChildPaths) => {
+  const cycleChecker = new CycleChecker()
+  const prewalkNode = (result, [path, parentPath]) => {
+    console.dir({ result, path, parentPath })
+    const childPaths = getChildPaths(path)
+
+    result.allParentPaths = updateIn(result.allParentPaths, path,
+      x => x == null
+        ? new Set(parentPath == null ? [] : [parentPath])
+        : x.add(parentPath))
+    result.allChildPaths = setIn(result.allChildPaths, path, childPaths)
+
+    cycleChecker.push(path)
+    result = Array.from(childPaths)
+      .map(childPath => [childPath, path])
+      .reduce(prewalkNode, result)
+    cycleChecker.pop()
+
+    return result
+  }
+
+  return rootPaths
+    .map(path => [path])
+    .reduce(prewalkNode, {})
 }
 
 const walk = (g, walkFn, in2out = true) => {
   const [rootDir, leafDir] = in2out
     ? ['in', 'out']
     : ['out', 'in']
-  const cycleChecker = new CycleChecker()
-
+  console.dir({ rootDir, leafDir })
+  const rootPaths = getEdgePaths(g, rootDir)
+  const leafPaths = getEdgePaths(g, leafDir)
+  const rootPaths2 = Array.from(rootPaths) // .map and .reduce don't work on sets :-(
+  console.dir({ rootPaths, leafPaths, rootPaths2 })
+  const { allParentPaths, allChildPaths } = prewalk(
+    rootPaths2, (path) => getPaths(g, leafDir, path))
   const walkNode = (walked, path) => {
     if (getIn(walked, path) === undefined) {
-      const rootPaths = getPaths(path, g, rootDir)
-      const leafPaths = getPaths(path, g, leafDir)
-      const leafPathsArray = Array.from(leafPaths)
+      const parentPaths = Array.from(getIn(allParentPaths, path))
+      const childPaths = Array.from(getIn(allChildPaths, path))
 
-      cycleChecker.push(path)
-      walked = leafPathsArray.reduce(walkNode, walked)
-      cycleChecker.pop()
-
+      walked = childPaths.reduce(walkNode, walked)
       walked = setIn(walked, path,
         walkFn(
-          leafPathsArray.map(path => getIn(walked, path)),
-          getNode(g, path),
-          {
+          childPaths.map(path => getIn(walked, path)),
+          getNode(g, path), {
             path,
-            g,
-            root: isEdgePath(path, rootDir) && rootPaths.size === 0,
-            leaf: isEdgePath(path, leafDir) && leafPaths.size === 0
+            graph: g,
+            root: rootPaths.has(path),
+            leaf: leafPaths.has(path),
+            [rootDir]: parentPaths,
+            [leafDir]: childPaths
           }))
     }
 
     return walked
   }
 
-  const rootPaths = Object.keys(g.nodes)
-    .map(name => {
-      const path = normalizePath($[name], g, rootDir)
-      const rootPaths = getPaths(path, g, rootDir)
-      return rootPaths.size === 0
-        ? path
-        : null
-    })
-    .filter(path => path != null)
-
-  const walked = rootPaths.reduce(walkNode, {})
-  return rootPaths.map(path => getIn(walked, path))
+  const walked = rootPaths2.reduce(walkNode, {})
+  return rootPaths2.map(path => getIn(walked, path))
 }
 
 module.exports = { $, graph, isGraphable, getGraph, walk }
