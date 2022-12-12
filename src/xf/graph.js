@@ -128,7 +128,9 @@ const getEdgePaths = (g, dir) =>
   new Set(Object.keys(g.nodes)
     .map(name => {
       const path = normalizePath(g, dir, $[name])
-      const rootPaths = getPaths(g, dir, path)
+      const rootPaths = path == null
+        ? new Set()
+        : getPaths(g, dir, path)
       return rootPaths.size === 0
         ? path
         : null
@@ -187,8 +189,8 @@ const walk = (g, walkFn, in2out = true) => {
             graph: g,
             root: rootPaths.has(path),
             leaf: leafPaths.has(path),
-            [rootDir]: parentPaths,
-            [leafDir]: childPaths
+            parentPaths,
+            childPaths
           }))
     }
 
@@ -199,4 +201,7 @@ const walk = (g, walkFn, in2out = true) => {
   return rootPaths2.map(path => getIn(walked, path))
 }
 
-module.exports = { $, graph, isGraphable, getGraph, walk }
+const pg = (g, options = {}) =>
+  console.dir(g, { colors: true, depth: 5, ...options })
+
+module.exports = { $, pg, graph, isGraphable, getGraph, walk }

@@ -18,10 +18,14 @@ const reduced = (x) => isReduced(x) ? x : { [REDUCED]: true, [VALUE]: x }
 const unreduced = (x) => isReduced(x) ? x[VALUE] : x
 
 const transducer = (constructor) =>
-  (reducer) =>
-    Object.setPrototypeOf(
-      constructor(reducer),
-      reducer)
+  (reducer) => {
+    const reducer2 = constructor(reducer)
+    if (reducer2 === reducer) {
+      return reducer2
+    } else {
+      return Object.setPrototypeOf(reducer2, reducer)
+    }
+  }
 
 module.exports = {
   INIT,

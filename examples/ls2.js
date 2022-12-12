@@ -1,31 +1,32 @@
-const t = require('transducist')
 const {
-  $, map, net, sink, source, xfnode, prolog, identity, after, passive
+  $, chain, graph, takeWhile, mapjoin, map, sink, source, prolog, identity,
+  after, run
 } = require('../src/xf')
 
-const takeWhile = (f, inputs) =>
-  xfnode(t.takeWhile(f), inputs)
+const makeDirNet = ([dirname, ...dirnames], { padding, useTitles }) => {
+  return graph({
+    entries: source('dir', { path: dirname }),
+    entryNames: chain([
+      map(x => `${padding}${x.name}`),
+      useTitles ? prolog(`\n${dirname}`) : identity
+    ]),
 
-const makeDirNet = ([dirname, ...dirnames], { padding, useTitles }) =>
-  net({
-    entries: source({ type: 'dir', path: dirname }),
-    entryNames: map(x => `${padding}${x.name}`, $.entries),
+    log: sink('log'),
 
-    entryNames2: xfnode(
-      useTitles
-        ? prolog(`\n${dirname}:`)
-        : identity,
-      $.entryNames),
+    dirRest: after(dirnames),
+    dirSink: sink('pipe', 'dirnames'),
+    debug: sink('debug')
+  }, [
+    [$.entries, $.entryNames],
+    [$.entryNames, $.log],
+    [$.entryNames, $.dirRest],
+    [$.dirRest, $.dirSink]
+  ])
+}
 
-    log: sink({ type: 'log' }, $.entryNames2),
-
-    dirRest: xfnode(after(dirnames), $.entryNames2),
-    dirSink: sink({ type: 'pipe', name: 'dirnames' }, $.dirRest)
-  })
-
-const ls = net({
+const ls = graph({
   // Act 1: Collect configuration and start processing dirnames
-  init: source({ type: 'init' }),
+  init: source('init'),
 
   config: map(({ argv }) => {
     const useTitles = argv.length > 1
@@ -34,21 +35,30 @@ const ls = net({
       padding: ' '.repeat(useTitles ? 4 : 0),
       dirnames: argv
     }
-  },
-  $.init),
+  }),
 
-  configDirnames: map(x => x.dirnames, $.config),
+  configDirnames: map(x => x.dirnames),
 
-  dirSink: sink({ type: 'pipe', name: 'dirnames' }, $.configDirnames),
+  dirSink: sink('pipe', 'dirnames'),
 
   // Act 2: process each dirname in sequence (using config as needed)
-  dirSource: source({ type: 'pipe', name: 'dirnames' }),
+  dirSource: source('pipe', 'dirnames'),
 
-  dirnames: takeWhile(dirnames => dirnames.length > 0, $.dirSource),
+  dirnames: takeWhile(dirnames => dirnames.length > 0),
 
-  dirNet: map(makeDirNet, $.dirnames, passive($.config)),
+  dirNet: mapjoin(makeDirNet, [true, false]),
 
-  run: sink({ type: 'run' }, $.dirNet)
-})
+  run: sink('run'),
+  debug: sink('debug')
+}, [
+  [$.config, $.debug],
+  [$.init, $.config],
+  [$.config, $.configDirnames],
+  [$.configDirnames, $.dirSink],
+  [$.dirSource, $.dirnames],
+  [$.dirnames, $.dirNet[0]],
+  [$.config, $.dirNet[1]],
+  [$.dirNet, $.run]
+])
 
-module.exports = { ls }
+module.exports = { run, ls }

@@ -2,7 +2,7 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the public API.
 
-const { $, graph, walk } = require('../graph')
+const { $, graph, walk, pg } = require('../graph')
 
 const s = (...args) => new Set(args)
 
@@ -130,4 +130,10 @@ test('walking graphs', () => {
         ]),
       (a, v) => [v, ...a]))
     .toThrow()
+})
+
+test('printing graphs', () => {
+  console.dir = jest.fn()
+  pg(graph({ a: 1, b: 2 }))
+  expect(console.dir).toHaveBeenCalled()
 })

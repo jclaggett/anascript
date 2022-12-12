@@ -2,7 +2,7 @@
 // transducers may be composed freely and don't export non-transducer
 // functions. This is why the joining transducers are excluded.
 
-const { compose, filter, map, takeWhile } = require('transducist')
+const { compose } = require('transducist')
 
 const {
   STEP, RESULT,
@@ -10,45 +10,154 @@ const {
 } = require('./reducing')
 const { identity, first, second } = require('./util')
 
-// remap: map f over each value and the results of the previous mapping.
-const remap = (f, initialValue) =>
-  transducer(reducer => {
+// map: call `f` with current value.
+const map = (f) =>
+  transducer(r => {
+    return {
+      [STEP]: (a, v) => {
+        return r[STEP](a, f(v))
+      }
+    }
+  })
+
+// reductions: call `f` with the previous results (or initialValue) and the
+// current value.
+const reductions = (f, initialValue) =>
+  transducer(r => {
     let state = initialValue
     return {
       [STEP]: (a, v) => {
         state = f(state, v)
-        return reducer[STEP](a, state)
+        return r[STEP](a, state)
+      }
+    }
+  })
+
+// dedupe: only step through values where `pred(previous, current)` returns true.
+const dedupe = (pred = (x, y) => x !== y) =>
+  transducer(r => {
+    let isDifferent = (_x, _y) => true
+    let previous
+    return {
+      [STEP]: (a, v) => {
+        if (isDifferent(previous, v)) {
+          isDifferent = pred
+          previous = v
+          a = r[STEP](a, v)
+        }
+        return a
+      }
+    }
+  })
+
+// filter: Step only if `pred(v)` is true.
+const filter = (pred) =>
+  transducer(r => {
+    return {
+      [STEP]: (a, v) => {
+        if (pred(v)) {
+          a = r[STEP](a, v)
+        }
+        return a
+      }
+    }
+  })
+
+// dropAll & after: ignore all steps and send a single value at end.
+const dropAll =
+  transducer(_r => ({
+    [STEP]: (a, _v) => a
+  }))
+
+// take: only step `n` times.
+const take = (n) =>
+  (n < 1)
+    ? dropAll
+    : transducer(r => {
+      return {
+        [STEP]: (a, v) => {
+          a = r[STEP](a, v)
+          if (--n < 1) {
+            a = reduced(a)
+          }
+          return a
+        }
+      }
+    })
+
+// takeWhile: only step through while `pred(v)` is true.
+const takeWhile = (pred) =>
+  transducer(r => {
+    return {
+      [STEP]: (a, v) => {
+        if (pred(v)) {
+          a = r[STEP](a, v)
+        } else {
+          a = reduced(a)
+        }
+        return a
+      }
+    }
+  })
+
+// drop: do not step `n` times.
+const drop = (n) =>
+  (n < 1)
+    ? identity
+    : transducer(r => {
+      return {
+        [STEP]: (a, v) => {
+          if (n-- < 1) {
+            a = r[STEP](a, v)
+          }
+          return a
+        }
+      }
+    })
+
+// dropWhile: do not step until `pred(v)` is false.
+const dropWhile = (pred) =>
+  transducer(r => {
+    let stillDropping = true
+    return {
+      [STEP]: (a, v) => {
+        if (stillDropping) {
+          stillDropping = pred(v)
+          if (!stillDropping) {
+            a = r[STEP](a, v)
+          }
+        } else {
+          a = r[STEP](a, v)
+        }
+        return a
       }
     }
   })
 
 // prolog & epilog: step an initial value before first step and a final value
 // after last step.
-
 const prolog = (x) =>
   transducer(r => {
-    let prologNeverEmitted = true
+    let stepNeverCalled = true
     return {
       [STEP]: (a, v) => {
-        if (prologNeverEmitted) {
-          prologNeverEmitted = false
-          const a2 = r[STEP](a, x)
-          if (isReduced(a2)) {
-            return a2
-          } else {
-            return r[STEP](a2, v)
+        if (stepNeverCalled) {
+          stepNeverCalled = false
+          a = r[STEP](a, x)
+          if (!isReduced(a)) {
+            a = r[STEP](a, v)
           }
         } else {
-          return r[STEP](a, v)
+          a = r[STEP](a, v)
         }
+        return a
       },
+
       [RESULT]: (a) => {
-        if (prologNeverEmitted) {
-          prologNeverEmitted = false
-          return r[RESULT](unreduced(r[STEP](a, x)))
-        } else {
-          return r[RESULT](a)
+        if (stepNeverCalled) {
+          a = unreduced(r[STEP](a, x))
         }
+        return r[RESULT](a)
       }
     }
   })
@@ -58,20 +167,13 @@ const epilog = (x) =>
     [RESULT]: (a) => r[RESULT](unreduced(r[STEP](a, x)))
   }))
 
-// dropAll & after: ignore all steps and send a single value at end.
-
-const dropAll =
-  transducer(_r => ({
-    [STEP]: (a, _v) => a
-  }))
-
+// epilog: step `x` after dropping all values.
 const after = (x) =>
   compose(
     dropAll,
     epilog(x))
 
 // tag & detag tranducers
-
 const tag = (k) =>
   compose(
     map(x => [k, x]),
@@ -120,7 +222,7 @@ const multiplex = (xfs) =>
     })
 
 const demultiplex = (n) => {
-  if (n === 1) {
+  if (n < 2) {
     return identity // trivial case
   } else {
     let expectedResultCalls = n
@@ -156,12 +258,19 @@ const demultiplex = (n) => {
 
 module.exports = {
   after,
+  dedupe,
   demultiplex,
   detag,
-  epilog,
+  drop,
   dropAll,
+  dropWhile,
+  epilog,
+  filter,
+  map,
   multiplex,
   prolog,
-  remap,
-  tag
+  reductions,
+  tag,
+  take,
+  takeWhile
 }
