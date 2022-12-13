@@ -2,7 +2,7 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the exported API.
 
-const { identity, first, second, last, butLast } = require('../util')
+const { compose, identity, rest, first, second, last, butLast } = require('../util')
 
 test('util fns work', () => {
   const data = [1, 2, 3]
@@ -14,6 +14,12 @@ test('util fns work', () => {
     .toStrictEqual(2)
   expect(last(data))
     .toStrictEqual(3)
+  expect(rest(data))
+    .toStrictEqual([2, 3])
   expect(butLast(data))
     .toStrictEqual([1, 2])
+  expect(compose()(data))
+    .toStrictEqual([1, 2, 3])
+  expect(compose(last, butLast)(data))
+    .toStrictEqual(2)
 })

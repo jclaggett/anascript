@@ -2,13 +2,11 @@
 // transducers may be composed freely and don't export non-transducer
 // functions. This is why the joining transducers are excluded.
 
-const { compose } = require('transducist')
-
 const {
   STEP, RESULT,
   transducer, isReduced, reduced, unreduced
 } = require('./reducing')
-const { identity, first, second } = require('./util')
+const { compose, identity, first, second } = require('./util')
 
 // map: call `f` with current value.
 const map = (f) =>
