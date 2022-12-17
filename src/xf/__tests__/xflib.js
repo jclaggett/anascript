@@ -5,10 +5,11 @@
 const t = require('transducist')
 const {
   reductions, prolog, epilog, dropAll, after, tag, detag, multiplex,
-  demultiplex, take, takeWhile, drop, dropWhile, map, filter, dedupe
+  demultiplex, take, takeWhile, drop, dropWhile, map, filter, filter2, dedupe
 } = require('../xflib')
 
 const data = [1, 2, 3]
+const data2 = [1, 2, 2, 3, 2]
 
 const T = (xf, data) =>
   t.transduce(data, xf, t.toArray())
@@ -18,21 +19,24 @@ test('map works', () => {
     .toStrictEqual([2, 3, 4])
 })
 
-test('filter works', () => {
-  expect(T(filter(x => x % 2), data))
-    .toStrictEqual([1, 3])
-})
-
 test('reductions works', () => {
   expect(T(reductions((x, y) => x + y, 0), data))
     .toStrictEqual([1, 3, 6])
 })
 
-test('dedupe works', () => {
-  expect(T(dedupe(), [1, 2, 2, 3, 2]))
-    .toStrictEqual([1, 2, 3, 2])
-  expect(T(dedupe((x, y) => x < y), [1, 2, 2, 3, 2]))
+test('filter works', () => {
+  expect(T(filter(x => x % 2), data))
+    .toStrictEqual([1, 3])
+})
+
+test('filter2 works', () => {
+  expect(T(filter2((x, y) => x < y), data2))
     .toStrictEqual([1, 2, 3])
+})
+
+test('dedupe works', () => {
+  expect(T(dedupe(), data2))
+    .toStrictEqual([1, 2, 3, 2])
 })
 
 test('prolog works', () => {

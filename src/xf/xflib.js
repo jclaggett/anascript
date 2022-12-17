@@ -31,23 +31,6 @@ const reductions = (f, initialValue) =>
     }
   })
 
-// dedupe: only step through values where `pred(previous, current)` returns true.
-const dedupe = (pred = (x, y) => x !== y) =>
-  transducer(r => {
-    let isDifferent = (_x, _y) => true
-    let previous
-    return {
-      [STEP]: (a, v) => {
-        if (isDifferent(previous, v)) {
-          isDifferent = pred
-          previous = v
-          a = r[STEP](a, v)
-        }
-        return a
-      }
-    }
-  })
-
 // filter: Step only if `pred(v)` is true.
 const filter = (pred) =>
   transducer(r => {
@@ -60,6 +43,26 @@ const filter = (pred) =>
       }
     }
   })
+
+// filter2: Step if `pred(previous, v)` is true. Always step on first value.
+const filter2 = (pred) =>
+  transducer(r => {
+    const initialValue = {}
+    let previous = initialValue
+    return {
+      [STEP]: (a, v) => {
+        if (previous === initialValue || pred(previous, v)) {
+          previous = v
+          a = r[STEP](a, v)
+        }
+        return a
+      }
+    }
+  })
+
+// dedupe: Step if the current value is different from the previous value.
+const dedupe = () =>
+  filter2((x, y) => x !== y)
 
 // dropAll & after: ignore all steps and send a single value at end.
 const dropAll =
@@ -264,6 +267,7 @@ module.exports = {
   dropWhile,
   epilog,
   filter,
+  filter2,
   map,
   multiplex,
   prolog,
