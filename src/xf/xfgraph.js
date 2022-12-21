@@ -41,18 +41,19 @@ const composeGraph = (g, { rootFn, leafFn }) =>
   })
 
 // xfgraph: a transducer constructor that builds a unified transducer from `graph`.
-const xfgraph = (g) =>
-  multiplex(
-    composeGraph(g, {
-      rootFn: ([name], _value, xf) => t.compose(detag(name), xf),
-      leafFn: ([name], _value) => [tag(name)]
-    }))
+const xfgraph = (g) => {
+  const xfs = composeGraph(g, {
+    leafFn: ([name], _value) => [tag(name)],
+    rootFn: ([name], _value, xf) => t.compose(detag(name), xf)
+  })
+  return multiplex(xfs)
+}
 
 // mapjoin: return a graph that joins multiple inputs as arguments to `f`.
 // `actives` describes which inputs generate new calls to `f` when new values
 // are received.
-const mapjoinXf = (f, actives) =>
-  transducer(r => {
+const mapjoin = (f, actives) => {
+  const xf = transducer(r => {
     const joined = new Array(actives.length)
     const needed = new Set(actives.keys())
     return {
@@ -73,24 +74,11 @@ const mapjoinXf = (f, actives) =>
     }
   })
 
-const mapjoin = (f, actives) =>
-  graph({
+  return graph({
     ...actives.map((_, i) => t.map(x => [i, x])),
-    out: mapjoinXf(f, actives)
+    out: xf
   },
   actives.map((_, i) => [$[i], $.out]))
+}
 
-// chain: return a graph of transducers chained together with 'in' and 'out'
-// nodes at the top and bottom. Very similar to `compose`.
-const chain = (xfs) =>
-  graph({
-    in: identity,
-    ...xfs,
-    out: identity
-  }, [
-    [$.in, $[0]],
-    ...xfs.slice(1).map((_, i) => [$[i], $[i + 1]]),
-    [$[xfs.length - 1], $.out]
-  ])
-
-module.exports = { chain, composeGraph, mapjoin, xfgraph }
+module.exports = { composeGraph, mapjoin, xfgraph }

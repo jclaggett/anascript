@@ -2,9 +2,16 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the public API.
 
-const { $, graph, walk, pg } = require('../graph')
+const { pathRefToArray } = require('../pathref')
+const { $, graph, walk, chain, pg } = require('../graph')
 
 const s = (...args) => new Set(args)
+
+const dePathRef = (g) => {
+  g.nodes = Object.fromEntries(
+    Object.entries(g.nodes).map(([k, v]) => [k, pathRefToArray(v)]))
+  return g
+}
 
 test('defining graphs', () => {
   expect(graph())
@@ -28,40 +35,68 @@ test('defining graphs', () => {
       out: { a: s(['b']) }
     })
 
-  expect(graph({
-    a: 43, b: true
+  expect(dePathRef(graph({
+    a: 24,
+    b: 'hello',
+    in: $.a,
+    out: $.b
   }, [
     [$.a, $.b],
     [$.a, $.b],
+    [$.in, $.out],
     [$.b, $.b]
-  ]))
+  ])))
     .toStrictEqual({
-      nodes: { a: 43, b: true },
+      nodes: { a: 24, b: 'hello', in: ['a'], out: ['b'] },
       in: { b: s(['a'], ['b']) },
       out: { a: s(['b']), b: s(['b']) }
     })
+})
 
+test('self-referencing alias fails', () => {
+  expect(() => graph({
+    a: $.b, b: $.a
+  }, [
+    [$.a, $.b]
+  ]))
+    .toThrow()
+})
+
+test('subgraphs missing "out" node fails', () => {
   expect(() => graph({
     a: graph(), b: true
   }, [
     [$.a, $.b]
   ]))
     .toThrow()
+})
 
+test('subgraphs missing "in" node fails', () => {
   expect(() => graph({
     a: 43, b: graph()
   }, [
     [$.a, $.b]
   ]))
     .toThrow()
+})
 
+test('subpath into non-graph node fails', () => {
   expect(() => graph({
-    a: 43, b: graph()
+    a: 43, b: 23
   }, [
-    [$.a.b, $.b.c]
+    [$.a.b, $.b]
   ]))
     .toThrow()
 
+  expect(() => graph({
+    a: 43, b: 23
+  }, [
+    [$.a, $.b.c]
+  ]))
+    .toThrow()
+})
+
+test('defining subgraphs', () => {
   expect(graph({
     a: graph({ out: 42 }), b: true
   }, [
@@ -136,4 +171,13 @@ test('printing graphs', () => {
   console.dir = jest.fn()
   pg(graph({ a: 1, b: 2 }))
   expect(console.dir).toHaveBeenCalled()
+})
+
+test('chain works', () => {
+  expect(dePathRef(chain(1, 2, 3)))
+    .toStrictEqual({
+      nodes: { 0: 1, 1: 2, 2: 3, in: ['0'], out: ['2'] },
+      in: { 1: s(['0']), 2: s(['1']) },
+      out: { 0: s(['1']), 1: s(['2']) }
+    })
 })

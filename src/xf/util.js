@@ -9,5 +9,7 @@ module.exports = {
   rest: (x) => x.slice(1),
   butLast: (x) => x.slice(0, -1),
 
+  isEmpty: (x) => x.length === 0,
+
   compose: (...fs) => (x) => fs.reduceRight((x, f) => f(x), x)
 }

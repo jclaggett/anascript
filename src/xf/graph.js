@@ -1,6 +1,7 @@
 const util = require('util')
+const { isEmpty, last } = require('./util')
 const {
-  $, pathRefToArray, pathRefToString, arrayToPathRef
+  $, pathRefToArray, pathRefToString, arrayToPathRef, isPathRef
 } = require('./pathref')
 
 // Graphable Protocol
@@ -38,19 +39,19 @@ const getIn = (x, [name, ...path]) =>
 const getNode = (x, [name, ...subpath]) =>
   (name == null)
     ? x
-    : isGraphable(x)
-      ? getNode(getGraph(x).nodes[name], subpath)
-      : null
+    : getNode(getGraph(x).nodes[name], subpath)
 
-const normalizePath = (g, dir, pathRef) => {
-  // This takes a pathRef and returns either the same or new pathPath or null.
-  const node = getNode(g, pathRefToArray(pathRef))
-  if (node == null) {
-    pathRef = null
-  } else if (isGraphable(node)) {
-    pathRef = normalizePath(g, dir, pathRef[dir])
-  }
-  return pathRefToArray(pathRef)
+const getAliasedPath = (nodes, path, previousAliases = new Set()) => {
+  const [name, ...subpath] = path
+  const node = nodes[name]
+  return isPathRef(node)
+    ? previousAliases.has(node)
+      ? [] // if an alias loop is encountered.
+      : getAliasedPath(
+        nodes,
+        pathRefToArray(node).concat(subpath),
+        previousAliases.add(node))
+    : path
 }
 
 // Defining Graphs
@@ -59,7 +60,7 @@ const addPath = (paths, [name, ...path], targetPath) => {
     if (paths == null) {
       paths = new Set()
     }
-    paths.add(targetPath)
+    paths.add(pathRefToArray(arrayToPathRef(targetPath)))
   } else {
     if (paths == null) {
       paths = {}
@@ -69,14 +70,32 @@ const addPath = (paths, [name, ...path], targetPath) => {
   return paths
 }
 
-const addLink = (g, [src, dst]) => {
-  const srcPath = normalizePath(g, 'out', src)
+const isBadPath = (path) =>
+  last(path) instanceof Error
 
-  if (srcPath == null) {
+const normalizePath = (nodes, dir, path) => {
+  let newPath = getAliasedPath(nodes, path)
+  const [name, ...subpath] = newPath
+  const node = nodes[name]
+  if (isGraphable(node)) {
+    newPath = [name,
+      ...normalizePath(getGraph(node).nodes, dir, isEmpty(subpath) ? [dir] : subpath)]
+  } else if (node == null) {
+    newPath = [new Error('missing node')]
+  } else if (!isEmpty(subpath)) {
+    newPath = [new Error('path into non-graph node')]
+  }
+  return newPath
+}
+
+const addLink = (g, [src, dst]) => {
+  const srcPath = normalizePath(g.nodes, 'out', pathRefToArray(src))
+  if (isBadPath(srcPath)) {
     throw new Error(`Invalid source ref: ${pathRefToString(src)}`)
   }
-  const dstPath = normalizePath(g, 'in', dst)
-  if (dstPath == null) {
+
+  const dstPath = normalizePath(g.nodes, 'in', pathRefToArray(dst))
+  if (isBadPath(dstPath)) {
     throw new Error(`Invalid destination ref: ${pathRefToString(dst)}`)
   }
 
@@ -90,6 +109,15 @@ const graph = (nodes = {}, links = []) =>
   links.reduce(addLink,
     Object.setPrototypeOf({ nodes, in: {}, out: {} },
       Graph))
+
+// chain: return a graph of values chained together with 'in' and 'out' nodes
+// at the top and bottom. Very similar to `compose`.
+const chain = (...xfs) =>
+  graph({
+    ...xfs,
+    in: $[0],
+    out: $[xfs.length - 1]
+  }, xfs.slice(1).map((_, i) => [$[i], $[i + 1]]))
 
 // Walking Graphs
 const pushCycleCheck = (cycle, x) => {
@@ -127,13 +155,10 @@ const getPaths = (g, dir, path, ref = $) => {
 const getEdgePaths = (g, dir) =>
   new Set(Object.keys(g.nodes)
     .map(name => {
-      const path = normalizePath(g, dir, $[name])
-      const rootPaths = path == null
-        ? new Set()
-        : getPaths(g, dir, path)
-      return rootPaths.size === 0
-        ? path
-        : null
+      const path = normalizePath(g.nodes, dir, [name])
+      return (!isBadPath(path) && getPaths(g, dir, path).size === 0
+        ? pathRefToArray(arrayToPathRef(path))
+        : null)
     })
     .filter(path => path != null))
 
@@ -204,4 +229,4 @@ const walk = (g, walkFn, in2out = true) => {
 const pg = (g, options = {}) =>
   console.dir(g, { colors: true, depth: 5, ...options })
 
-module.exports = { $, pg, graph, isGraphable, getGraph, walk }
+module.exports = { $, chain, getGraph, graph, isGraphable, pg, walk }
