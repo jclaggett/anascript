@@ -4,8 +4,24 @@
 
 const t = require('transducist')
 const {
-  reductions, prolog, epilog, dropAll, after, tag, detag, multiplex,
-  demultiplex, take, takeWhile, drop, dropWhile, map, filter, filter2, dedupe
+  after,
+  dedupe,
+  demultiplex,
+  detag,
+  drop,
+  dropAll,
+  dropWhile,
+  epilog,
+  filter,
+  filter2,
+  flatMap,
+  map,
+  multiplex,
+  prolog,
+  reductions,
+  tag,
+  take,
+  takeWhile
 } = require('../xflib')
 
 const data = [1, 2, 3]
@@ -17,6 +33,11 @@ const T = (xf, data) =>
 test('map works', () => {
   expect(T(map(x => x + 1), data))
     .toStrictEqual([2, 3, 4])
+})
+
+test('flatMap works', () => {
+  expect(T(flatMap(x => [x + 1, -x]), data))
+    .toStrictEqual([2, -1, 3, -2, 4, -3])
 })
 
 test('reductions works', () => {

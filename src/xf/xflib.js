@@ -4,61 +4,47 @@
 
 const {
   STEP, RESULT,
-  transducer, isReduced, reduced, unreduced
+  transducer, isReduced, reduced, unreduced,
+  ezducer, EOT
 } = require('./reducing')
 const { compose, identity, first, second } = require('./util')
 
+// flatMap: call `step` with current value.
+const flatMap = (f) =>
+  ezducer(f)
+
 // map: call `f` with current value.
 const map = (f) =>
-  transducer(r => {
-    return {
-      [STEP]: (a, v) => {
-        return r[STEP](a, f(v))
-      }
-    }
-  })
+  ezducer((v) => [f(v)])
 
 // reductions: call `f` with the previous results (or initialValue) and the
 // current value.
-const reductions = (f, initialValue) =>
-  transducer(r => {
-    let state = initialValue
-    return {
-      [STEP]: (a, v) => {
-        state = f(state, v)
-        return r[STEP](a, state)
-      }
-    }
-  })
+const reductions = (f, initialValue) => {
+  let state = initialValue
+  return ezducer(
+    (v) => {
+      state = f(state, v)
+      return [state]
+    })
+}
 
 // filter: Step only if `pred(v)` is true.
 const filter = (pred) =>
-  transducer(r => {
-    return {
-      [STEP]: (a, v) => {
-        if (pred(v)) {
-          a = r[STEP](a, v)
-        }
-        return a
-      }
-    }
-  })
+  ezducer((v) => pred(v) ? [v] : [])
 
 // filter2: Step if `pred(previous, v)` is true. Always step on first value.
-const filter2 = (pred) =>
-  transducer(r => {
-    const initialValue = {}
-    let previous = initialValue
-    return {
-      [STEP]: (a, v) => {
-        if (previous === initialValue || pred(previous, v)) {
-          previous = v
-          a = r[STEP](a, v)
-        }
-        return a
-      }
+const filter2 = (pred) => {
+  const initialValue = Symbol('init')
+  let previous = initialValue
+  return ezducer((v) => {
+    if (previous === initialValue || pred(previous, v)) {
+      previous = v
+      return [v]
+    } else {
+      return []
     }
   })
+}
 
 // dedupe: Step if the current value is different from the previous value.
 const dedupe = () =>
@@ -66,107 +52,57 @@ const dedupe = () =>
 
 // dropAll & after: ignore all steps and send a single value at end.
 const dropAll =
-  transducer(_r => ({
-    [STEP]: (a, _v) => a
-  }))
+  ezducer((_v) => [])
 
 // take: only step `n` times.
 const take = (n) =>
   (n < 1)
     ? dropAll
-    : transducer(r => {
-      return {
-        [STEP]: (a, v) => {
-          a = r[STEP](a, v)
-          if (--n < 1) {
-            a = reduced(a)
-          }
-          return a
-        }
-      }
-    })
+    : ezducer((v) =>
+      (--n < 1)
+        ? [v, EOT]
+        : [v])
 
 // takeWhile: only step through while `pred(v)` is true.
 const takeWhile = (pred) =>
-  transducer(r => {
-    return {
-      [STEP]: (a, v) => {
-        if (pred(v)) {
-          a = r[STEP](a, v)
-        } else {
-          a = reduced(a)
-        }
-        return a
-      }
-    }
-  })
+  ezducer((v) => [pred(v) ? v : EOT])
 
 // drop: do not step `n` times.
 const drop = (n) =>
   (n < 1)
     ? identity
-    : transducer(r => {
-      return {
-        [STEP]: (a, v) => {
-          if (n-- < 1) {
-            a = r[STEP](a, v)
-          }
-          return a
-        }
-      }
-    })
+    : ezducer((v) => (--n < 0) ? [v] : [])
 
 // dropWhile: do not step until `pred(v)` is false.
-const dropWhile = (pred) =>
-  transducer(r => {
-    let stillDropping = true
-    return {
-      [STEP]: (a, v) => {
-        if (stillDropping) {
-          stillDropping = pred(v)
-          if (!stillDropping) {
-            a = r[STEP](a, v)
-          }
-        } else {
-          a = r[STEP](a, v)
-        }
-        return a
-      }
+const dropWhile = (pred) => {
+  let stillDropping = true
+  return ezducer((v) => {
+    if (stillDropping) {
+      stillDropping = pred(v)
     }
+    return stillDropping ? [] : [v]
   })
+}
 
 // prolog & epilog: step an initial value before first step and a final value
 // after last step.
-const prolog = (x) =>
-  transducer(r => {
-    let stepNeverCalled = true
-    return {
-      [STEP]: (a, v) => {
-        if (stepNeverCalled) {
-          stepNeverCalled = false
-          a = r[STEP](a, x)
-          if (!isReduced(a)) {
-            a = r[STEP](a, v)
-          }
-        } else {
-          a = r[STEP](a, v)
-        }
-        return a
-      },
-
-      [RESULT]: (a) => {
-        if (stepNeverCalled) {
-          a = unreduced(r[STEP](a, x))
-        }
-        return r[RESULT](a)
+const prolog = (x) => {
+  let stepNeverCalled = true
+  return ezducer(
+    (v) => {
+      if (stepNeverCalled) {
+        stepNeverCalled = false
+        return [x, v]
+      } else {
+        return [v]
       }
-    }
-  })
+    },
+
+    () => stepNeverCalled ? [x] : [])
+}
 
 const epilog = (x) =>
-  transducer(r => ({
-    [RESULT]: (a) => r[RESULT](unreduced(r[STEP](a, x)))
-  }))
+  ezducer(undefined, () => [x])
 
 // epilog: step `x` after dropping all values.
 const after = (x) =>
@@ -187,6 +123,13 @@ const detag = (k) =>
     map(second))
 
 // multiplex & demultiplex tranducers
+// NOTE: these are both 'higher order' transducers and so ezducer is not
+// sufficient. Instead, these are written using the underlying transducer fn.
+// NOTE: demultiplex assumes that the standard reducing protocol is broken! It
+// assumes that, instead of only one parent transducer, it may have multiple
+// (n) parent transducers. This means it will accept [STEP] calls even after a
+// reduced() value is returned and it expects to receive multiple (n) [RESULT]
+// calls.
 const multiplex = (xfs) =>
   // There are 4 layers of reducers in multiplex:
   // r1: the given, next reducer in the chain
@@ -268,6 +211,7 @@ module.exports = {
   epilog,
   filter,
   filter2,
+  flatMap,
   map,
   multiplex,
   prolog,

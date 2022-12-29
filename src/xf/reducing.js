@@ -27,6 +27,33 @@ const transducer = (constructor) =>
     }
   }
 
+const EOT = Symbol('EOT')
+
+// A reduce function that stops when receiving a reduced value.
+const reduce = (f, a, vs) => {
+  for (const v of vs) {
+    a = f(a, v)
+    if (isReduced(a)) break
+  }
+  return a
+}
+
+const ezducer = (step = (v) => [v], result = () => []) => {
+  return transducer(r => {
+    const rstep = (a, vs) =>
+      reduce(
+        (a, v) => v === EOT
+          ? reduced(a)
+          : r[STEP](a, v),
+        a,
+        vs)
+    return {
+      [STEP]: (a, v) => rstep(a, step(v)),
+      [RESULT]: (a) => r[RESULT](unreduced(rstep(a, result())))
+    }
+  })
+}
+
 module.exports = {
   INIT,
   STEP,
@@ -34,5 +61,8 @@ module.exports = {
   isReduced,
   unreduced,
   reduced,
-  transducer
+  transducer,
+
+  EOT,
+  ezducer
 }
