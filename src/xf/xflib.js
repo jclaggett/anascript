@@ -32,17 +32,36 @@ const reductions = (f, initialValue) => {
 const filter = (pred) =>
   ezducer((v) => pred(v) ? [v] : [])
 
+// partition: Step width sized groups of values and every stride.
+const partition = (width, stride) => {
+  stride = stride < 1 ? 1 : stride
+  let i = stride - width - 1
+  let group = []
+  return ezducer((v) => {
+    const result = []
+    i = (i + 1) % stride
+    if (i >= (stride - width)) {
+      group.push(v)
+      if (group.length === width) {
+        result.push(group)
+        group = group.slice(stride)
+      }
+    }
+    return result
+  })
+}
+
 // filter2: Step if `pred(previous, v)` is true. Always step on first value.
 const filter2 = (pred) => {
   const initialValue = Symbol('init')
   let previous = initialValue
   return ezducer((v) => {
+    const result = []
     if (previous === initialValue || pred(previous, v)) {
       previous = v
-      return [v]
-    } else {
-      return []
+      result.push(v)
     }
+    return result
   })
 }
 
@@ -90,12 +109,13 @@ const prolog = (x) => {
   let stepNeverCalled = true
   return ezducer(
     (v) => {
+      const result = []
       if (stepNeverCalled) {
         stepNeverCalled = false
-        return [x, v]
-      } else {
-        return [v]
+        result.push(x)
       }
+      result.push(v)
+      return result
     },
 
     () => stepNeverCalled ? [x] : [])
@@ -214,6 +234,7 @@ module.exports = {
   flatMap,
   map,
   multiplex,
+  partition,
   prolog,
   reductions,
   tag,

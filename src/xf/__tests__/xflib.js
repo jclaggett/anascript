@@ -17,6 +17,7 @@ const {
   flatMap,
   map,
   multiplex,
+  partition,
   prolog,
   reductions,
   tag,
@@ -48,6 +49,17 @@ test('reductions works', () => {
 test('filter works', () => {
   expect(T(filter(x => x % 2), data))
     .toStrictEqual([1, 3])
+})
+
+test('partition works', () => {
+  expect(T(partition(2, 0), data))
+    .toStrictEqual([[1, 2], [2, 3]])
+  expect(T(partition(2, 1), data))
+    .toStrictEqual([[1, 2], [2, 3]])
+  expect(T(partition(2, 2), [1, 2, 3, 4, 5]))
+    .toStrictEqual([[1, 2], [3, 4]])
+  expect(T(partition(2, 3), [1, 2, 3, 4, 5]))
+    .toStrictEqual([[1, 2], [4, 5]])
 })
 
 test('filter2 works', () => {
