@@ -62,11 +62,15 @@ const arrayToPathRef = ([name, ...path], pathRef = $) =>
     ? pathRef
     : arrayToPathRef(path, pathRef[name])
 
+const arrayViaPathRef = (x, pathRef = $) =>
+  pathRefToArray(arrayToPathRef(x, pathRef))
+
 module.exports = {
   $,
   isPathRef,
   derefPathRef,
   pathRefToArray,
   pathRefToString,
-  arrayToPathRef
+  arrayToPathRef,
+  arrayViaPathRef
 }

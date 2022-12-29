@@ -1,7 +1,7 @@
 const util = require('util')
-const { isEmpty, last } = require('./util')
+const { isEmpty, first, rest, last } = require('./util')
 const {
-  $, pathRefToArray, pathRefToString, arrayToPathRef, isPathRef
+  $, pathRefToArray, pathRefToString, arrayViaPathRef, isPathRef
 } = require('./pathref')
 
 // Graphable Protocol
@@ -60,7 +60,7 @@ const addPath = (paths, [name, ...path], targetPath) => {
     if (paths == null) {
       paths = new Set()
     }
-    paths.add(pathRefToArray(arrayToPathRef(targetPath)))
+    paths.add(targetPath)
   } else {
     if (paths == null) {
       paths = {}
@@ -73,19 +73,29 @@ const addPath = (paths, [name, ...path], targetPath) => {
 const isBadPath = (path) =>
   last(path) instanceof Error
 
-const normalizePath = (nodes, dir, path) => {
+const normalizePathInner = (nodes, dir, path) => {
   let newPath = getAliasedPath(nodes, path)
   const [name, ...subpath] = newPath
   const node = nodes[name]
   if (isGraphable(node)) {
-    newPath = [name,
-      ...normalizePath(getGraph(node).nodes, dir, isEmpty(subpath) ? [dir] : subpath)]
+    newPath = [
+      name,
+      ...normalizePathInner(
+        getGraph(node).nodes,
+        dir,
+        isEmpty(subpath) ? [dir] : subpath)
+    ]
   } else if (node == null) {
     newPath = [new Error('missing node')]
   } else if (!isEmpty(subpath)) {
     newPath = [new Error('path into non-graph node')]
   }
   return newPath
+}
+
+const normalizePath = (nodes, dir, path) => {
+  path = normalizePathInner(nodes, dir, path)
+  return isBadPath(path) ? path : arrayViaPathRef(path)
 }
 
 const addLink = (g, [src, dst]) => {
@@ -140,31 +150,34 @@ const popCycleCheck = (cycle) => {
   return cycle
 }
 
-const getPaths = (g, dir, path, ref = $) => {
+const getPaths = (g, dir, path) => {
   const [name, ...subpath] = path
-  const paths = getIn(g[dir], path)
-  return new Set([
-    ...(paths != null
-      ? Array.from(paths, path => pathRefToArray(arrayToPathRef(path, ref)))
-      : []),
-    ...(isGraphable(g.nodes[name])
-      ? getPaths(getGraph(g.nodes[name]), dir, subpath, ref[name])
-      : [])])
+  const paths = getIn(g[dir], path) ?? new Set()
+  const subpaths = isGraphable(g.nodes[name])
+    ? getPaths(getGraph(g.nodes[name]), dir, subpath)
+    : []
+
+  return [...paths, ...subpaths.map(path => [name, ...path])]
 }
+
+const hasPaths = (g, dir, path) =>
+  getIn(g[dir], path) != null || (
+    isGraphable(g.nodes[first(path)]) &&
+    hasPaths(g.nodes[first(path)], dir, rest(path)))
 
 const getEdgePaths = (g, dir) =>
   new Set(Object.keys(g.nodes)
     .map(name => {
       const path = normalizePath(g.nodes, dir, [name])
-      return (!isBadPath(path) && getPaths(g, dir, path).size === 0
-        ? pathRefToArray(arrayToPathRef(path))
-        : null)
+      return (isBadPath(path) || hasPaths(g, dir, path)
+        ? null
+        : path)
     })
     .filter(path => path != null))
 
 const prewalk = (rootPaths, getChildPaths) => {
   const prewalkNode = (result, [path, parentPath]) => {
-    const childPaths = getChildPaths(path)
+    const childPaths = new Set(getChildPaths(path).map(path => arrayViaPathRef(path)))
 
     result.allParentPaths = updateIn(result.allParentPaths, path,
       x => x == null

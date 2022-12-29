@@ -1,4 +1,6 @@
-const { $, pathRefToArray, arrayToPathRef, pathRefToString } = require('../pathref')
+const {
+  $, pathRefToArray, pathRefToString, arrayToPathRef, arrayViaPathRef
+} = require('../pathref')
 
 test('pathrefs', () => {
   expect(pathRefToArray($))
@@ -23,4 +25,6 @@ test('pathrefs', () => {
     .toStrictEqual(42)
   expect(pathRefToString(true))
     .toStrictEqual(true)
+  expect(arrayViaPathRef(['a', 'b', 'c']))
+    .toBe(arrayViaPathRef(['a', 'b', 'c']))
 })
