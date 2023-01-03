@@ -46,9 +46,10 @@ test('transducing fn works', () => {
 })
 
 test('ezduze works', () => {
-  const xf = ezducer(
-    (v) => [v, v, EOT, v],
-    () => [42])
+  const xf = ezducer(() => ({
+    step: (v) => [v, v, EOT, v],
+    result: () => [42]
+  }))
 
   const r1 = {
     [INIT]: () => 0,
@@ -67,7 +68,7 @@ test('ezduze works', () => {
 })
 
 test('ezduze defaults work', () => {
-  const xf = ezducer()
+  const xf = ezducer(() => ({}))
 
   const r1 = {
     [INIT]: () => 0,

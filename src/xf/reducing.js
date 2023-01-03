@@ -38,8 +38,13 @@ const reduce = (f, a, vs) => {
   return a
 }
 
-const ezducer = (step = (v) => [v], result = () => []) => {
+const ezducer = (constructor) => {
   return transducer(r => {
+    const { step, result } = {
+      step: (v) => [v],
+      result: () => [],
+      ...constructor()
+    }
     const rstep = (a, vs) =>
       reduce(
         (a, v) => v === EOT
