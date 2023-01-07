@@ -3,7 +3,7 @@
 // 2. Tests should be defined only in terms of the exported API.
 
 const {
-  INIT, STEP, RESULT, isReduced, unreduced, reduced, transducer, EOT, ezducer
+  INIT, STEP, RESULT, isReduced, unreduced, reduced, transducer, ezducer
 } = require('../reducing')
 
 test('reducing fns work', () => {
@@ -47,7 +47,7 @@ test('transducing fn works', () => {
 
 test('ezduze works', () => {
   const xf = ezducer(() => ({
-    step: (v) => [v, v, EOT, v],
+    step: (v) => [v, v, reduced, v],
     result: () => [42]
   }))
 

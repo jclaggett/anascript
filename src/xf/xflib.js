@@ -5,7 +5,7 @@
 const {
   STEP, RESULT,
   transducer, isReduced, reduced, unreduced,
-  ezducer, EOT
+  ezducer
 } = require('./reducing')
 const { compose, identity, first, second } = require('./util')
 
@@ -88,13 +88,13 @@ const take = (n) =>
     : ezducer(() => ({
       step: (v) =>
         (--n < 1)
-          ? [v, EOT]
+          ? [v, reduced]
           : [v]
     }))
 
 // takeWhile: only step through while `pred(v)` is true.
 const takeWhile = (pred) =>
-  ezducer(() => ({ step: (v) => [pred(v) ? v : EOT] }))
+  ezducer(() => ({ step: (v) => [pred(v) ? v : reduced] }))
 
 // drop: do not step `n` times.
 const drop = (n) =>

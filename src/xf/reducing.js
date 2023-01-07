@@ -27,8 +27,6 @@ const transducer = (constructor) =>
     }
   }
 
-const EOT = Symbol('EOT')
-
 // A reduce function that stops when receiving a reduced value.
 const reduce = (f, a, vs) => {
   for (const v of vs) {
@@ -47,7 +45,7 @@ const ezducer = (constructor) => {
     }
     const rstep = (a, vs) =>
       reduce(
-        (a, v) => v === EOT
+        (a, v) => v === reduced
           ? reduced(a)
           : r[STEP](a, v),
         a,
@@ -68,6 +66,5 @@ module.exports = {
   reduced,
   transducer,
 
-  EOT,
   ezducer
 }
