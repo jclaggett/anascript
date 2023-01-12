@@ -1,8 +1,6 @@
-'use strict'
+import chalk from 'chalk'
 
-const chalk = require('chalk')
-
-const {
+import {
   identity,
   complement,
   getType,
@@ -12,7 +10,7 @@ const {
   isSym,
   makeForm,
   syms
-} = require('./lang')
+} from './lang'
 
 // Printing
 const printRules = {
@@ -67,13 +65,13 @@ const printRulesAsSyntax = {
             : r.square(x, r)
 }
 
-const printLabel = (x, r = printRules) =>
+export const printLabel = (x, r = printRules) =>
   r.label(x, r)
 
 const printChildren = (x, rules, sep = ' ') =>
   x.map(child => print(child, rules)).join(sep)
 
-const print = (x, r = printRules) => {
+export const print = (x, r = printRules) => {
   const rule = r[getType(x)]
   if (rule !== undefined) {
     return rule(x, r)
@@ -82,12 +80,5 @@ const print = (x, r = printRules) => {
   }
 }
 
-const printSyntax = (x) =>
+export const printSyntax = (x) =>
   print(x, printRulesAsSyntax)
-
-// General
-module.exports = {
-  print,
-  printLabel,
-  printSyntax
-}

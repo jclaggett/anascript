@@ -1,25 +1,27 @@
-'use strict'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-const fs = require('fs')
-const path = require('path')
+import ebnf from 'ebnf'
 
-const ebnf = require('ebnf')
-
-const {
+import {
   isForm,
   makeForm,
   makeList,
   makeSym,
   syms
-} = require('./lang')
+} from './lang'
 
 // Parsing: converting text into an Abstract Syntax Tree (AST)
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const anaParser = new ebnf.Grammars.W3C.Parser(
   fs.readFileSync(path.resolve(__dirname, 'grammar.ebnf'))
     .toString())
 
-const parse = str => {
+export const parse = str => {
   const ast = anaParser.getAST(str + ' ')
 
   if (!ast) {
@@ -71,14 +73,8 @@ const formRules = {
   symbol: ast => syms[ast.text] || makeSym(ast.text)
 }
 
-const form = ast =>
+export const form = ast =>
   formRules[ast.type](ast)
 
-const read = str =>
+export const read = str =>
   form(parse(str))
-
-module.exports = {
-  form,
-  parse,
-  read
-}

@@ -1,10 +1,8 @@
-'use strict'
+import im from 'immutable'
 
-const im = require('immutable')
-
-const lang = require('./lang')
-const read = require('./read')
-const print = require('./print')
+import * as lang from './lang'
+import * as read from './read'
+import * as print from './print'
 
 // Evaluating
 const getEnv = (env, exp) =>
@@ -268,7 +266,7 @@ const evalSymCallAtom = (exp, env) =>
     : evalCallAtom(exp, env)
 
 // General
-const applyExp = (env, exp) => {
+export const applyExp = (env, exp) => {
   const val = evalSymCallAtom(
     lang.makeForm(
       'label',
@@ -311,7 +309,7 @@ const defEnv = x =>
   lang.makeSet(...Object.entries(x)
     .map(([s, f]) => [lang.sym(s), f]))
 
-const initialEnv = defEnv({
+export const initialEnv = defEnv({
   label: special(evalLabel),
   expand: special(evalExpand),
   quote: special(evalQuote),
@@ -374,8 +372,3 @@ const initialEnv = defEnv({
   log10: Math.log10,
   log2: Math.log2
 }).set('expTotal', 1)
-
-module.exports = {
-  applyExp,
-  initialEnv
-}

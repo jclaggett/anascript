@@ -1,7 +1,10 @@
-const { makeList, toJS } = require('./lang')
-const { read, parse } = require('./read')
-const { applyExp, initialEnv } = require('./eval')
-const { print, printLabel, printSyntax } = require('./print')
+import { makeList } from './lang'
+import { read } from './read'
+import { applyExp, initialEnv } from './eval'
+
+export { toJS } from './lang'
+export { read, parse } from './read'
+export { print, printLabel, printSyntax } from './print'
 
 class Env {
   constructor (envMap) {
@@ -17,15 +20,5 @@ class Env {
   }
 }
 
-const makeEnv = (envMap = initialEnv) =>
+export const makeEnv = (envMap = initialEnv) =>
   new Env(envMap)
-
-module.exports = {
-  makeEnv,
-  parse,
-  read,
-  print,
-  printLabel,
-  printSyntax,
-  toJS
-}

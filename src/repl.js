@@ -1,22 +1,21 @@
 #!/usr/bin/env node
-'use strict'
 
-const os = require('os')
-const process = require('process')
-const path = require('path')
-const fs = require('fs')
-const fsp = require('fs/promises')
-const readline = require('readline')
+import os from 'os'
+import process from 'process'
+import path from 'path'
+import fs from 'fs'
+import fsp from 'fs/promises'
+import readline from 'readline'
 
-const chalk = require('chalk')
-const { marked } = require('marked')
-const TerminalRenderer = require('marked-terminal')
+import chalk from 'chalk'
+import { marked } from 'marked'
+import TerminalRenderer from 'marked-terminal'
 
-const { version } = require('../package')
+import { version } from '../package'
 
-const lang = require('./lang')
-const eval2 = require('./eval')
-const ana = require('./index')
+import * as lang from './lang'
+import * as eval2 from './eval'
+import * as ana from './index'
 
 const helpText = `
 # Anascript Help

@@ -1,7 +1,7 @@
 // Rules for this file
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the public API.
-const {
+import {
   makeEnv,
   parse,
   print,
@@ -9,7 +9,7 @@ const {
   printSyntax,
   read,
   toJS
-} = require('..')
+} from '../index'
 
 const RE = str =>
   makeEnv().eval(str)?.last()?.last()?.last()
