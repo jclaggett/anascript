@@ -2,9 +2,9 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the exported API.
 
-const {
+import {
   INIT, STEP, RESULT, isReduced, unreduced, reduced, transducer, ezducer
-} = require('../reducing')
+} from '../reducing'
 
 test('reducing fns work', () => {
   expect(isReduced(42))

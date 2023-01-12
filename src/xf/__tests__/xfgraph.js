@@ -2,12 +2,13 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the public API.
 
-const t = require('transducist')
-const { identity } = require('../util')
-const { $, graph } = require('../graph')
-const {
+import t from 'transducist'
+import { identity } from '../util'
+import { $ } from '../pathref'
+import { graph } from '../graph'
+import {
   composeGraph, xfgraph, mapjoin
-} = require('../xfgraph')
+} from '../xfgraph'
 
 const T = (xf, data) =>
   t.transduce(data, xf, t.toArray())

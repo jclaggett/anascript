@@ -2,8 +2,9 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the public API.
 
-const { pathRefToArray } = require('../pathref')
-const { $, graph, walk, chain, pg } = require('../graph')
+import { jest } from '@jest/globals'
+import { $, pathRefToArray } from '../pathref'
+import { graph, walk, chain, pg } from '../graph'
 
 const s = (...args) => new Set(args)
 

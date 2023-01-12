@@ -1,13 +1,12 @@
 // Purpose of this namespace is to introduce source and sink concepts to
 // transducer graphs and to provide runners that 'transduce' values from
 // sources into sinks via a given graph.
+import { opendir } from 'fs/promises'
 
-const { opendir } = require('fs/promises')
+import t from 'transducist'
 
-const t = require('transducist')
-
-const { isReduced, INIT, STEP, RESULT, unreduced } = require('./reducing')
-const { composeGraph } = require('./xfgraph')
+import { isReduced, INIT, STEP, RESULT, unreduced } from './reducing'
+import { composeGraph } from './xfgraph'
 
 const defaultSource = (id) => {
   console.warn('Unknown source:', id)
@@ -98,7 +97,7 @@ const runGraph = async (g, parentEnv) => {
 }
 
 // run a graph defining argv as following parameters after the graph
-const run = (g, ...argv) =>
+export const run = (g, ...argv) =>
   runGraph(g, { // this is the root env
     // Each source is an async iterable that emits a sequence of values.
     sources: {
@@ -133,10 +132,8 @@ const run = (g, ...argv) =>
   })
 
 // define sources and sinks
-const source = (...value) => ['source', ...value]
-const sink = (...value) => ['sink', ...value]
+export const source = (...value) => ['source', ...value]
+export const sink = (...value) => ['sink', ...value]
 
 const isSource = (x) => Array.isArray(x) && x[0] === 'source'
 const isSink = (x) => Array.isArray(x) && x[0] === 'sink'
-
-module.exports = { run, source, sink }

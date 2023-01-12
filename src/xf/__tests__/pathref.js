@@ -1,6 +1,6 @@
-const {
+import {
   $, pathRefToArray, pathRefToString, arrayToPathRef, arrayViaPathRef
-} = require('../pathref')
+} from '../pathref'
 
 test('pathrefs', () => {
   expect(pathRefToArray($))

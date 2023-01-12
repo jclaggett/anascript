@@ -2,18 +2,19 @@
 // with the assumption that node values are either transducers or are treated
 // as identity (i.e., a trivial transducer).
 
-const t = require('transducist')
+import t from 'transducist'
 
-const { transducer, STEP } = require('./reducing')
-const { tag, detag, multiplex, demultiplex } = require('./xflib')
-const { $, graph, walk } = require('./graph')
-const { identity } = require('./util')
+import { transducer, STEP } from './reducing'
+import { tag, detag, multiplex, demultiplex } from './xflib'
+import { $ } from './pathref'
+import { graph, walk } from './graph'
+import { identity } from './util'
 
 // Walk a graph of transducers using multiplex and demultiplex to combine
 // idividual transducers into a 'reduced' set of transducers. Use `leafFn` and
 // `rootFn` at the edges of the graph to provide initial reducers and to return
 // finished values respectively.
-const composeGraph = (g, { rootFn, leafFn }) =>
+export const composeGraph = (g, { rootFn, leafFn }) =>
   walk(g, (xfs, xf, { root, leaf, path, parentPaths }) => {
     // Stage 1: leaf nodes
     if (leaf) {
@@ -41,7 +42,7 @@ const composeGraph = (g, { rootFn, leafFn }) =>
   })
 
 // xfgraph: a transducer constructor that builds a unified transducer from `graph`.
-const xfgraph = (g) => {
+export const xfgraph = (g) => {
   const xfs = composeGraph(g, {
     leafFn: ([name], _value) => [tag(name)],
     rootFn: ([name], _value, xf) => t.compose(detag(name), xf)
@@ -52,7 +53,7 @@ const xfgraph = (g) => {
 // mapjoin: return a graph that joins multiple inputs as arguments to `f`.
 // `actives` describes which inputs generate new calls to `f` when new values
 // are received.
-const mapjoin = (f, actives) => {
+export const mapjoin = (f, actives) => {
   const xf = transducer(r => {
     const joined = new Array(actives.length)
     const needed = new Set(actives.keys())
@@ -80,5 +81,3 @@ const mapjoin = (f, actives) => {
   },
   actives.map((_, i) => [$[i], $.out]))
 }
-
-module.exports = { composeGraph, mapjoin, xfgraph }

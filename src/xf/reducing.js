@@ -7,17 +7,17 @@
 // 1. Prototype inheritance is a low level and optimized javascript feature.
 // 2. The constructor doesn't define proxying INIT, STEP, and RESULT methods.
 
-const INIT = '@@transducer/init'
-const STEP = '@@transducer/step'
-const RESULT = '@@transducer/result'
-const REDUCED = '@@transducer/reduced'
-const VALUE = '@@transducer/value'
+export const INIT = '@@transducer/init'
+export const STEP = '@@transducer/step'
+export const RESULT = '@@transducer/result'
+export const REDUCED = '@@transducer/reduced'
+export const VALUE = '@@transducer/value'
 
-const isReduced = (x) => x instanceof Object && x[REDUCED] === true
-const reduced = (x) => isReduced(x) ? x : { [REDUCED]: true, [VALUE]: x }
-const unreduced = (x) => isReduced(x) ? x[VALUE] : x
+export const isReduced = (x) => x instanceof Object && x[REDUCED] === true
+export const reduced = (x) => isReduced(x) ? x : { [REDUCED]: true, [VALUE]: x }
+export const unreduced = (x) => isReduced(x) ? x[VALUE] : x
 
-const transducer = (constructor) =>
+export const transducer = (constructor) =>
   (reducer) => {
     const reducer2 = constructor(reducer)
     if (reducer2 === reducer) {
@@ -36,7 +36,7 @@ const reduce = (f, a, vs) => {
   return a
 }
 
-const ezducer = (constructor) => {
+export const ezducer = (constructor) => {
   return transducer(r => {
     const { step, result } = {
       step: (v) => [v],
@@ -55,16 +55,4 @@ const ezducer = (constructor) => {
       [RESULT]: (a) => r[RESULT](unreduced(rstep(a, result())))
     }
   })
-}
-
-module.exports = {
-  INIT,
-  STEP,
-  RESULT,
-  isReduced,
-  unreduced,
-  reduced,
-  transducer,
-
-  ezducer
 }

@@ -1,4 +1,3 @@
-
 /* TODO create a custom inspector method on the Proxy object so that debug
    messages with pathRefs are more readable. challenge: derive a customized
    Proxy class.
@@ -37,40 +36,30 @@ const newPathRef = (path) => {
   return ref
 }
 
-const $ = newPathRef([])
+export const $ = newPathRef([])
 
-const isPathRef = (x) =>
+export const isPathRef = (x) =>
   pathRefs.has(x)
 
-const derefPathRef = (x) =>
+export const derefPathRef = (x) =>
   pathRefs.get(x)
 
-const pathRefToArray = (x) =>
+export const pathRefToArray = (x) =>
   isPathRef(x)
     ? derefPathRef(x)
     : x
 
-const pathRefToString = (x) =>
+export const pathRefToString = (x) =>
   isPathRef(x)
     ? ['$']
         .concat(derefPathRef(x))
         .join('.')
     : x
 
-const arrayToPathRef = ([name, ...path], pathRef = $) =>
+export const arrayToPathRef = ([name, ...path], pathRef = $) =>
   (name == null)
     ? pathRef
     : arrayToPathRef(path, pathRef[name])
 
-const arrayViaPathRef = (x, pathRef = $) =>
+export const arrayViaPathRef = (x, pathRef = $) =>
   pathRefToArray(arrayToPathRef(x, pathRef))
-
-module.exports = {
-  $,
-  isPathRef,
-  derefPathRef,
-  pathRefToArray,
-  pathRefToString,
-  arrayToPathRef,
-  arrayViaPathRef
-}

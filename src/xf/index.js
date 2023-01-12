@@ -1,8 +1,6 @@
-module.exports = {
-  ...require('./util'),
-  ...require('./reducing'),
-  ...require('./xflib'),
-  ...require('./graph'),
-  ...require('./xfgraph'),
-  ...require('./runner')
-}
+export * from './util'
+export * from './reducing'
+export * from './xflib'
+export * from './graph'
+export * from './xfgraph'
+export * from './runner'

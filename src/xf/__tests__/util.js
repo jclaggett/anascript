@@ -2,9 +2,9 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the exported API.
 
-const {
+import {
   compose, identity, isEmpty, rest, first, second, last, butLast
-} = require('../util')
+} from '../util'
 
 test('util fns work', () => {
   const data = [1, 2, 3]

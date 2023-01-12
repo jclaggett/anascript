@@ -15,12 +15,13 @@
     "json",
     "lisp"
   ],
+  "type": "module",
   "main": "src/index.js",
   "bin": {
     "anascript": "src/repl.js"
   },
   "scripts": {
-    "test": "jest",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test-coverage": "jest --coverage coverage",
     "test-watch": "jest --watch",
     "lint": "eslint src",

@@ -2,10 +2,12 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the public API.
 
-const t = require('transducist')
-const { map, take } = require('../xflib')
-const { $, graph } = require('../graph')
-const { run, source, sink } = require('../runner')
+import { jest } from '@jest/globals'
+import t from 'transducist'
+import { map, take } from '../xflib'
+import { $ } from '../pathref'
+import { graph } from '../graph'
+import { run, source, sink } from '../runner'
 
 beforeAll(() => {
   console.debug = jest.fn()

@@ -2,8 +2,8 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the public API.
 
-const t = require('transducist')
-const {
+import t from 'transducist'
+import {
   after,
   dedupe,
   demultiplex,
@@ -24,7 +24,7 @@ const {
   tag,
   take,
   takeWhile
-} = require('../xflib')
+} from '../xflib'
 
 const data = [1, 2, 3]
 const data2 = [1, 2, 2, 3, 2]

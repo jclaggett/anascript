@@ -2,28 +2,28 @@
 // transducers may be composed freely and don't export non-transducer
 // functions. This is why the joining transducers are excluded.
 
-const {
+import {
   STEP, RESULT,
   transducer, isReduced, reduced, unreduced,
   ezducer
-} = require('./reducing')
-const { compose, identity, first, second } = require('./util')
+} from './reducing'
+import { compose, identity, first, second } from './util'
 
 // flatMap: call `step` with current value.
-const flatMap = (step) =>
+export const flatMap = (step) =>
   ezducer(() => ({ step }))
 
 // map: call `f` with current value.
-const map = (f) =>
+export const map = (f) =>
   flatMap(v => [f(v)])
 
 // emit: constantly return x for every step
-const emit = (x) =>
+export const emit = (x) =>
   map((_v) => x)
 
 // reductions: call `f` with the previous results (or initialValue) and the
 // current value.
-const reductions = (f, initialValue) => {
+export const reductions = (f, initialValue) => {
   let state = initialValue
   return ezducer(() => ({
     step: (v) => {
@@ -34,11 +34,11 @@ const reductions = (f, initialValue) => {
 }
 
 // filter: Step only if `pred(v)` is true.
-const filter = (pred) =>
+export const filter = (pred) =>
   ezducer(() => ({ step: (v) => pred(v) ? [v] : [] }))
 
 // partition: Step width sized groups of values and every stride.
-const partition = (width, stride) => {
+export const partition = (width, stride) => {
   stride = stride < 1 ? 1 : stride
   return ezducer(() => {
     let i = stride - width - 1
@@ -61,7 +61,7 @@ const partition = (width, stride) => {
 }
 
 // filter2: Step if `pred(previous, v)` is true. Always step on first value.
-const filter2 = (pred) =>
+export const filter2 = (pred) =>
   ezducer(() => {
     const initialValue = Symbol('init')
     let previous = initialValue
@@ -78,15 +78,15 @@ const filter2 = (pred) =>
   })
 
 // dedupe: Step if the current value is different from the previous value.
-const dedupe = () =>
+export const dedupe = () =>
   filter2((x, y) => x !== y)
 
 // dropAll & after: ignore all steps and send a single value at end.
-const dropAll =
+export const dropAll =
   ezducer(() => ({ step: (_v) => [] }))
 
 // take: only step `n` times.
-const take = (n) =>
+export const take = (n) =>
   (n < 1)
     ? dropAll
     : ezducer(() => ({
@@ -97,17 +97,17 @@ const take = (n) =>
     }))
 
 // takeWhile: only step through while `pred(v)` is true.
-const takeWhile = (pred) =>
+export const takeWhile = (pred) =>
   ezducer(() => ({ step: (v) => [pred(v) ? v : reduced] }))
 
 // drop: do not step `n` times.
-const drop = (n) =>
+export const drop = (n) =>
   (n < 1)
     ? identity
     : ezducer(() => ({ step: (v) => (--n < 0) ? [v] : [] }))
 
 // dropWhile: do not step until `pred(v)` is false.
-const dropWhile = (pred) =>
+export const dropWhile = (pred) =>
   ezducer(() => {
     let stillDropping = true
     return {
@@ -122,7 +122,7 @@ const dropWhile = (pred) =>
 
 // prolog & epilog: step an initial value before first step and a final value
 // after last step.
-const prolog = (x) =>
+export const prolog = (x) =>
   ezducer(() => {
     let stepNeverCalled = true
     return {
@@ -140,24 +140,24 @@ const prolog = (x) =>
     }
   })
 
-const epilog = (x) =>
+export const epilog = (x) =>
   ezducer(() => ({
     result: () => [x]
   }))
 
 // epilog: step `x` after dropping all values.
-const after = (x) =>
+export const after = (x) =>
   compose(
     dropAll,
     epilog(x))
 
 // tag & detag tranducers
-const tag = (k) =>
+export const tag = (k) =>
   compose(
     map(x => [k, x]),
     epilog([k]))
 
-const detag = (k) =>
+export const detag = (k) =>
   compose(
     filter(x => x instanceof Array && x.length > 0 && first(x) === k),
     takeWhile(x => x.length === 2),
@@ -171,7 +171,7 @@ const detag = (k) =>
 // (n) parent transducers. This means it will accept [STEP] calls even after a
 // reduced() value is returned and it expects to receive multiple (n) [RESULT]
 // calls.
-const multiplex = (xfs) =>
+export const multiplex = (xfs) =>
   // There are 4 layers of reducers in multiplex:
   // r1: the given, next reducer in the chain
   // r2: a demultiplex reducer over r1
@@ -206,7 +206,7 @@ const multiplex = (xfs) =>
       }
     })
 
-const demultiplex = (n) => {
+export const demultiplex = (n) => {
   if (n < 2) {
     return identity // trivial case
   } else {
@@ -239,27 +239,4 @@ const demultiplex = (n) => {
       return sharedReducer
     })
   }
-}
-
-module.exports = {
-  after,
-  dedupe,
-  demultiplex,
-  detag,
-  drop,
-  dropAll,
-  dropWhile,
-  emit,
-  epilog,
-  filter,
-  filter2,
-  flatMap,
-  map,
-  multiplex,
-  partition,
-  prolog,
-  reductions,
-  tag,
-  take,
-  takeWhile
 }

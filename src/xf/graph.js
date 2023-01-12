@@ -1,18 +1,18 @@
-const util = require('util')
-const { isEmpty, first, rest, last } = require('./util')
-const {
+import util from 'util'
+import { isEmpty, first, rest, last } from './util'
+import {
   $, pathRefToArray, pathRefToString, arrayViaPathRef, isPathRef
-} = require('./pathref')
+} from './pathref'
 
 // Graphable Protocol
 const graphable = Symbol('graph')
-const isGraphable = (x) => x instanceof Object && graphable in x
+export const isGraphable = (x) => x instanceof Object && graphable in x
 
 const Graph = {
   [graphable]: function () { return this }
 }
 
-const getGraph = (x) =>
+export const getGraph = (x) =>
   x[graphable]()
 
 // General Code
@@ -115,14 +115,14 @@ const addLink = (g, [src, dst]) => {
   return g
 }
 
-const graph = (nodes = {}, links = []) =>
+export const graph = (nodes = {}, links = []) =>
   links.reduce(addLink,
     Object.setPrototypeOf({ nodes, in: {}, out: {} },
       Graph))
 
 // chain: return a graph of values chained together with 'in' and 'out' nodes
 // at the top and bottom. Very similar to `compose`.
-const chain = (...xfs) =>
+export const chain = (...xfs) =>
   graph({
     ...xfs,
     in: $[0],
@@ -204,7 +204,7 @@ const prewalk = (rootPaths, getChildPaths) => {
     })
 }
 
-const walk = (g, walkFn, in2out = true) => {
+export const walk = (g, walkFn, in2out = true) => {
   const [rootDir, leafDir] = in2out
     ? ['in', 'out']
     : ['out', 'in']
@@ -239,7 +239,5 @@ const walk = (g, walkFn, in2out = true) => {
   return rootPaths2.map(path => getIn(walked, path))
 }
 
-const pg = (g, options = {}) =>
+export const pg = (g, options = {}) =>
   console.dir(g, { colors: true, depth: 5, ...options })
-
-module.exports = { $, chain, getGraph, graph, isGraphable, pg, walk }
