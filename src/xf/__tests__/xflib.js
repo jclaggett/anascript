@@ -11,6 +11,7 @@ const {
   drop,
   dropAll,
   dropWhile,
+  emit,
   epilog,
   filter,
   filter2,
@@ -31,14 +32,19 @@ const data2 = [1, 2, 2, 3, 2]
 const T = (xf, data) =>
   t.transduce(data, xf, t.toArray())
 
+test('flatMap works', () => {
+  expect(T(flatMap(x => [x + 1, -x]), data))
+    .toStrictEqual([2, -1, 3, -2, 4, -3])
+})
+
 test('map works', () => {
   expect(T(map(x => x + 1), data))
     .toStrictEqual([2, 3, 4])
 })
 
-test('flatMap works', () => {
-  expect(T(flatMap(x => [x + 1, -x]), data))
-    .toStrictEqual([2, -1, 3, -2, 4, -3])
+test('emit works', () => {
+  expect(T(emit(1), data))
+    .toStrictEqual([1, 1, 1])
 })
 
 test('reductions works', () => {

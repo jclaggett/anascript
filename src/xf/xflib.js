@@ -15,7 +15,11 @@ const flatMap = (step) =>
 
 // map: call `f` with current value.
 const map = (f) =>
-  ezducer(() => ({ step: (v) => [f(v)] }))
+  flatMap(v => [f(v)])
+
+// emit: constantly return x for every step
+const emit = (x) =>
+  map((_v) => x)
 
 // reductions: call `f` with the previous results (or initialValue) and the
 // current value.
@@ -245,6 +249,7 @@ module.exports = {
   drop,
   dropAll,
   dropWhile,
+  emit,
   epilog,
   filter,
   filter2,
