@@ -11,11 +11,11 @@ import chalk from 'chalk'
 import { marked } from 'marked'
 import TerminalRenderer from 'marked-terminal'
 
-import { version } from '../package'
+import * as lang from './lang.js'
+import * as eval2 from './eval.js'
+import * as ana from './index.js'
 
-import * as lang from './lang'
-import * as eval2 from './eval'
-import * as ana from './index'
+const { version } = JSON.parse(fs.readFileSync(process.env.PWD + '/package.json'))
 
 const helpText = `
 # Anascript Help

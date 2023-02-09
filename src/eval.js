@@ -1,8 +1,8 @@
 import im from 'immutable'
 
-import * as lang from './lang'
-import * as read from './read'
-import * as print from './print'
+import * as lang from './lang.js'
+import * as read from './read.js'
+import * as print from './print.js'
 
 // Evaluating
 const getEnv = (env, exp) =>

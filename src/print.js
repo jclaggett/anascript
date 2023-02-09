@@ -10,7 +10,7 @@ import {
   isSym,
   makeForm,
   syms
-} from './lang'
+} from './lang.js'
 
 // Printing
 const printRules = {

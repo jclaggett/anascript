@@ -10,7 +10,7 @@ import {
   makeList,
   makeSym,
   syms
-} from './lang'
+} from './lang.js'
 
 // Parsing: converting text into an Abstract Syntax Tree (AST)
 
