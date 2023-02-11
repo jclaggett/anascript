@@ -1,6 +1,6 @@
-const t = require('transducist')
-
-const { run, graph, source, sink, $, dedupe } = require('../src/xf')
+import * as t from 'transducist'
+import { graph, source, sink, $, dedupe } from '../src/xf/index.js'
+export { run } from '../src/xf/index.js'
 
 // Define a spinner net
 const spinnerString =
@@ -17,12 +17,12 @@ const spinnerString =
     '⠏'
   ]
 
-const spinner = graph(
+export const spinner = graph(
   {
     // freq is 30hz
     time: source('time', { freq: 1000 / 60 }),
 
-    limitedTime: t.take(1200),
+    limitedTime: t.take(600),
 
     spinnerIndex: t.compose(
       t.map(ts =>
@@ -54,5 +54,3 @@ const spinner = graph(
     [$.spinner, $.streamFn],
     [$.streamFn, $.stdout]
   ])
-
-module.exports = { run, spinner }

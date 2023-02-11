@@ -1,15 +1,19 @@
-const {
+import {
   $, chain, graph, takeWhile, mapjoin, map, sink, source, prolog, identity,
-  after, run
-} = require('../src/xf')
+  after
+} from '../src/xf/index.js'
+export { run } from '../src/xf/index.js'
 
 const makeDirNet = ([dirname, ...dirnames], { padding, useTitles }) => {
+
+  const entryNames = chain(
+    map(x => `${padding}${x.name}`),
+    useTitles ? prolog(`\n${dirname}`) : identity
+  )
+
   return graph({
     entries: source('dir', { path: dirname }),
-    entryNames: chain([
-      map(x => `${padding}${x.name}`),
-      useTitles ? prolog(`\n${dirname}`) : identity
-    ]),
+    entryNames,
 
     log: sink('log'),
 
@@ -24,7 +28,7 @@ const makeDirNet = ([dirname, ...dirnames], { padding, useTitles }) => {
   ])
 }
 
-const ls = graph({
+export const ls = graph({
   // Act 1: Collect configuration and start processing dirnames
   init: source('init'),
 
@@ -51,7 +55,7 @@ const ls = graph({
   run: sink('run'),
   debug: sink('debug')
 }, [
-  [$.config, $.debug],
+  // [$.config, $.debug],
   [$.init, $.config],
   [$.config, $.configDirnames],
   [$.configDirnames, $.dirSink],
@@ -60,5 +64,3 @@ const ls = graph({
   [$.config, $.dirNet[1]],
   [$.dirNet, $.run]
 ])
-
-module.exports = { run, ls }
