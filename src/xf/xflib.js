@@ -6,8 +6,8 @@ import {
   STEP, RESULT,
   transducer, isReduced, reduced, unreduced,
   ezducer
-} from './reducing'
-import { compose, identity, first, second } from './util'
+} from './reducing.js'
+import { compose, identity, first, second } from './util.js'
 
 // flatMap: call `step` with current value.
 export const flatMap = (step) =>

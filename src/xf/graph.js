@@ -1,8 +1,8 @@
 import util from 'util'
-import { isEmpty, first, rest, last } from './util'
+import { isEmpty, first, rest, last } from './util.js'
 import {
   $, pathRefToArray, pathRefToString, arrayViaPathRef, isPathRef
-} from './pathref'
+} from './pathref.js'
 
 // Graphable Protocol
 const graphable = Symbol('graph')

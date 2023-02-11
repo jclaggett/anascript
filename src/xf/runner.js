@@ -5,8 +5,8 @@ import { opendir } from 'fs/promises'
 
 import t from 'transducist'
 
-import { isReduced, INIT, STEP, RESULT, unreduced } from './reducing'
-import { composeGraph } from './xfgraph'
+import { isReduced, INIT, STEP, RESULT, unreduced } from './reducing.js'
+import { composeGraph } from './xfgraph.js'
 
 const defaultSource = (id) => {
   console.warn('Unknown source:', id)

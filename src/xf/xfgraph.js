@@ -4,11 +4,11 @@
 
 import t from 'transducist'
 
-import { transducer, STEP } from './reducing'
-import { tag, detag, multiplex, demultiplex } from './xflib'
-import { $ } from './pathref'
-import { graph, walk } from './graph'
-import { identity } from './util'
+import { transducer, STEP } from './reducing.js'
+import { tag, detag, multiplex, demultiplex } from './xflib.js'
+import { $ } from './pathref.js'
+import { graph, walk } from './graph.js'
+import { identity } from './util.js'
 
 // Walk a graph of transducers using multiplex and demultiplex to combine
 // idividual transducers into a 'reduced' set of transducers. Use `leafFn` and
