@@ -46,13 +46,11 @@ const runGraph = async (g, parentEnv) => {
   const env = {
     sources: derive({}, parentEnv.sources),
     sinks: derive({ run: (g) => runGraph(g, env) }, parentEnv.sinks),
-    pipes: derive({}, parentEnv.pipes)
+    pipes: derive({}, parentEnv.pipes),
+    shared: parentEnv.shared
   }
 
-  await Promise.all(composeGraph(g, {
-    // Returns an 'Array of transducers'. In practice, it either returns an
-    // empty array or an array containing a single map transducer applying a
-    // sink function.
+  env.shared.promises = env.shared.promises.concat(composeGraph(g, {
     leafFn: (_path, value) => {
       if (!isSink(value)) {
         return []
@@ -97,8 +95,10 @@ const runGraph = async (g, parentEnv) => {
 }
 
 // run a graph defining argv as following parameters after the graph
-export const run = (g, ...argv) =>
-  runGraph(g, { // this is the root env
+export const run = async (g, ...argv) => {
+  const shared = { promises: [] }
+  runGraph(g, {
+    // this is the root env
     // Each source is an async iterable that emits a sequence of values.
     sources: {
       init: async function * () {
@@ -128,8 +128,26 @@ export const run = (g, ...argv) =>
       process: (fn) => fn(process)
     },
 
-    pipes: {}
+    pipes: {},
+
+    shared
   })
+
+  const pending = {}
+  const pendingPromise = Promise.resolve(pending)
+
+  while (shared.promises.length > 0) {
+    // await for at least one promise to settle
+    await Promise.race(shared.promises)
+    const pendingPromises = []
+    for (const p of shared.promises) {
+      if ((await Promise.race([p, pendingPromise])) === pending) {
+        pendingPromises.push(p)
+      }
+    }
+    shared.promises = pendingPromises
+  }
+}
 
 // define sources and sinks
 export const source = (...value) => ['source', ...value]
