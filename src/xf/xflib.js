@@ -89,12 +89,10 @@ export const dropAll =
 export const take = (n) =>
   (n < 1)
     ? dropAll
-    : ezducer(() => ({
-      step: (v) =>
-        (--n < 1)
-          ? [v, reduced]
-          : [v]
-    }))
+    : ezducer(() => {
+      let i = n
+      return { step: (v) => (--i < 1) ? [v, reduced] : [v] }
+    })
 
 // takeWhile: only step through while `pred(v)` is true.
 export const takeWhile = (pred) =>
@@ -104,7 +102,10 @@ export const takeWhile = (pred) =>
 export const drop = (n) =>
   (n < 1)
     ? identity
-    : ezducer(() => ({ step: (v) => (--n < 0) ? [v] : [] }))
+    : ezducer(() => {
+      let i = n
+      return { step: (v) => (--i < 0) ? [v] : [] }
+    })
 
 // dropWhile: do not step until `pred(v)` is false.
 export const dropWhile = (pred) =>
@@ -145,7 +146,7 @@ export const epilog = (x) =>
     result: () => [x]
   }))
 
-// epilog: step `x` after dropping all values.
+// after: step `x` after dropping all values.
 export const after = (x) =>
   compose(
     dropAll,
