@@ -32,10 +32,10 @@
   },
   "dependencies": {
     "chalk": "^4.1.2",
-    "ebnf": "^1.9.0",
-    "immutable": "^4.3.0",
-    "marked": "^4.2.12",
-    "marked-terminal": "^5.1.1",
+    "ebnf": "^1.9.1",
+    "immutable": "^4.3.1",
+    "marked": "^4.3.0",
+    "marked-terminal": "^5.2.0",
     "transducist": "^2.2.0"
   },
   "devDependencies": {
