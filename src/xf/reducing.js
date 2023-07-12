@@ -56,3 +56,9 @@ export const ezducer = (constructor) => {
     }
   })
 }
+
+export const nullReducer = {
+  [INIT]: () => null,
+  [STEP]: (a, _x) => a,
+  [RESULT]: (a) => a
+}
