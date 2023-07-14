@@ -3,155 +3,141 @@
 // sources into sinks via a given graph.
 import { opendir } from 'fs/promises'
 
-import t from 'transducist'
-
-import { isReduced, INIT, STEP, RESULT, unreduced } from './reducing.js'
+import * as r from './reducing.js'
+import * as xf from './xflib.js'
 import { composeGraph } from './xfgraph.js'
-
-const defaultSource = (id) => {
-  console.warn('Unknown source:', id)
-  return async function * () {
-    return undefined
-  }
-}
-
-const defaultSink = (id) => {
-  console.warn('Unknown sink:', id)
-  return (x) => console.debug(`DEBUG: sink ${id} received:`, x)
-}
-
-const defaultPipe = (name) =>
-  (x) => console.warn(
-    `Unknonwn or closed pipe ${name}. ignoring:`, x)
-
-const setPipe = (pipes, name, reducer) => {
-  pipes[name] = (x) =>
-    setImmediate(() => {
-      if (isReduced(reducer[STEP](undefined, x))) {
-        pipes[name] = undefined
-      }
-    })
-}
-
-const getPipe = (pipes, name) =>
-  (x) => ((pipes[name] == null)
-    ? defaultPipe(name)
-    : pipes[name])(x)
 
 // Use derive to make efficient clones of nested environments.
 const derive = Object.setPrototypeOf
 
-// run a graph within parentEnv
-const runGraph = async (g, parentEnv) => {
-  const env = {
-    sources: derive({}, parentEnv.sources),
-    sinks: derive({ run: (g) => runGraph(g, env) }, parentEnv.sinks),
-    pipes: derive({}, parentEnv.pipes),
-    shared: parentEnv.shared
-  }
+const makeMapSink = (f) =>
+  () => [xf.map(f)]
 
-  env.shared.promises = env.shared.promises.concat(composeGraph(g, {
-    leafFn: (_path, value) => {
-      if (!isSink(value)) {
-        return []
-      }
-
-      const type = value[1]
-      const sink = (type === 'pipe'
-        ? getPipe(env.pipes, value[2])
-        : env.sinks[type] ?? defaultSink(type))
-      return [t.map(sink)]
-    },
-
-    // Returns a Promise that completes when the source async iterator ends or
-    // the reducer is done.
-    rootFn: async (_path, value, xf) => {
-      if (!isSource(value)) {
-        return
-      }
-
-      const type = value[1]
-      const reducer = xf(t.count()) // Convert the transducer into a reducer here!
-
-      // TODO setPipe should return a source?
-      if (type === 'pipe') {
-        return setPipe(env.pipes, value[2], reducer)
-      }
-      const source = env.sources[type] ?? defaultSource(type)
-
-      let accumulatedValue = reducer[INIT]()
-      for await (const x of source(value[2])) {
-        accumulatedValue = reducer[STEP](accumulatedValue, x)
-        if (isReduced(accumulatedValue)) {
-          accumulatedValue = unreduced(accumulatedValue)
-          break // Stop once the reducer is done
-        }
-      }
-
-      // Always call result when source is done or when reducer is reduced.
-      return reducer[RESULT](accumulatedValue)
-    }
-  }))
+export const sinks = {
+  dir: makeMapSink(console.dir),
+  debug: makeMapSink(console.debug),
+  log: makeMapSink(console.log)
 }
 
-// run a graph defining argv as following parameters after the graph
-export const run = async (g, ...argv) => {
-  const shared = { promises: [] }
-  runGraph(g, {
-    // this is the root env
-    // Each source is an async iterable that emits a sequence of values.
-    sources: {
-      init: async function * () {
-        yield { env: process.env, argv }
-      },
+export const sources = {
+  init: () => [
+    r.transducer(rf => ({
+      [r.STEP]: async (a, x) => rf[r.STEP](a, x)
+    }))
+  ],
 
-      time: async function * ({ freq }) {
-        while (true) {
-          yield Date.now()
-          await new Promise(resolve => setTimeout(resolve, freq))
-        }
-      },
-
-      dir: async function * ({ path }) {
+  dir: (path) => [
+    r.transducer(rf => ({
+      [r.STEP]: async (a, _x) => {
         const dir = await opendir(path)
         for await (const dirent of dir) {
-          yield dirent
+          a = rf[r.STEP](a, dirent)
+        }
+        return a
+      }
+    }))
+  ]
+}
+
+const makeEdgeFn = (edgeType, edges) =>
+  (_path, value) => {
+    if (Array.isArray(value)) {
+      const [et, name, ...args] = value
+      return ((et === edgeType) && (edges[name] != null))
+        ? edges[name](...args)
+        : []
+    } else {
+      return []
+    }
+  }
+
+const makePipeSource = (pipes) =>
+  (name) => [
+    r.transducer(rf => {
+      return {
+        [r.STEP]: async (a, _x) => {
+          await new Promise((resolve) => {
+            const close = () => {
+              delete pipes[name]
+              resolve()
+            }
+            const send = (x) => {
+              if (r.isReduced(rf[r.STEP](a, x))) {
+                close()
+              }
+            }
+            pipes[name] = { close, send }
+          })
+          return a
         }
       }
-    },
+    })
+  ]
 
-    // Each sink is a function that performs side effects on its given argument.
-    // The return value of a sink is ignored.
-    sinks: {
-      log: console.log,
-      debug: console.debug,
-      process: (fn) => fn(process)
-    },
+const makePipeSink = (pipes) =>
+  (name) => [
+    r.transducer(rf => {
+      return {
+        [r.STEP]: (a, x) => {
+          setImmediate(() => {
+            if (pipes[name] != null) {
+              pipes[name].send(x)
+            }
+          })
+          return a
+        },
+        [r.RESULT]: (a) => {
+          return rf[r.RESULT](a)
+        }
+      }
+    })
+  ]
 
-    pipes: {},
+const makeRunSink = (childPromises, initValue, sources, sinks, pipes) =>
+  () => [
+    r.transducer(rf => {
+      return {
+        [r.STEP]: (a, x) => {
+          childPromises.push(runGraph(x, initValue, sources, sinks, pipes))
+          return rf[r.STEP](a, x)
+        }
+      }
+    })
+  ]
 
-    shared
+const runGraph = async (g, initValue, sources, sinks, pipes) => {
+  const childPromises = []
+  const pipes2 = derive({}, pipes)
+
+  const sources2 = derive({
+    pipe: makePipeSource(pipes2)
+  }, sources)
+
+  const sinks2 = derive({
+    run: makeRunSink(childPromises, initValue, sources, sinks, pipes2),
+    pipe: makePipeSink(pipes2)
+  }, sinks)
+
+  const xfs = composeGraph(g, {
+    leafFn: makeEdgeFn('sink', sinks2),
+    rootFn: makeEdgeFn('source', sources2)
   })
 
-  const pending = {}
-  const pendingPromise = Promise.resolve(pending)
+  const rf = r.nullReducer
+  const a = rf[r.INIT]()
+  const rfs = xfs.map(xf => xf(rf))
 
-  while (shared.promises.length > 0) {
-    // await for at least one promise to settle
-    await Promise.race(shared.promises)
-    const pendingPromises = []
-    for (const p of shared.promises) {
-      if ((await Promise.race([p, pendingPromise])) === pending) {
-        pendingPromises.push(p)
-      }
-    }
-    shared.promises = pendingPromises
-  }
+  await Promise.all(rfs.map(async rf => {
+    const a2 = await rf[r.STEP](a, initValue)
+    return rf[r.RESULT](r.unreduced(a2))
+  }))
+
+  await Promise.all(childPromises)
 }
+
+export const makeRun = (initValue, sources, sinks) =>
+  (g, ...argv) => runGraph(g, { ...initValue, argv }, sources, sinks, {})
 
 // define sources and sinks
 export const source = (...value) => ['source', ...value]
 export const sink = (...value) => ['sink', ...value]
-
-const isSource = (x) => Array.isArray(x) && x[0] === 'source'
-const isSink = (x) => Array.isArray(x) && x[0] === 'sink'

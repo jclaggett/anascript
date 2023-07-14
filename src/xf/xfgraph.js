@@ -2,50 +2,51 @@
 // with the assumption that node values are either transducers or are treated
 // as identity (i.e., a trivial transducer).
 
-import t from 'transducist'
-
 import { transducer, STEP } from './reducing.js'
-import { tag, detag, multiplex, demultiplex } from './xflib.js'
+import { map, tag, detag, multiplex, demultiplex } from './xflib.js'
 import { $ } from './pathref.js'
 import { graph, walk } from './graph.js'
-import { identity } from './util.js'
+import { identity, compose } from './util.js'
 
-// Walk a graph of transducers using multiplex and demultiplex to combine
-// idividual transducers into a 'reduced' set of transducers. Use `leafFn` and
-// `rootFn` at the edges of the graph to provide initial reducers and to return
-// finished values respectively.
+// Walk a graph of transducers using `multiplex` and `demultiplex` to combine
+// idividual transducers into a 'reduced' set of transducers. Use `leafFn` to
+// provide zero or more sink transducers (i.e., causes side effects.). Use
+// `rootFn` to provide zero or more source transducers (i.e., responds to side
+// effects.). The source transducers returned are also assumed to be defined
+// with asynchronous STEP functions.
 export const composeGraph = (g, { rootFn, leafFn }) =>
-  walk(g, (xfs, xf, { root, leaf, path, parentPaths }) => {
+  walk(g, (xfs, node, { root, leaf, path, parentPaths }) => {
     // Stage 1: leaf nodes
     if (leaf) {
-      xfs = leafFn(path, xf)
+      xfs = leafFn(path, node)
     } else {
       xfs = xfs.flatMap(identity)
     }
 
     // Stage 2: multiplex
-    if ((typeof xf === 'function') && (xf !== identity) && (xfs.length > 0)) {
-      xfs = [t.compose(xf, multiplex(xfs))]
+    if ((typeof node === 'function') && (node !== identity) && (xfs.length > 0)) {
+      xfs = [compose(node, multiplex(xfs))]
     }
 
     // Stage 3: demultiplex
     if (parentPaths.length > 1) {
-      xfs = xfs.map(xf => t.compose(demultiplex(parentPaths.length), xf))
+      xfs = xfs.map(xf => compose(demultiplex(parentPaths.length), xf))
     }
 
     // Stage 4: root nodes
     if (root && xfs.length > 0) {
-      xfs = rootFn(path, xf, multiplex(xfs))
+      const leafXf = multiplex(xfs)
+      xfs = rootFn(path, node).map(rootXf => compose(rootXf, leafXf))
     }
 
     return xfs
-  })
+  }).flatMap(identity)
 
 // xfgraph: a transducer constructor that builds a unified transducer from `graph`.
 export const xfgraph = (g) => {
   const xfs = composeGraph(g, {
     leafFn: ([name], _value) => [tag(name)],
-    rootFn: ([name], _value, xf) => t.compose(detag(name), xf)
+    rootFn: ([name], _value) => [detag(name)]
   })
   return multiplex(xfs)
 }
@@ -76,8 +77,8 @@ export const mapjoin = (f, actives) => {
   })
 
   return graph({
-    ...actives.map((_, i) => t.map(x => [i, x])),
+    ...actives.map((_, i) => map(x => [i, x])),
     out: xf
   },
-  actives.map((_, i) => [$[i], $.out]))
+    actives.map((_, i) => [$[i], $.out]))
 }

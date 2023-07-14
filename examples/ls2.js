@@ -1,18 +1,19 @@
+import * as xf from '../src/xf/index.js'
 import {
   $, chain, graph, takeWhile, mapjoin, map, sink, source, prolog, identity,
   after
 } from '../src/xf/index.js'
-export { run } from '../src/xf/index.js'
+
+export const run = xf.makeRun({}, xf.sources, xf.sinks)
 
 const makeDirNet = ([dirname, ...dirnames], { padding, useTitles }) => {
-
   const entryNames = chain(
     map(x => `${padding}${x.name}`),
     useTitles ? prolog(`\n${dirname}`) : identity
   )
 
   return graph({
-    entries: source('dir', { path: dirname }),
+    entries: source('dir', dirname),
     entryNames,
 
     log: sink('log'),
@@ -64,3 +65,8 @@ export const ls = graph({
   [$.config, $.dirNet[1]],
   [$.dirNet, $.run]
 ])
+
+export const runls = async (...argv) => {
+  xf.pg(ls)
+  await run(ls, ...argv)
+}
