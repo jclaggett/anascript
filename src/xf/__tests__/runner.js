@@ -3,7 +3,7 @@
 // 2. Tests should be defined only in terms of the public API.
 
 import { jest } from '@jest/globals'
-import { flatMap, map, take } from '../xflib'
+import { flatMap, map, take, emit } from '../xflib'
 import { $ } from '../pathref'
 import { graph } from '../graph'
 import { run, source, sink } from '../runner'
@@ -85,11 +85,50 @@ test('pipes work', async () => {
 
   expect(await run(graph({
     a: source('init'),
-    b: flatMap(x => [x.env.USER, x.env.HOME]),
+    b: flatMap(x => [x.env.USER, x.env.HOME, 43]),
     fooOut: sink('pipe', 'foo'),
     fooIn: source('pipe', 'foo'),
-    c: take(1),
+    c: take(2),
     d: sink('log')
   }, [[$.a, $.b], [$.b, $.fooOut], [$.fooIn, $.c], [$.c, $.d]])))
+    .toStrictEqual(undefined)
+})
+
+test('timer works', async () => {
+  expect(await run(graph({
+    a: source('timer', 0),
+    b: take(3),
+    c: sink('debug')
+  }, [
+    [$.a, $.b],
+    [$.b, $.c]
+  ])))
+    .toStrictEqual(undefined)
+})
+
+test('missing sources or sinks work', async () => {
+  expect(await run(graph({
+    a: take(1),
+    b: take(2)
+  }, [
+    [$.a, $.b]
+  ])))
+    .toStrictEqual(undefined)
+})
+
+test('run sink works', async () => {
+  expect(await run(graph({
+    a: source('init'),
+    b: emit(graph({
+      a: source('init'),
+      b: sink('debug')
+    }, [
+      [$.a, $.b]
+    ])),
+    c: sink('run')
+  }, [
+    [$.a, $.b],
+    [$.b, $.c]
+  ])))
     .toStrictEqual(undefined)
 })
