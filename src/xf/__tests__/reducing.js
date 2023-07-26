@@ -3,7 +3,8 @@
 // 2. Tests should be defined only in terms of the exported API.
 
 import {
-  INIT, STEP, RESULT, isReduced, unreduced, reduced, transducer, ezducer
+  INIT, STEP, RESULT, isReduced, unreduced, reduced, transducer, ezducer,
+  transduce, nullReducer, count, toArray, average
 } from '../reducing'
 
 test('reducing fns work', () => {
@@ -86,4 +87,16 @@ test('ezduze defaults work', () => {
     .toStrictEqual(2)
   expect(r2[RESULT](2))
     .toStrictEqual(12)
+})
+
+test('reducers work', () => {
+  const data = [1, 2, 3]
+  expect(transduce(nullReducer, nullReducer[INIT](), data))
+    .toStrictEqual(null)
+  expect(transduce(toArray, toArray[INIT](), data))
+    .toStrictEqual([1, 2, 3])
+  expect(transduce(count, count[INIT](), data))
+    .toStrictEqual(3)
+  expect(transduce(average, average[INIT](), data))
+    .toStrictEqual(2)
 })

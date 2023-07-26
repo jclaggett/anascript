@@ -36,6 +36,10 @@ const reduce = (f, a, vs) => {
   return a
 }
 
+// Like reduce but with a transducer instead of an f
+export const transduce = (r, a, vs) =>
+  r[RESULT](unreduced(reduce(r[STEP], a, vs)))
+
 export const ezducer = (constructor) => {
   return transducer(r => {
     const { step, result } = {
@@ -57,8 +61,35 @@ export const ezducer = (constructor) => {
   })
 }
 
+// reducers
+
 export const nullReducer = {
   [INIT]: () => null,
   [STEP]: (a, _x) => a,
   [RESULT]: (a) => a
+}
+
+export const toArray = {
+  [INIT]: () => [],
+  [STEP]: (a, x) => {
+    a.push(x)
+    return a
+  },
+  [RESULT]: (a) => a
+}
+
+export const count = {
+  [INIT]: () => 0,
+  [STEP]: (a, _x) => a + 1,
+  [RESULT]: (a) => a
+}
+
+export const average = {
+  [INIT]: () => ({ total: 0, count: 0 }),
+  [STEP]: (a, x) => {
+    a.total += x
+    a.count += 1
+    return a
+  },
+  [RESULT]: (a) => a.total / a.count
 }
