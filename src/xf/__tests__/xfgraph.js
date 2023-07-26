@@ -2,7 +2,8 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the public API.
 
-import t from 'transducist'
+import { transduce, toArray } from '../reducing'
+import { map, take } from '../xflib'
 import { identity } from '../util'
 import { $ } from '../pathref'
 import { graph } from '../graph'
@@ -11,7 +12,7 @@ import {
 } from '../xfgraph'
 
 const T = (xf, data) =>
-  t.transduce(data, xf, t.toArray())
+  transduce(xf(toArray), [], data)
 
 test('composeGraph works', () => {
   expect(composeGraph(graph(), {
@@ -28,8 +29,8 @@ test('xfgraph works', () => {
   const g = graph({
     a: identity,
     b: identity,
-    c: t.map(x => x + 1),
-    d: t.take(1)
+    c: map(x => x + 1),
+    d: take(1)
   }, [[$.a, $.c], [$.a, $.d], [$.b, $.d]])
 
   expect(T(xfgraph(g), [['a', 3], ['b', 2]]))
@@ -41,7 +42,11 @@ test('mapjoin works', () => {
     a: identity,
     b: identity,
     c: mapjoin((x, y) => x + y, [true, false])
-  }, [[$.a, $.c[0]], [$.b, $.c[1]]])),
-  [['a', 3], ['b', 2], ['b', 3], ['b', 4], ['a', 5]]))
+  }, [
+    [$.a, $.c[0]],
+    [$.b, $.c[1]]
+  ])), [
+    ['a', 3], ['b', 2], ['b', 3], ['b', 4], ['a', 5]
+  ]))
     .toStrictEqual([['c', 5], ['c', 9], ['c']])
 })

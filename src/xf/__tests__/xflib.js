@@ -2,7 +2,8 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the public API.
 
-import t from 'transducist'
+import { transduce, toArray } from '../reducing'
+import { compose } from '../util'
 import {
   after,
   dedupe,
@@ -30,7 +31,7 @@ const data = [1, 2, 3]
 const data2 = [1, 2, 2, 3, 2]
 
 const T = (xf, data) =>
-  t.transduce(data, xf, t.toArray())
+  transduce(xf(toArray), [], data)
 
 test('flatMap works', () => {
   expect(T(flatMap(x => [x + 1, -x]), data))
@@ -81,7 +82,7 @@ test('dedupe works', () => {
 test('prolog works', () => {
   expect(T(prolog(42), data))
     .toStrictEqual([42, 1, 2, 3])
-  expect(T(t.compose(prolog(42), t.take(1)), data))
+  expect(T(compose(prolog(42), take(1)), data))
     .toStrictEqual([42])
   expect(T(prolog(42), []))
     .toStrictEqual([42])
@@ -140,24 +141,24 @@ test('tag works', () => {
 test('detag works', () => {
   expect(T(detag(true), data))
     .toStrictEqual([])
-  expect(T(t.compose(tag(true), detag(true)), data))
+  expect(T(compose(tag(true), detag(true)), data))
     .toStrictEqual([1, 2, 3])
 })
 
 test('multiplex works', () => {
   expect(T(multiplex([]), data))
     .toStrictEqual([])
-  expect(T(multiplex([t.map(x => x + 1)]), data))
+  expect(T(multiplex([map(x => x + 1)]), data))
     .toStrictEqual([2, 3, 4])
-  expect(T(multiplex([t.map(x => -x), t.take(2)]), data))
+  expect(T(multiplex([map(x => -x), take(2)]), data))
     .toStrictEqual([-1, 1, -2, 2, -3])
 })
 
 test('demultiplex works', () => {
-  expect(T(t.compose(demultiplex(1), t.map(x => x + 1)), data))
+  expect(T(compose(demultiplex(1), map(x => x + 1)), data))
     .toStrictEqual([2, 3, 4])
 
-  const tail = t.compose(demultiplex(2), t.take(3))
+  const tail = compose(demultiplex(2), take(3))
   expect(T(multiplex([tail, tail]), data))
     .toStrictEqual([1, 1, 2])
 })
