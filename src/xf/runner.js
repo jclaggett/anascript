@@ -3,19 +3,24 @@
 // sources into sinks via a given graph.
 import { opendir } from 'fs/promises'
 import * as r from './reducing.js'
-import * as xf from './xflib.js'
 import { composeGraph } from './xfgraph.js'
 
 // Use derive to make efficient clones of nested environments.
 const derive = Object.setPrototypeOf
 
-const makeMapSink = (f) =>
-  () => [xf.map(f)]
+const call = (f) => [
+  r.transducer(_rf => ({
+    [r.STEP]: (a, x) => {
+      f(x)
+      return a
+    }
+  }))
+]
 
 export const sinks = {
-  dir: makeMapSink(console.dir),
-  debug: makeMapSink(console.debug),
-  log: makeMapSink(console.log)
+  debug: () => call(console.debug),
+  log: () => call(console.log),
+  call
 }
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
@@ -30,7 +35,7 @@ export const sources = {
   timer: (ms) => [
     r.transducer(rf => {
       return {
-        [r.STEP]: async (a, _) => {
+        [r.STEP]: async (a, _x) => {
           let then = Date.now()
           while (!r.isReduced(a)) {
             await sleep(ms - (Date.now() - then))

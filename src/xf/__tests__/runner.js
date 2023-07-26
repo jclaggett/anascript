@@ -24,22 +24,28 @@ test('run works', async () => {
   })))
     .toStrictEqual(undefined)
 
+  let result = []
   expect(await run(graph({
     a: source('init'),
     b: map(x => x.argv[0]),
     c: map(x => x.env.USER),
-    d: sink('debug')
+    d: sink('call', (x) => result.push(x))
   }, [
     [$.a, $.b], [$.a, $.c], [$.b, $.d], [$.c, $.d]
   ]), 'hello'))
     .toStrictEqual(undefined)
+  expect(result)
+    .toStrictEqual(['hello', process.env.USER])
 
+  result = []
   expect(await run(graph({
     a: source('init'),
     b: take(0),
-    c: sink('debug')
+    c: sink('call', (x) => result.push(x))
   }, [[$.a, $.b], [$.b, $.c]])))
     .toStrictEqual(undefined)
+  expect(result)
+    .toStrictEqual([])
 })
 
 test('various sources and sinks work', async () => {
