@@ -22,8 +22,6 @@
   },
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test-coverage": "jest --coverage coverage",
-    "test-watch": "jest --watch",
     "lint": "eslint src",
     "lint-fix": "eslint --fix src",
     "start": "node src/repl.js",
