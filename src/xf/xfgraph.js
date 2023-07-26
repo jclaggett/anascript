@@ -80,5 +80,5 @@ export const mapjoin = (f, actives) => {
     ...actives.map((_, i) => map(x => [i, x])),
     out: xf
   },
-    actives.map((_, i) => [$[i], $.out]))
+  actives.map((_, i) => [$[i], $.out]))
 }
