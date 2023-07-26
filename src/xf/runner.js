@@ -5,34 +5,15 @@ import { opendir } from 'fs/promises'
 import * as r from './reducing.js'
 import { composeGraph } from './xfgraph.js'
 
-// Use derive to make efficient clones of nested environments.
-const derive = Object.setPrototypeOf
-
-const call = (f) => [
-  r.transducer(_rf => ({
-    [r.STEP]: (a, x) => {
-      f(x)
-      return a
-    }
-  }))
-]
-
-export const sinks = {
-  debug: () => call(console.debug),
-  log: () => call(console.log),
-  call
-}
-
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
 export const sources = {
-  init: () => [
+  init: () =>
     r.transducer(rf => ({
       [r.STEP]: async (a, x) => rf[r.STEP](a, x)
-    }))
-  ],
+    })),
 
-  timer: (ms) => [
+  timer: (ms) =>
     r.transducer(rf => {
       return {
         [r.STEP]: async (a, _x) => {
@@ -46,11 +27,9 @@ export const sources = {
           return a
         }
       }
-    }
-    )
-  ],
+    }),
 
-  dir: (path) => [
+  dir: (path) =>
     r.transducer(rf => ({
       [r.STEP]: async (a, _x) => {
         const dir = await opendir(path)
@@ -60,23 +39,10 @@ export const sources = {
         return a
       }
     }))
-  ]
 }
 
-const makeEdgeFn = (edgeType, edges) =>
-  (_path, value) => {
-    if (Array.isArray(value)) {
-      const [et, name, ...args] = value
-      return ((et === edgeType) && (edges[name] != null))
-        ? edges[name](...args)
-        : []
-    } else {
-      return []
-    }
-  }
-
-const makePipeSource = (pipes) =>
-  (name) => [
+const pipeSourceConstructor = (pipes) =>
+  (name) =>
     r.transducer(rf => {
       return {
         [r.STEP]: async (a, _x) => {
@@ -96,50 +62,63 @@ const makePipeSource = (pipes) =>
         }
       }
     })
-  ]
 
-const makePipeSink = (pipes) =>
-  (name) => [
-    r.transducer(rf => {
-      return {
-        [r.STEP]: (a, x) => {
-          setImmediate(() => {
-            if (pipes[name] != null) {
-              pipes[name].send(x)
-            }
-          })
-          return a
-        },
-        [r.RESULT]: (a) => {
-          return rf[r.RESULT](a)
-        }
-      }
-    })
-  ]
+// Special 'sink' transducer that calls f(x) each STEP without calling down to the next STEP.
+// f(x) is assumed to perform a side effect of some kind.
+const callSink = (f) =>
+  r.transducer(_ => ({
+    [r.STEP]: (a, x) => {
+      f(x)
+      return a
+    }
+  }))
 
-const makeRunSink = (childPromises, initValue, sources, sinks, pipes) =>
-  () => [
-    r.transducer(rf => {
-      return {
-        [r.STEP]: (a, x) => {
-          childPromises.push(runGraph(x, initValue, sources, sinks, pipes))
-          return rf[r.STEP](a, x)
+const pipeSinkConstructor = (pipes) =>
+  (name) =>
+    callSink((x) =>
+      setImmediate(() => {
+        if (pipes[name] != null) {
+          pipes[name].send(x)
         }
-      }
-    })
-  ]
+      }))
+
+const runSinkConstructor = (childPromises, initValue, sources, sinks, pipes) =>
+  () =>
+    callSink((x) => childPromises.push(
+      runGraph(x, initValue, sources, sinks, pipes)))
+
+export const sinks = {
+  debug: () => callSink(console.debug),
+  log: () => callSink(console.log),
+  call: callSink
+}
+
+const makeEdgeFn = (edgeType, edges) =>
+  (_path, value) => {
+    if (Array.isArray(value)) {
+      const [et, name, ...args] = value
+      return ((et === edgeType) && (edges[name] != null))
+        ? [edges[name](...args)]
+        : []
+    } else {
+      return []
+    }
+  }
+
+// Use derive to make efficient clones of nested environments.
+const derive = Object.setPrototypeOf
 
 const runGraph = async (g, initValue, sources, sinks, pipes) => {
   const childPromises = []
   const pipes2 = derive({}, pipes)
 
   const sources2 = derive({
-    pipe: makePipeSource(pipes2)
+    pipe: pipeSourceConstructor(pipes2)
   }, sources)
 
   const sinks2 = derive({
-    run: makeRunSink(childPromises, initValue, sources, sinks, pipes2),
-    pipe: makePipeSink(pipes2)
+    run: runSinkConstructor(childPromises, initValue, sources, sinks, pipes2),
+    pipe: pipeSinkConstructor(pipes2)
   }, sinks)
 
   const xfs = composeGraph(g, {
