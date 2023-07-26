@@ -157,6 +157,8 @@ const runGraph = async (g, initValue, sources, sinks, pipes) => {
 export const makeRun = (initValue, sources, sinks) =>
   (g, ...argv) => runGraph(g, { ...initValue, argv }, sources, sinks, {})
 
+export const run = makeRun({ env: process.env }, sources, sinks)
+
 // define sources and sinks
 export const source = (...value) => ['source', ...value]
 export const sink = (...value) => ['sink', ...value]

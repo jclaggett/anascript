@@ -3,8 +3,7 @@
 // 2. Tests should be defined only in terms of the public API.
 
 import { jest } from '@jest/globals'
-import t from 'transducist'
-import { map, take } from '../xflib'
+import { flatMap, map, take } from '../xflib'
 import { $ } from '../pathref'
 import { graph } from '../graph'
 import { run, source, sink } from '../runner'
@@ -30,8 +29,9 @@ test('run works', async () => {
     b: map(x => x.argv[0]),
     c: map(x => x.env.USER),
     d: sink('debug')
-  }, [[$.a, $.b], [$.a, $.c], [$.b, $.d], [$.c, $.d]]),
-  'hello'))
+  }, [
+    [$.a, $.b], [$.a, $.c], [$.b, $.d], [$.c, $.d]
+  ]), 'hello'))
     .toStrictEqual(undefined)
 
   expect(await run(graph({
@@ -50,7 +50,7 @@ test('various sources and sinks work', async () => {
     .toStrictEqual(undefined)
 
   expect(await run(graph({
-    a: source('dir', { path: '.' }),
+    a: source('dir', '.'),
     b: take(1),
     c: sink('debug')
   }, [[$.a, $.b], [$.b, $.c]])))
@@ -66,7 +66,7 @@ test('various sources and sinks work', async () => {
 
   expect(await run(graph({
     a: source('init'),
-    b: t.flatMap(x => [x.env.USER, x.env.HOME]),
+    b: flatMap(x => [x.env.USER, x.env.HOME]),
     fooOut: sink('pipe', 'foo'),
     fooIn: source('pipe', 'foo'),
     c: take(1),
@@ -85,7 +85,7 @@ test('pipes work', async () => {
 
   expect(await run(graph({
     a: source('init'),
-    b: t.flatMap(x => [x.env.USER, x.env.HOME]),
+    b: flatMap(x => [x.env.USER, x.env.HOME]),
     fooOut: sink('pipe', 'foo'),
     fooIn: source('pipe', 'foo'),
     c: take(1),
