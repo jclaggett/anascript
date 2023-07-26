@@ -31,6 +31,6 @@ jobs:
       with:
         version: 7
         run_install: false
-    - run: pnpm run install
+    - run: pnpm install
     - run: pnpm run lint
     - run: pnpm run test --coverage
