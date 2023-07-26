@@ -2,7 +2,6 @@
 // transducer graphs and to provide runners that 'transduce' values from
 // sources into sinks via a given graph.
 import { opendir } from 'fs/promises'
-
 import * as r from './reducing.js'
 import * as xf from './xflib.js'
 import { composeGraph } from './xfgraph.js'
@@ -19,11 +18,31 @@ export const sinks = {
   log: makeMapSink(console.log)
 }
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
 export const sources = {
   init: () => [
     r.transducer(rf => ({
       [r.STEP]: async (a, x) => rf[r.STEP](a, x)
     }))
+  ],
+
+  timer: (ms) => [
+    r.transducer(rf => {
+      return {
+        [r.STEP]: async (a, _) => {
+          let then = Date.now()
+          while (!r.isReduced(a)) {
+            await sleep(ms - (Date.now() - then))
+            then = Date.now()
+            a = rf[r.STEP](a, then)
+            then += 1
+          }
+          return a
+        }
+      }
+    }
+    )
   ],
 
   dir: (path) => [
