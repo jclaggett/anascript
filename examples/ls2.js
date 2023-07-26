@@ -1,10 +1,8 @@
-import * as xf from '../src/xf/index.js'
+import * as xf from '../src/xf/index'
 import {
   $, chain, graph, takeWhile, mapjoin, map, sink, source, prolog, identity,
-  after
-} from '../src/xf/index.js'
-
-export const run = xf.makeRun({}, xf.sources, xf.sinks)
+  after, run
+} from '../src/xf/index'
 
 const makeDirNet = ([dirname, ...dirnames], { padding, useTitles }) => {
   const entryNames = chain(

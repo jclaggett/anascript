@@ -1,6 +1,6 @@
 // Goal is to try out the new runGraph
-import * as xf from '../src/xf/index.js'
-import { $ } from '../src/xf/index.js'
+import * as xf from '../src/xf/index'
+import { $ } from '../src/xf/index'
 
 const run = xf.makeRun(
   { wheee: 42 },

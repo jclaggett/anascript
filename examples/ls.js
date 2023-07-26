@@ -1,7 +1,6 @@
-const { flatMap } = require('transducist')
-const {
-  $, map, net, sink, source, xfnode
-} = require('../src/xf')
+import {
+  $, flatMap, map, net, sink, source, xfnode
+} from '../src/xf'
 
 const makeDirNets = ({ dirnames, padding, useTitles }) =>
   dirnames.map(dirname =>
@@ -27,8 +26,7 @@ const ls = net({
       padding: ' '.repeat(useTitles ? 4 : 0),
       dirnames: argv
     }
-  },
-  $.init),
+  }, $.init),
 
   dirNets: xfnode(flatMap(makeDirNets), $.config),
 

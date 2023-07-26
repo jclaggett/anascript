@@ -1,4 +1,3 @@
-import t from 'transducist'
 import * as xf from '../src/xf/index.js'
 import * as readline from 'node:readline/promises'
 import { stdin, stdout } from 'node:process'
@@ -12,7 +11,7 @@ export const run = async () => {
   const sampleXf = xf.compose(xf.take(2), xf.map(x => x + 1))
 
   // use it on some values
-  const result1 = t.transduce([1, 2, 3], sampleXf, t.toArray())
+  const result1 = xf.transduce(sampleXf(xf.toArray), [], [1, 2, 3])
 
   const axf = xf.transducer(
     r => {
@@ -28,7 +27,7 @@ export const run = async () => {
     }
   )
 
-  const arf = axf(t.toArray())
+  const arf = axf(xf.toArray)
   let a = arf[xf.INIT]()
   a = await arf[xf.STEP](a, 1)
   a = await arf[xf.STEP](a, 2)
