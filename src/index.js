@@ -2,7 +2,7 @@ import { makeList } from './lang.js'
 import { read } from './read.js'
 import { applyExp, initialEnv } from './eval.js'
 
-export { toJS } from './lang.js'
+export { sym, toJS } from './lang.js'
 export { read, parse } from './read.js'
 export { print, printLabel, printSyntax } from './print.js'
 

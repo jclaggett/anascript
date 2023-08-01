@@ -8,7 +8,8 @@ import {
   printLabel,
   printSyntax,
   read,
-  toJS
+  toJS,
+  sym
 } from '../index'
 
 const RE = str =>
@@ -147,6 +148,10 @@ test('common functions', () => {
     .toStrictEqual(42)
   expect(REJ('[(= 1 1) (= null null) (= "a" "b")]'))
     .toStrictEqual([true, true, false])
+  expect(REJ('(str \\a "b" 2)'))
+    .toStrictEqual('ab2')
+  expect(REJ('(sym \\a "b" 2)'))
+    .toStrictEqual(sym('ab2'))
 })
 
 test('boolean functions', () => {

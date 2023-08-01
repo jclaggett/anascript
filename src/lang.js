@@ -19,7 +19,8 @@ const Sym = im.Record({ sym: null }, 'Sym')
 export const makeSym = sym => Sym({ sym })
 
 export const syms = { env: makeSym('env') }
-export const sym = name => {
+export const sym = (...args) => {
+  const name = str(...args)
   if (!(name in syms)) {
     syms[name] = makeSym(name)
   }
@@ -192,6 +193,9 @@ export const bitXor = (...xs) =>
     : xs.length === 1
       ? xs[0]
       : xs.reduce((x, y) => x ^ y)
+
+export const str = (...xs) =>
+  ''.concat(...xs.map(x => isSym(x) ? x.sym : x))
 
 export const keys = x =>
   (x === undefined)

@@ -353,6 +353,8 @@ export const initialEnv = defEnv({
   get,
   count,
   identity,
+  str: lang.str,
+  sym: lang.sym,
 
   '=': lang.is,
   abs: lang.abs,
