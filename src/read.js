@@ -42,6 +42,7 @@ const formChild = ast =>
   ast.children.length > 0
     ? form(ast.children[0])
     : makeList()
+
 const formSymList = (name, formFn) =>
   ast =>
     makeForm(name, ...formFn(ast))
@@ -55,16 +56,18 @@ const formRules = {
   form3: formChild,
   form4: formChild,
 
-  comment: formSymList('comment', formChildren),
-  label: formSymList('label', formChildren),
-  expand: formSymList('expand', formChildren),
-  quote: formSymList('quote', formChildren),
-  spread: formSymList('spread', formChildren),
+  // The three collection syntaxes all have a single, optional child of 'forms'
   round: formChild,
   square: formSymList('list', formChild),
   curly: ast => ast.text[0] === '~'
     ? makeForm('remove', formSetChild(ast))
     : formSetChild(ast),
+
+  comment: formSymList('comment', formChildren),
+  label: formSymList('label', formChildren),
+  expand: formSymList('expand', formChildren),
+  quote: formSymList('quote', formChildren),
+  spread: formSymList('spread', formChildren),
   number: ast => parseFloat(ast.text),
   string: ast => ast.text.substr(1, ast.text.length - 2),
   boolean: ast => ast.text === 'true',
