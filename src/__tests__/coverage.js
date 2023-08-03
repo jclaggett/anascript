@@ -290,7 +290,7 @@ test('collection functions', () => {
 })
 
 test('print', () => {
-  expect(print(makeEnv().eval('[env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null) ~{1 2 3}]')))
+  expect(print(makeEnv().eval('[_env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null) ~{1 2 3}]')))
     .toBeDefined()
   expect(print(makeEnv().eval('42').last().last().last(), {}))
     .toStrictEqual(42)
@@ -302,6 +302,6 @@ test('printLabel', () => {
 })
 
 test('printSyntax', () => {
-  expect(printSyntax(makeEnv().eval('[env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null) ~{1 2 3}]')))
+  expect(printSyntax(makeEnv().eval('[_env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null) ~{1 2 3}]')))
     .toBeDefined()
 })

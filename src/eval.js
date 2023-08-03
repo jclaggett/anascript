@@ -6,7 +6,7 @@ import * as print from './print.js'
 
 // Evaluating
 const getEnv = (env, exp) =>
-  lang.is(exp, lang.sym('env'))
+  lang.is(exp, lang.sym('_env'))
     ? env
     : env.get(exp)
 
