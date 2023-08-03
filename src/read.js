@@ -38,36 +38,33 @@ const formChildren = ast =>
     .map(form)
     .filter(x => !isForm(x, 'comment')))
 
-const formChild = ast =>
+const replaceWithChild = ast =>
   ast.children.length > 0
     ? form(ast.children[0])
     : makeList()
 
-const formSymList = (name, formFn) =>
-  ast =>
-    makeForm(name, ...formFn(ast))
-
-const formSetChild = formSymList('set', formChild)
-
 const formRules = {
   forms: formChildren,
-  form1: formChild,
-  form2: formChild,
-  form3: formChild,
-  form4: formChild,
+  form1: replaceWithChild,
+  form2: replaceWithChild,
+  form3: replaceWithChild,
+  form4: replaceWithChild,
 
   // The three collection syntaxes all have a single, optional child of 'forms'
-  round: formChild,
-  square: formSymList('list', formChild),
-  curly: ast => ast.text[0] === '~'
-    ? makeForm('remove', formSetChild(ast))
-    : formSetChild(ast),
+  round: replaceWithChild,
+  square: ast => makeForm('list', ...replaceWithChild(ast)),
+  curly: ast => {
+    const setForm = makeForm('set', ...replaceWithChild(ast))
+    return ast.text[0] === '~'
+      ? makeForm('remove', setForm)
+      : setForm
+  },
 
-  comment: formSymList('comment', formChildren),
-  label: formSymList('label', formChildren),
-  expand: formSymList('expand', formChildren),
-  quote: formSymList('quote', formChildren),
-  spread: formSymList('spread', formChildren),
+  comment: ast => makeForm('comment', ...formChildren(ast)),
+  label: ast => makeForm('label', ...formChildren(ast)),
+  expand: ast => makeForm('expand', ...formChildren(ast)),
+  quote: ast => makeForm('quote', ...formChildren(ast)),
+  spread: ast => makeForm('spread', ...formChildren(ast)),
   number: ast => parseFloat(ast.text),
   string: ast => ast.text.substr(1, ast.text.length - 2),
   boolean: ast => ast.text === 'true',
