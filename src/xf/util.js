@@ -11,3 +11,5 @@ export const butLast = (x) => x.slice(0, -1)
 export const isEmpty = (x) => x.length === 0
 
 export const compose = (...fs) => (x) => fs.reduceRight((x, f) => f(x), x)
+
+export const derive = Object.setPrototypeOf

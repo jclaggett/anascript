@@ -7,8 +7,10 @@ import {
   print,
   printLabel,
   printSyntax,
+  emitTree,
   read,
   toJS,
+  transform,
   sym
 } from '../index'
 
@@ -27,6 +29,11 @@ test('parse', () => {
     .toThrow()
 })
 
+test('emitTree', () => {
+  expect(emitTree(transform(parse('0 true "hello" foo null undefined'))))
+    .toBeUndefined()
+})
+
 test('read', () => {
   expect(read('').toJS())
     .toStrictEqual([])
@@ -41,7 +48,7 @@ test('read', () => {
   expect(read('a:b:1').toJS())
     .toStrictEqual([
       [{ sym: 'label' }, { sym: 'a' },
-        [{ sym: 'label' }, { sym: 'b' }, 1]]])
+      [{ sym: 'label' }, { sym: 'b' }, 1]]])
 })
 
 test('toJS', () => {

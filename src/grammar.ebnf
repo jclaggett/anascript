@@ -7,7 +7,7 @@ forms           ::= (WS* form1)* WS*
 form1           ::= comment | form2
 form2           ::= label | form3
 form3           ::= expand | quote | spread | form4
-form4           ::= round | square | curly | number | string | boolean | null | undefined | symbol
+form4           ::= call | list | set | number | string | boolean | null | undefined | symbol
 
 /* Infix syntax */
 label           ::= form3 WS* COLON WS* form1
@@ -19,9 +19,9 @@ expand          ::= DOLLAR_SIGN WS* form3
 quote           ::= BACKSLASH WS* form3
 
 /* Grouping syntax */
-round           ::= LEFT_ROUND forms? RIGHT_ROUND
-square          ::= LEFT_SQUARE forms? RIGHT_SQUARE
-curly           ::= LEFT_CURLY forms? RIGHT_CURLY
+call            ::= LEFT_ROUND forms? RIGHT_ROUND
+list            ::= LEFT_SQUARE forms? RIGHT_SQUARE
+set             ::= LEFT_CURLY forms? RIGHT_CURLY
 
 /* Literal syntax */
 number          ::= "-"? DIGS ("." DIG+)? (("e" | "E") ( "-" | "+" )? DIGS)?

@@ -20,6 +20,9 @@ dependencies:
   marked-terminal:
     specifier: ^5.2.0
     version: 5.2.0(marked@5.1.2)
+  print-tree:
+    specifier: ^0.1.5
+    version: 0.1.5
 
 devDependencies:
   eslint:
@@ -3096,6 +3099,10 @@ packages:
       ansi-styles: 5.2.0
       react-is: 18.2.0
     dev: true
+
+  /print-tree@0.1.5:
+    resolution: {integrity: sha512-t5eFtuheMgWGR3kj1vtxsvfWrrecEEWow3IgEtbW0EPbYRufHAvB+ShK1DgRjWxEYYEqO4B6DNlkoPmh7E3LGQ==}
+    dev: false
 
   /prompts@2.4.2:
     resolution: {integrity: sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q==}
