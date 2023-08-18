@@ -30,6 +30,7 @@
   "dependencies": {
     "chalk": "^4.1.2",
     "ebnf": "^1.9.1",
+    "highlight-es": "^1.0.3",
     "immutable": "^4.3.1",
     "marked": "^5.1.2",
     "marked-terminal": "^5.2.0",
