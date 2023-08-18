@@ -205,3 +205,6 @@ export const keys = x =>
       : isList(x)
         ? makeList(...x.keys())
         : null
+
+export const emptyList = makeList()
+export const emptySet = makeSet()

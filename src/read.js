@@ -4,13 +4,11 @@ import { fileURLToPath } from 'url'
 
 import ebnf from 'ebnf'
 import printTree from 'print-tree'
+import highlightES from 'highlight-es'
 
-import { identity, compose, derive } from './xf/util.js'
-import {
-  makeList,
-  makeSym,
-  syms
-} from './lang.js'
+import { first, last, rest, identity, compose, derive, butLast } from './xf/util.js'
+import * as lang from './lang.js'
+import { printSyntax } from './print.js'
 
 // Parsing: text -> Abstract Syntax Tree (AST)
 
@@ -33,19 +31,42 @@ export const parse = str => {
 
 // Transforming: AST -> AST
 // - remove abstract branches
-// - normalize syntax as calls
+// - normalize calls as syntax
 // - remove comments
+const undefinedAst = { type: 'undefined', text: 'undefined', children: [] }
+const nth = (ast, i) =>
+  (i < 0
+    ? ast.children[ast.children.length + i]
+    : ast.children[i]) ?? undefinedAst
+
+const createSym = (text) =>
+  ({ type: 'symbol', text, children: [] })
+
+const relabel = (lhs, rhs) =>
+  lhs.type === 'label'
+    ? derive({
+      children: [
+        nth(lhs, 0),
+        relabel(nth(lhs, 1), rhs)
+      ]
+    }, lhs)
+    : { type: 'label', text: `${lhs.text}: ${rhs.text}`, children: [lhs, rhs] }
+
+const unshift = (xs, x) => {
+  xs.unshift(x)
+  return xs
+}
+
+const unchainLabels = (ast) =>
+  ast.type === 'label'
+    ? unshift(unchainLabels(nth(ast, 1)), nth(ast, 0))
+    : [ast]
+
 export const transform = (ast) => (transformRules[ast.type] ?? identity)(ast)
 
 const transformChildren = (ast) =>
   derive({
-    children: ast.children
-      .map(transform)
-      // filter out comments
-      .filter((ast) =>
-        !(ast.type === 'call' &&
-          ast.children[0]?.type === 'symbol' &&
-          ast.children[0]?.text === 'comment'))
+    children: ast.children.map(transform)
   }, ast)
 
 const replaceSelfWithChild = (ast) =>
@@ -55,6 +76,26 @@ const replaceChildWithSelf = (ast) =>
   ast.children.length > 0
     ? derive({
       children: ast.children[0].children
+    }, ast)
+    : ast
+
+const syntaxCalls = Object.fromEntries([
+  '+',
+  'comment',
+  'do',
+  'expand',
+  'fn',
+  'if',
+  'label',
+  'quote',
+  'spread'
+].map(x => [x, 0]))
+
+const transformCallToSyntax = (ast) =>
+  syntaxCalls[ast.children[0]?.text] != null
+    ? derive({
+      type: nth(ast, 0).text,
+      children: ast.children.slice(1)
     }, ast)
     : ast
 
@@ -71,13 +112,12 @@ const insertRemove = (ast) =>
   ast.text[0] === '~'
     ? derive({
       type: 'call',
-      children: [{ type: 'symbol', text: 'remove', children: [] }, ast]
+      children: [createSym('remove'), ast]
     }, ast)
     : ast
 
 const removeForm = compose(transform, replaceSelfWithChild)
-const transformSyntax = compose(replaceWithCall, transformChildren)
-const transformCall = compose(transformChildren, replaceChildWithSelf)
+const transformCall = compose(transformChildren, transformCallToSyntax, replaceChildWithSelf)
 const transformList = compose(replaceWithCall, transformCall)
 const transformSet = compose(insertRemove, transformList)
 
@@ -87,24 +127,32 @@ const transformRules = {
   form2: removeForm,
   form3: removeForm,
   form4: removeForm,
-  comment: replaceWithCall,
-  label: transformSyntax,
-  spread: transformSyntax,
-  expand: transformSyntax,
-  quote: transformSyntax,
+  comment: transformChildren,
+  label: transformChildren,
+  spread: transformChildren,
+  expand: transformChildren,
+  quote: transformChildren,
   call: transformCall,
   list: transformList,
   set: transformSet
 }
 
 // Emitting 1: AST -> Lisp
-export const emitLisp = (ast) => emitRules[ast.type](ast)
-const emitList = (ast) => makeList(...ast.children.map(emitLisp))
+export const emitLisp = (ast) =>
+  (emitLispRules[ast.type] ?? emitSpecial)(ast)
+const emitChildren = (ast) =>
+  ast.children
+    .filter(child => child.type !== 'comment')
+    .map(emitLisp)
+const emitSpecial = (ast) =>
+  lang.makeList(lang.sym(ast.type), ...emitChildren(ast))
+const emitList = (ast) =>
+  lang.makeList(...emitChildren(ast))
 
-const emitRules = {
+const emitLispRules = {
   forms: emitList,
   call: emitList,
-  symbol: (ast) => syms[ast.text] || makeSym(ast.text),
+  symbol: (ast) => lang.sym(ast.text),
   number: (ast) => parseFloat(ast.text),
   string: (ast) => ast.text.substr(1, ast.text.length - 2),
   boolean: (ast) => ast.text === 'true',
@@ -112,7 +160,126 @@ const emitRules = {
   undefined: (_ast) => undefined
 }
 
-// Emitting 2: AST -> Javascript
+// Emitting 2: AST -> JS
+
+let nameIndex = 0
+
+const createJSEmitter = (scope) => {
+  const emit = (ast) => (emitRules[ast.type] ?? emitText)(ast)
+  const emitText = (ast) => ast.text
+  const emitBlock = (ast) => ast.children.map(emit)
+    .join(`;\n${scope._indent}`)
+    .concat(';')
+
+  const emitLabel = (ast) => {
+    const asts = unchainLabels(ast)
+    const rhs = emit(last(asts))
+    return asts.length > 2
+      ? `tmp = ${rhs};\n${scope._indent}` + butLast(asts)
+        .map(lhs => `const ${emitScopedSetName(lhs)} = tmp`)
+        .join(`;\n${scope._indent}`)
+      : `const ${emitScopedSetName(first(asts))} = ${rhs}`
+  }
+
+  const emitReturnValue = (ast) =>
+    ast.type === 'label'
+      ? emitReturnValue(nth(ast, 1))
+      : emit(ast)
+
+  const emitFn = (ast) => { // call 'fn' args ...body
+    const _indent = scope._indent + '  '
+    const emitJS = createJSEmitter(derive({ _indent }, scope))
+    const returnValue = 'return ' + emitReturnValue(
+      ast.children.length > 1
+        ? nth(ast, -1)
+        : undefinedAst)
+    const body = [
+      relabel(nth(ast, 0), { type: 'text', text: 'args', children: [] }),
+      ...ast.children.slice(1, -1)
+    ].map(emitJS).concat([returnValue]).join(`;\n${_indent}`)
+    return `((...args) => {\n${_indent}${body};\n${scope._indent}})`
+  }
+
+  const emitDo = (ast) => { // call 'fn' ...body
+    const _indent = scope._indent + '  '
+    const emitJS = createJSEmitter(derive({ _indent }, scope))
+    const returnValue = 'return ' + emitReturnValue(
+      ast.children.length > 0
+        ? nth(ast, -1)
+        : undefinedAst)
+    const body = butLast(ast.children).map(emitJS).concat([returnValue]).join(`;\n${_indent}`)
+    return `(() => {\n${_indent}${body};\n${scope._indent}})()`
+  }
+
+  const emitScopedGetName = (ast) => {
+    if (scope[ast.text] == null) {
+      scope[ast.text] = `v${nameIndex++}`
+    }
+    return scope[ast.text]
+  }
+
+  const emitScopedSetName = (ast) => {
+    if (scope[ast.text] == null || Object.hasOwn(scope, ast.text)) {
+      scope[ast.text] = `v${nameIndex++}`
+    }
+    return scope[ast.text]
+  }
+
+  const emitCall = (ast) =>
+    ast.children.length > 0
+      ? `${emit(nth(ast, 0))}(${rest(ast.children).map(emit).join(', ')})`
+      : 'lang.emptyList'
+
+  const emitRules = {
+    comment: (_ast) => '',
+    forms: emitBlock,
+    label: emitLabel,
+    expand: (ast) => emitScopedGetName(nth(ast, 0)),
+    call: emitCall,
+    symbol: emitScopedGetName,
+    fn: emitFn,
+    do: emitDo,
+    if: (ast) =>
+      `(${emit(nth(ast, 0))} ? ${emit(nth(ast, 1))} : ${emit(nth(ast, 2))})`,
+    '+': (ast) =>
+      ast.children.length === 0
+        ? '0'
+        : ast.children.length === 1
+          ? emit(nth(ast, 0))
+          : `(${ast.children.map(emit).join(' + ')})`
+  }
+
+  return emit
+}
+
+export const emitJS = createJSEmitter({
+  _indent: '',
+  list: 'lang.makeList',
+  set: 'lang.makeSet',
+  'fn?': 'lang.isFn',
+  'pos?': 'lang.isPos',
+  'neg?': 'lang.isNeg',
+  'zero?': 'lang.isZero'
+})
+
+export const testJS = (str) => {
+  nameIndex = 0
+
+  const ast = parse(`(do ${str})`)
+  console.log('_________')
+  emitTree(ast)
+
+  const ast2 = transform(ast)
+  console.log('_________')
+  emitTree(ast2)
+
+  const lisp = emitLisp(ast2)
+  console.log(`_________\n${printSyntax(lisp)}`)
+
+  const text = 'let tmp = null;\n' + emitJS(ast2)
+  console.log(`_________\n${highlightES(text)}\n_________`)
+  return lang.toJS(eval(text))
+}
 
 // Emitting 3: AST -> str
 export const emitTree = (ast) =>
@@ -120,7 +287,7 @@ export const emitTree = (ast) =>
     node => node.type + (
       node.children.length > 0
         ? ''
-        : ' "' + node.text + '"'),
+        : " '" + node.text + "'"),
     node => node.children)
 
 // legacy api
