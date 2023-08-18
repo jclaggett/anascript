@@ -25,7 +25,7 @@
   "rules": {
     "complexity": ["error", { "max": 15 }],
     "max-depth": ["error", {"max": 4}],
-    "max-lines-per-function": ["error", { "max": 40, "skipBlankLines": true, "skipComments": true}],
+    "max-lines-per-function": ["error", { "max": 100, "skipBlankLines": true, "skipComments": true}],
     "max-nested-callbacks": ["error", { "max": 3 }],
     "max-statements": ["error", { "max": 15 }],
     "no-constant-condition": ["error", { "checkLoops": false }]
