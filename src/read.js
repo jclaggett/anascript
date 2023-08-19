@@ -176,8 +176,8 @@ const createJSEmitter = (scope) => {
     const rhs = emit(last(asts))
     return asts.length > 2
       ? `tmp = ${rhs};\n${scope._indent}` + butLast(asts)
-        .map(lhs => `const ${emitScopedSetName(lhs)} = tmp`)
-        .join(`;\n${scope._indent}`)
+      .map(lhs => `const ${emitScopedSetName(lhs)} = tmp`)
+      .join(`;\n${scope._indent}`)
       : `const ${emitScopedSetName(first(asts))} = ${rhs}`
   }
 
@@ -278,6 +278,8 @@ export const testJS = (str) => {
 
   const text = 'let tmp = null;\n' + emitJS(ast2)
   console.log(`_________\n${highlightES(text)}\n_________`)
+
+  // eslint-disable-next-line no-eval
   return lang.toJS(eval(text))
 }
 

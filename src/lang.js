@@ -118,8 +118,12 @@ const s = {
 const cmdReducer = (a, b, c, d) =>
   (x, y) =>
     (isComplement(x)
-      ? isComplement(y) ? a : b
-      : isComplement(y) ? c : d)(x, y)
+      ? isComplement(y)
+        ? a
+        : b
+      : isComplement(y)
+        ? c
+        : d)(x, y)
 
 export const difference = (...xs) =>
   xs.length === 0
