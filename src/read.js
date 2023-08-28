@@ -6,7 +6,7 @@ import ebnf from 'ebnf'
 import printTree from 'print-tree'
 import highlightES from 'highlight-es'
 
-import { first, last, rest, identity, compose, derive, butLast } from './xf/util.js'
+import { first, rest, identity, compose, derive, butLast, contains } from './xf/util.js'
 import * as lang from './lang.js'
 import { printSyntax } from './print.js'
 
@@ -39,6 +39,8 @@ const nth = (ast, i) =>
     ? ast.children[ast.children.length + i]
     : ast.children[i]) ?? undefinedAst
 
+const isLiteral = contains('number', 'string', 'boolean', 'null', 'undefined')
+
 const createSym = (text) =>
   ({ type: 'symbol', text, children: [] })
 
@@ -52,15 +54,20 @@ const relabel = (lhs, rhs) =>
     }, lhs)
     : { type: 'label', text: `${lhs.text}: ${rhs.text}`, children: [lhs, rhs] }
 
-const unshift = (xs, x) => {
-  xs.unshift(x)
+const push = (xs, x) => {
+  xs.push(x)
   return xs
 }
 
 const unchainLabels = (ast) =>
   ast.type === 'label'
-    ? unshift(unchainLabels(nth(ast, 1)), nth(ast, 0))
+    ? push(unchainLabels(nth(ast, 1)), nth(ast, 0))
     : [ast]
+
+const getRhs = (ast) =>
+  ast.type === 'label'
+    ? getRhs(nth(ast, 1))
+    : ast
 
 export const transform = (ast) => (transformRules[ast.type] ?? identity)(ast)
 
@@ -79,8 +86,11 @@ const replaceChildWithSelf = (ast) =>
     }, ast)
     : ast
 
-const syntaxCalls = Object.fromEntries([
+const isSyntaxCall = contains(
   '+',
+  '-',
+  '*',
+  '/',
   'comment',
   'do',
   'expand',
@@ -88,11 +98,10 @@ const syntaxCalls = Object.fromEntries([
   'if',
   'label',
   'quote',
-  'spread'
-].map(x => [x, 0]))
+  'spread')
 
 const transformCallToSyntax = (ast) =>
-  syntaxCalls[ast.children[0]?.text] != null
+  isSyntaxCall(ast.children[0]?.text)
     ? derive({
       type: nth(ast, 0).text,
       children: ast.children.slice(1)
@@ -164,6 +173,33 @@ const emitLispRules = {
 
 let nameIndex = 0
 
+const emitMathRules = (emit) => ({
+  '+': (ast) =>
+    ast.children.length === 0
+      ? '0'
+      : ast.children.length === 1
+        ? emit(nth(ast, 0))
+        : `(${ast.children.map(emit).join(' + ')})`,
+  '-': (ast) =>
+    ast.children.length === 0
+      ? 'NaN'
+      : ast.children.length === 1
+        ? `(0 - ${emit(nth(ast, 0))})`
+        : `(${ast.children.map(emit).join(' - ')})`,
+  '*': (ast) =>
+    ast.children.length === 0
+      ? '1'
+      : ast.children.length === 1
+        ? emit(nth(ast, 0))
+        : `(${ast.children.map(emit).join(' * ')})`,
+  '/': (ast) =>
+    ast.children.length === 0
+      ? 'NaN'
+      : ast.children.length === 1
+        ? `(1 / ${emit(nth(ast, 0))})`
+        : `(${ast.children.map(emit).join(' / ')})`
+})
+
 const createJSEmitter = (scope) => {
   const emit = (ast) => (emitRules[ast.type] ?? emitText)(ast)
   const emitText = (ast) => ast.text
@@ -173,53 +209,62 @@ const createJSEmitter = (scope) => {
 
   const emitLabel = (ast) => {
     const asts = unchainLabels(ast)
-    const rhs = emit(last(asts))
+    const rhs = emit(first(asts))
+
+    // Don't emit anything if the value to be set is a literal.
+    // Instead set the names to that literal.
+    if (isLiteral(first(asts))) {
+      return rest(asts)
+        .map(ast => `// ${ast.text} = ${emitScopedSetName(ast, rhs)}`)
+    }
     return asts.length > 2
-      ? `tmp = ${rhs};\n${scope._indent}` + butLast(asts)
+      ? `tmp = ${rhs};\n${scope._indent}` + rest(asts)
       .map(lhs => `const ${emitScopedSetName(lhs)} = tmp`)
       .join(`;\n${scope._indent}`)
       : `const ${emitScopedSetName(first(asts))} = ${rhs}`
   }
 
-  const emitReturnValue = (ast) =>
-    ast.type === 'label'
-      ? emitReturnValue(nth(ast, 1))
-      : emit(ast)
-
   const emitFn = (ast) => { // call 'fn' args ...body
     const _indent = scope._indent + '  '
     const emitJS = createJSEmitter(derive({ _indent }, scope))
-    const returnValue = 'return ' + emitReturnValue(
-      ast.children.length > 1
-        ? nth(ast, -1)
-        : undefinedAst)
     const body = [
       relabel(nth(ast, 0), { type: 'text', text: 'args', children: [] }),
       ...ast.children.slice(1, -1)
-    ].map(emitJS).concat([returnValue]).join(`;\n${_indent}`)
+    ]
+      .map(emitJS)
+      .concat(['return ' + emitJS(
+        ast.children.length > 1
+          ? getRhs(nth(ast, -1))
+          : undefinedAst)
+      ])
+      .join(`;\n${_indent}`)
     return `((...args) => {\n${_indent}${body};\n${scope._indent}})`
   }
 
   const emitDo = (ast) => { // call 'fn' ...body
     const _indent = scope._indent + '  '
     const emitJS = createJSEmitter(derive({ _indent }, scope))
-    const returnValue = 'return ' + emitReturnValue(
-      ast.children.length > 0
-        ? nth(ast, -1)
-        : undefinedAst)
-    const body = butLast(ast.children).map(emitJS).concat([returnValue]).join(`;\n${_indent}`)
+    const body = butLast(ast.children)
+      .map(emitJS)
+      .concat(['return ' + emitJS(ast.children.length > 0
+        ? getRhs(nth(ast, -1))
+        : undefinedAst)])
+      .join(`;\n${_indent}`)
     return `(() => {\n${_indent}${body};\n${scope._indent}})()`
+  }
+
+  const emitScopedSetName = (ast, value = undefined) => {
+    if (value != null) {
+      scope[ast.text] = value
+    } else if (scope[ast.text] == null || Object.hasOwn(scope, ast.text)) {
+      scope[ast.text] = `v${nameIndex++}`
+    }
+
+    return scope[ast.text]
   }
 
   const emitScopedGetName = (ast) => {
     if (scope[ast.text] == null) {
-      scope[ast.text] = `v${nameIndex++}`
-    }
-    return scope[ast.text]
-  }
-
-  const emitScopedSetName = (ast) => {
-    if (scope[ast.text] == null || Object.hasOwn(scope, ast.text)) {
       scope[ast.text] = `v${nameIndex++}`
     }
     return scope[ast.text]
@@ -241,12 +286,7 @@ const createJSEmitter = (scope) => {
     do: emitDo,
     if: (ast) =>
       `(${emit(nth(ast, 0))} ? ${emit(nth(ast, 1))} : ${emit(nth(ast, 2))})`,
-    '+': (ast) =>
-      ast.children.length === 0
-        ? '0'
-        : ast.children.length === 1
-          ? emit(nth(ast, 0))
-          : `(${ast.children.map(emit).join(' + ')})`
+    ...emitMathRules(emit)
   }
 
   return emit
@@ -254,6 +294,7 @@ const createJSEmitter = (scope) => {
 
 export const emitJS = createJSEmitter({
   _indent: '',
+  conj: 'lang.conj',
   list: 'lang.makeList',
   set: 'lang.makeSet',
   'fn?': 'lang.isFn',

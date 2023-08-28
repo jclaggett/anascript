@@ -13,3 +13,8 @@ export const isEmpty = (x) => x.length === 0
 export const compose = (...fs) => (x) => fs.reduceRight((x, f) => f(x), x)
 
 export const derive = Object.setPrototypeOf
+
+export const contains = (...xs) => {
+  const o = Object.fromEntries(xs.map(x => [x, true]))
+  return x => o[x] || false
+}
