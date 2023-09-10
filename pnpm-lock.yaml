@@ -18,11 +18,11 @@ dependencies:
     specifier: ^4.3.1
     version: 4.3.1
   marked:
-    specifier: ^7.0.0
-    version: 7.0.0
+    specifier: ^9.0.0
+    version: 9.0.0
   marked-terminal:
     specifier: ^5.2.0
-    version: 5.2.0(marked@7.0.0)
+    version: 5.2.0(marked@9.0.0)
   print-tree:
     specifier: ^0.1.5
     version: 0.1.5
@@ -2842,7 +2842,7 @@ packages:
       tmpl: 1.0.5
     dev: true
 
-  /marked-terminal@5.2.0(marked@7.0.0):
+  /marked-terminal@5.2.0(marked@9.0.0):
     resolution: {integrity: sha512-Piv6yNwAQXGFjZSaiNljyNFw7jKDdGrw70FSbtxEyldLsyeuV5ZHm/1wW++kWbrOF1VPnUgYOhB2oLL0ZpnekA==}
     engines: {node: '>=14.13.1 || >=16.0.0'}
     peerDependencies:
@@ -2852,13 +2852,13 @@ packages:
       cardinal: 2.1.1
       chalk: 5.3.0
       cli-table3: 0.6.3
-      marked: 7.0.0
+      marked: 9.0.0
       node-emoji: 1.11.0
       supports-hyperlinks: 2.3.0
     dev: false
 
-  /marked@7.0.0:
-    resolution: {integrity: sha512-7Gv1Ry8tqR352ElQOQfxdGpIh8kNZh/yYjNCxAQCN1DDbY4bCTG3qDCSkZWlRElSseeEILDxkY/G9w7cgziBNw==}
+  /marked@9.0.0:
+    resolution: {integrity: sha512-37yoTpjU+TSXb9OBYY5n78z/CqXh76KiQj9xsKxEdztzU9fRLmbWO5YqKxgCVGKlNdexppnbKTkwB3RipVri8w==}
     engines: {node: '>= 16'}
     hasBin: true
     dev: false
