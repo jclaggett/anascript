@@ -6,7 +6,7 @@ import ebnf from 'ebnf'
 import printTree from 'print-tree'
 import highlightES from 'highlight-es'
 
-import { first, rest, identity, compose, derive, butLast, contains } from './xf/util.js'
+import { first, last, rest, identity, compose, derive, butLast, contains } from './xf/util.js'
 import * as lang from './lang.js'
 import { printSyntax } from './print.js'
 
@@ -52,7 +52,11 @@ const relabel = (lhs, rhs) =>
         relabel(nth(lhs, 1), rhs)
       ]
     }, lhs)
-    : { type: 'label', text: `${lhs.text}: ${rhs.text}`, children: [lhs, rhs] }
+    : derive({
+      type: 'label',
+      text: `${lhs.text}: ${rhs.text}`,
+      children: [lhs, rhs]
+    }, rhs)
 
 const push = (xs, x) => {
   xs.push(x)
@@ -100,11 +104,11 @@ const isSyntaxCall = contains(
   'quote',
   'spread')
 
-const transformCallToSyntax = (ast) =>
+const replaceWithSyntax = (ast) =>
   isSyntaxCall(ast.children[0]?.text)
     ? derive({
       type: nth(ast, 0).text,
-      children: ast.children.slice(1)
+      children: rest(ast.children)
     }, ast)
     : ast
 
@@ -126,7 +130,7 @@ const insertRemove = (ast) =>
     : ast
 
 const removeForm = compose(transform, replaceSelfWithChild)
-const transformCall = compose(transformChildren, transformCallToSyntax, replaceChildWithSelf)
+const transformCall = compose(transformChildren, replaceWithSyntax, replaceChildWithSelf)
 const transformList = compose(replaceWithCall, transformCall)
 const transformSet = compose(insertRemove, transformList)
 
@@ -221,7 +225,7 @@ const createJSEmitter = (scope) => {
       ? `tmp = ${rhs};\n${scope._indent}` + rest(asts)
       .map(lhs => `const ${emitScopedSetName(lhs)} = tmp`)
       .join(`;\n${scope._indent}`)
-      : `const ${emitScopedSetName(first(asts))} = ${rhs}`
+      : `const ${emitScopedSetName(last(asts))} = ${rhs}`
   }
 
   const emitFn = (ast) => { // call 'fn' args ...body
@@ -272,20 +276,22 @@ const createJSEmitter = (scope) => {
 
   const emitCall = (ast) =>
     ast.children.length > 0
-      ? `${emit(nth(ast, 0))}(${rest(ast.children).map(emit).join(', ')})`
+      ? `${emit(getRhs(nth(ast, 0)))}(${rest(ast.children).map(emit).join(', ')})`
       : 'lang.emptyList'
 
   const emitRules = {
     comment: (_ast) => '',
     forms: emitBlock,
     label: emitLabel,
-    expand: (ast) => emitScopedGetName(nth(ast, 0)),
+    expand: (ast) => emitScopedGetName(getRhs(nth(ast, 0))),
     call: emitCall,
     symbol: emitScopedGetName,
     fn: emitFn,
     do: emitDo,
-    if: (ast) =>
-      `(${emit(nth(ast, 0))} ? ${emit(nth(ast, 1))} : ${emit(nth(ast, 2))})`,
+    if: (ast) => {
+      const vs = ast.children.map(compose(emit, getRhs))
+      return `(${vs[0]} ? ${vs[1]} : ${vs[2]})`
+    },
     ...emitMathRules(emit)
   }
 
@@ -307,31 +313,38 @@ export const testJS = (str) => {
   nameIndex = 0
 
   const ast = parse(`(do ${str})`)
-  console.log('_________')
+  console.log('_________ Raw AST _________')
   emitTree(ast)
 
   const ast2 = transform(ast)
-  console.log('_________')
+  console.log('_________ Simplified AST _________')
   emitTree(ast2)
 
-  const lisp = emitLisp(ast2)
-  console.log(`_________\n${printSyntax(lisp)}`)
+  const ast3 = ast2
 
-  const text = 'let tmp = null;\n' + emitJS(ast2)
-  console.log(`_________\n${highlightES(text)}\n_________`)
+  const lisp = emitLisp(ast3)
+  console.log(`_________ Emitted Lisp _________\n${printSyntax(lisp)}`)
+
+  const text = 'let tmp = null;\n' + emitJS(ast3)
+  console.log(`_________ Emitted JS _________\n${highlightES(text)}\n_________ Evaluated JS _________`)
 
   // eslint-disable-next-line no-eval
   return lang.toJS(eval(text))
 }
 
 // Emitting 3: AST -> str
+const printPosition = (ast) =>
+  ast.position != null
+    ? `<${ast.position}> `
+    : ''
+
 export const emitTree = (ast) =>
   printTree(ast,
-    node => node.type + (
-      node.children.length > 0
+    (ast) => printPosition(ast) + ast.type + (
+      ast.children.length > 0
         ? ''
-        : " '" + node.text + "'"),
-    node => node.children)
+        : " '" + ast.text + "'"),
+    ast => ast.children)
 
 // legacy api
 export const form = compose(emitLisp, transform)
