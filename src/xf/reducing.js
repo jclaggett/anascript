@@ -20,11 +20,9 @@ export const unreduced = (x) => isReduced(x) ? x[VALUE] : x
 export const transducer = (constructor) =>
   (reducer) => {
     const reducer2 = constructor(reducer)
-    if (reducer2 === reducer) {
-      return reducer2
-    } else {
-      return Object.setPrototypeOf(reducer2, reducer)
-    }
+    return (reducer2 === reducer)
+      ? reducer2
+      : Object.setPrototypeOf(reducer2, reducer)
   }
 
 // A reduce function that stops when receiving a reduced value.
