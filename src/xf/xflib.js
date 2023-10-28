@@ -178,34 +178,36 @@ export const multiplex = (xfs) =>
   // r2: a demultiplex reducer over r1
   // rs: the muliplexed reducers all sharing r2
   // returned reducer: applies all rs reducers
-  (xfs.length === 1)
-    ? xfs[0] // trivial case
-    : transducer(r1 => {
-      const r2 = demultiplex(xfs.length)(r1)
-      let rs = xfs.map(xf => xf(r2))
-      return {
-        [STEP]: (a, v) => {
-          a = rs.reduce(
-            (a, r, i) => {
-              a = r[STEP](a, v)
-              if (isReduced(a)) {
-                rs[i] = null
-                a = r[RESULT](unreduced(a))
+  (xfs.length === 0)
+    ? identity // trivial case: zero transducers to multiplex
+    : (xfs.length === 1)
+        ? xfs[0] // trivial case: no need to multiplex one transducer
+        : transducer(r1 => {
+          const r2 = demultiplex(xfs.length)(r1)
+          let rs = xfs.map(xf => xf(r2))
+          return {
+            [STEP]: (a, v) => {
+              a = rs.reduce(
+                (a, r, i) => {
+                  a = r[STEP](a, v)
+                  if (isReduced(a)) {
+                    rs[i] = null
+                    a = r[RESULT](unreduced(a))
+                  }
+                  return a
+                },
+                a)
+              rs = rs.filter(x => x != null)
+              if (rs.length === 0) {
+                a = reduced(a)
               }
               return a
             },
-            a)
-          rs = rs.filter(x => x != null)
-          if (rs.length === 0) {
-            a = reduced(a)
-          }
-          return a
-        },
 
-        [RESULT]: (a) =>
-          rs.reduce((a, r) => r[RESULT](a), a)
-      }
-    })
+            [RESULT]: (a) =>
+              rs.reduce((a, r) => r[RESULT](a), a)
+          }
+        })
 
 export const demultiplex = (n) => {
   if (n < 2) {

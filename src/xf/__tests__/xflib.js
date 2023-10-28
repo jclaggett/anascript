@@ -147,7 +147,7 @@ test('detag works', () => {
 
 test('multiplex works', () => {
   expect(T(multiplex([]), data))
-    .toStrictEqual([])
+    .toStrictEqual(data)
   expect(T(multiplex([map(x => x + 1)]), data))
     .toStrictEqual([2, 3, 4])
   expect(T(multiplex([map(x => -x), take(2)]), data))
