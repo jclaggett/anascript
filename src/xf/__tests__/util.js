@@ -2,28 +2,31 @@
 // 1. Coverage report should be at 100% when testing only this file.
 // 2. Tests should be defined only in terms of the exported API.
 
-import {
-  compose, identity, isEmpty, rest, first, second, last, butLast
-} from '../util'
+import * as util from '../util'
 
 test('util fns work', () => {
   const data = [1, 2, 3]
-  expect(isEmpty(data))
+  expect(util.isEmpty(data))
     .toStrictEqual(false)
-  expect(identity(data))
+  expect(util.identity(data))
     .toStrictEqual(data)
-  expect(first(data))
+  expect(util.first(data))
     .toStrictEqual(1)
-  expect(second(data))
+  expect(util.second(data))
     .toStrictEqual(2)
-  expect(last(data))
+  expect(util.last(data))
     .toStrictEqual(3)
-  expect(rest(data))
+  expect(util.rest(data))
     .toStrictEqual([2, 3])
-  expect(butLast(data))
+  expect(util.butLast(data))
     .toStrictEqual([1, 2])
-  expect(compose()(data))
+  expect(util.compose()(data))
     .toStrictEqual([1, 2, 3])
-  expect(compose(last, butLast)(data))
+  expect(util.compose(util.last, util.butLast)(data))
     .toStrictEqual(2)
+  const c = util.contains(1, 2, 3)
+  expect(c(1))
+    .toStrictEqual(true)
+  expect(c(4))
+    .toStrictEqual(false)
 })
