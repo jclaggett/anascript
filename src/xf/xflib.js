@@ -4,75 +4,79 @@
 
 import {
   STEP, RESULT,
-  transducer, isReduced, reduced, unreduced,
-  ezducer
+  transducer, isReduced, reduced, unreduced, reduce
 } from './reducing.js'
 import { compose, identity, first, second } from './util.js'
 
-// flatMap: call `step` with current value.
-export const flatMap = (step) =>
-  ezducer(() => ({ step }))
+// flatMap: call `f` with current value and stepping through all returned values
+export const flatMap = (f) =>
+  transducer(r => ({
+    [STEP]: (a, v) => reduce(r[STEP], a, f(v))
+  }))
 
-// map: call `f` with current value.
+// map: call `f` with current value and stepping through returned value
 export const map = (f) =>
-  flatMap(v => [f(v)])
+  transducer(r => ({
+    [STEP]: (a, v) => r[STEP](a, f(v))
+  }))
 
 // emit: constantly return x for every step
 export const emit = (x) =>
-  map((_v) => x)
+  map(_ => x)
 
-// reductions: call `f` with the previous results (or initialValue) and the
-// current value.
-export const reductions = (f, initialValue) => {
-  let state = initialValue
-  return ezducer(() => ({
-    step: (v) => {
-      state = f(state, v)
-      return [state]
-    }
-  }))
-}
-
-// filter: Step only if `pred(v)` is true.
-export const filter = (pred) =>
-  ezducer(() => ({ step: (v) => pred(v) ? [v] : [] }))
-
-// partition: Step width sized groups of values and every stride.
-export const partition = (width, stride) => {
-  stride = stride < 1 ? 1 : stride
-  return ezducer(() => {
-    let i = stride - width - 1
-    let group = []
+export const reductions = (f, initialValue) =>
+  transducer(r => {
+    let state = initialValue
     return {
-      step: (v) => {
-        const result = []
-        i = (i + 1) % stride
-        if (i >= (stride - width)) {
-          group.push(v)
-          if (group.length === width) {
-            result.push(group)
-            group = group.slice(stride)
-          }
-        }
-        return result
+      [STEP]: (a, v) => {
+        state = f(state, v)
+        return r[STEP](a, state)
       }
     }
   })
-}
 
-// filter2: Step if `pred(previous, v)` is true. Always step on first value.
+// filter: Step only if `pred(v)` is true.
+export const filter = (pred) =>
+  transducer(r => ({
+    [STEP]: (a, v) => pred(v)
+      ? r[STEP](a, v)
+      : a
+  }))
+
+// partition: Step width sized groups of values and every stride.
+export const partition = (width, stride) =>
+  transducer(r => {
+    width = width < 0 ? 0 : width
+    stride = stride < 1 ? 1 : stride
+    let i = stride - width - 1
+    let vs = []
+    return {
+      [STEP]: (a, v) => {
+        i = (i + 1) % stride
+        if (i >= (stride - width)) {
+          vs.push(v)
+          if (vs.length === width) {
+            a = r[STEP](a, vs)
+            vs = vs.slice(stride)
+          }
+        }
+        return a
+      }
+    }
+  })
+
+// filter2: Step if `pred(previous, v)` is true. Always step through first value.
 export const filter2 = (pred) =>
-  ezducer(() => {
+  transducer(r => {
     const initialValue = Symbol('init')
     let previous = initialValue
     return {
-      step: (v) => {
-        const result = []
+      [STEP]: (a, v) => {
         if (previous === initialValue || pred(previous, v)) {
+          a = r[STEP](a, v)
           previous = v
-          result.push(v)
         }
-        return result
+        return a
       }
     }
   })
@@ -81,42 +85,54 @@ export const filter2 = (pred) =>
 export const dedupe = () =>
   filter2((x, y) => x !== y)
 
-// dropAll & after: ignore all steps and send a single value at end.
+// dropAll: ignore all steps
 export const dropAll =
-  ezducer(() => ({ step: (_v) => [] }))
+  transducer(_ => ({
+    [STEP]: (a, _) => a
+  }))
 
 // take: only step `n` times.
 export const take = (n) =>
   (n < 1)
     ? dropAll
-    : ezducer(() => {
+    : transducer(r => {
       let i = n
-      return { step: (v) => (--i < 1) ? [v, reduced] : [v] }
+      return {
+        [STEP]: (a, v) =>
+          ((--i < 1) ? reduced : identity)(r[STEP](a, v))
+      }
     })
 
 // takeWhile: only step through while `pred(v)` is true.
 export const takeWhile = (pred) =>
-  ezducer(() => ({ step: (v) => [pred(v) ? v : reduced] }))
+  transducer(r => ({
+    [STEP]: (a, v) =>
+      pred(v)
+        ? r[STEP](a, v)
+        : reduced(a)
+  }))
 
 // drop: do not step `n` times.
 export const drop = (n) =>
   (n < 1)
     ? identity
-    : ezducer(() => {
+    : transducer(r => {
       let i = n
-      return { step: (v) => (--i < 0) ? [v] : [] }
+      return {
+        [STEP]: (a, v) => (--i < 0)
+          ? r[STEP](a, v)
+          : a
+      }
     })
 
 // dropWhile: do not step until `pred(v)` is false.
 export const dropWhile = (pred) =>
-  ezducer(() => {
+  transducer(r => {
     let stillDropping = true
     return {
-      step: (v) => {
-        if (stillDropping) {
-          stillDropping = pred(v)
-        }
-        return stillDropping ? [] : [v]
+      [STEP]: (a, v) => {
+        stillDropping = stillDropping && pred(v)
+        return stillDropping ? a : r[STEP](a, v)
       }
     }
   })
@@ -124,27 +140,36 @@ export const dropWhile = (pred) =>
 // prolog & epilog: step an initial value before first step and a final value
 // after last step.
 export const prolog = (x) =>
-  ezducer(() => {
+  transducer(r => {
     let stepNeverCalled = true
     return {
-      step: (v) => {
-        const result = []
+      [STEP]: (a, v) => {
         if (stepNeverCalled) {
           stepNeverCalled = false
-          result.push(x)
+          a = r[STEP](a, x)
         }
-        result.push(v)
-        return result
+        return isReduced(a)
+          ? a
+          : r[STEP](a, v)
       },
-
-      result: () => stepNeverCalled ? [x] : []
+      [RESULT]: (a) =>
+        r[RESULT](stepNeverCalled ? unreduced(r[STEP](a, x)) : a)
     }
   })
 
 export const epilog = (x) =>
-  ezducer(() => ({
-    result: () => [x]
-  }))
+  transducer(r => {
+    let stepWasReduced = false
+    return {
+      [STEP]: (a, v) => {
+        a = r[STEP](a, v)
+        stepWasReduced = isReduced(a)
+        return a
+      },
+      [RESULT]: (a) =>
+        r[RESULT](stepWasReduced ? a : unreduced(r[STEP](a, x)))
+    }
+  })
 
 // after: step `x` after dropping all values.
 export const after = (x) =>

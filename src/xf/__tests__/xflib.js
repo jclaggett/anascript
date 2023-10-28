@@ -59,6 +59,10 @@ test('filter works', () => {
 })
 
 test('partition works', () => {
+  expect(T(partition(-1, 0), data))
+    .toStrictEqual([])
+  expect(T(partition(0, 1), data))
+    .toStrictEqual([])
   expect(T(partition(2, 0), data))
     .toStrictEqual([[1, 2], [2, 3]])
   expect(T(partition(2, 1), data))
@@ -93,6 +97,8 @@ test('epilog works', () => {
     .toStrictEqual([1, 2, 3, 42])
   expect(T(epilog(42), []))
     .toStrictEqual([42])
+  expect(T(compose(epilog(42), take(2)), [1, 2, 3]))
+    .toStrictEqual([1, 2])
 })
 
 test('take works', () => {

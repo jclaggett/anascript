@@ -26,7 +26,7 @@ export const transducer = (constructor) =>
   }
 
 // A reduce function that stops when receiving a reduced value.
-const reduce = (f, a, vs) => {
+export const reduce = (f, a, vs) => {
   for (const v of vs) {
     a = f(a, v)
     if (isReduced(a)) break
@@ -37,27 +37,6 @@ const reduce = (f, a, vs) => {
 // Like reduce but with a transducer instead of an f
 export const transduce = (r, a, vs) =>
   r[RESULT](unreduced(reduce(r[STEP], a, vs)))
-
-export const ezducer = (constructor) => {
-  return transducer(r => {
-    const { step, result } = {
-      step: (v) => [v],
-      result: () => [],
-      ...constructor()
-    }
-    const rstep = (a, vs) =>
-      reduce(
-        (a, v) => v === reduced
-          ? reduced(a)
-          : r[STEP](a, v),
-        a,
-        vs)
-    return {
-      [STEP]: (a, v) => rstep(a, step(v)),
-      [RESULT]: (a) => r[RESULT](unreduced(rstep(a, result())))
-    }
-  })
-}
 
 // reducers
 
