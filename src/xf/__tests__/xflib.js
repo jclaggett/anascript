@@ -24,7 +24,8 @@ import {
   reductions,
   tag,
   take,
-  takeWhile
+  takeWhile,
+  trailing
 } from '../xflib'
 
 const data = [1, 2, 3]
@@ -71,6 +72,11 @@ test('partition works', () => {
     .toStrictEqual([[1, 2], [3, 4]])
   expect(T(partition(2, 3), [1, 2, 3, 4, 5]))
     .toStrictEqual([[1, 2], [4, 5]])
+})
+
+test('trailing works', () => {
+  expect(T(trailing(2), data))
+    .toStrictEqual([[1], [1, 2], [2, 3]])
 })
 
 test('filter2 works', () => {

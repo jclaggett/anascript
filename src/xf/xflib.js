@@ -65,6 +65,21 @@ export const partition = (width, stride) =>
     }
   })
 
+// trailing: step an array of the previous n values
+export const trailing = (n) =>
+  transducer(r => {
+    const buffer = []
+    return {
+      [STEP]: (a, v) => {
+        buffer.push(v)
+        if (buffer.length > n) {
+          buffer.shift()
+        }
+        return r[STEP](a, [...buffer])
+      }
+    }
+  })
+
 // filter2: Step if `pred(previous, v)` is true. Always step through first value.
 export const filter2 = (pred) =>
   transducer(r => {
