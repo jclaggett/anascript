@@ -6,7 +6,7 @@ import {
   STEP, RESULT,
   transducer, isReduced, reduced, unreduced, reduce
 } from './reducing.js'
-import { compose, identity, first, second } from './util.js'
+import { compose, identity, first, second, rest } from './util.js'
 
 // flatMap: call `f` with current value and stepping through all returned values
 export const flatMap = (f) =>
@@ -35,6 +35,15 @@ export const reductions = (f, initialValue) =>
     }
   })
 
+export const trailing = (n) =>
+  reductions((a, v) => {
+    a = (a.length < n)
+      ? [...a]
+      : rest(a)
+    a.push(v)
+    return a
+  }, [])
+
 // filter: Step only if `pred(v)` is true.
 export const filter = (pred) =>
   transducer(r => ({
@@ -61,21 +70,6 @@ export const partition = (width, stride) =>
           }
         }
         return a
-      }
-    }
-  })
-
-// trailing: step an array of the previous n values
-export const trailing = (n) =>
-  transducer(r => {
-    const buffer = []
-    return {
-      [STEP]: (a, v) => {
-        buffer.push(v)
-        if (buffer.length > n) {
-          buffer.shift()
-        }
-        return r[STEP](a, [...buffer])
       }
     }
   })
