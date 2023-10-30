@@ -6,7 +6,7 @@ import {
   STEP, RESULT,
   transducer, isReduced, reduced, unreduced, reduce
 } from './reducing.js'
-import { compose, identity, first, second, rest } from './util.js'
+import { compose, identity, first, second, rest, last } from './util.js'
 
 // flatMap: call `f` with current value and stepping through all returned values
 export const flatMap = (f) =>
@@ -52,6 +52,17 @@ export const filter = (pred) =>
       : a
   }))
 
+// filter2: Step if `pred(v0, v1)` is true. Always step through first value.
+export const filter2 = (pred) =>
+  compose(
+    trailing(2),
+    filter(vs => vs.length < 2 || pred(...vs)),
+    map(last))
+
+// dedupe: Step if the current value is different from the previous value.
+export const dedupe = () =>
+  filter2((x, y) => x !== y)
+
 // partition: Step width sized groups of values and every stride.
 export const partition = (width, stride) =>
   transducer(r => {
@@ -73,26 +84,6 @@ export const partition = (width, stride) =>
       }
     }
   })
-
-// filter2: Step if `pred(previous, v)` is true. Always step through first value.
-export const filter2 = (pred) =>
-  transducer(r => {
-    const initialValue = Symbol('init')
-    let previous = initialValue
-    return {
-      [STEP]: (a, v) => {
-        if (previous === initialValue || pred(previous, v)) {
-          a = r[STEP](a, v)
-          previous = v
-        }
-        return a
-      }
-    }
-  })
-
-// dedupe: Step if the current value is different from the previous value.
-export const dedupe = () =>
-  filter2((x, y) => x !== y)
 
 // dropAll: ignore all steps
 export const dropAll =
