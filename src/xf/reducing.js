@@ -13,9 +13,11 @@ export const RESULT = '@@transducer/result'
 export const REDUCED = '@@transducer/reduced'
 export const VALUE = '@@transducer/value'
 
+export const reduced = (x) => ({ [REDUCED]: true, [VALUE]: x })
+export const unreduced = (x) => x[VALUE]
 export const isReduced = (x) => x instanceof Object && x[REDUCED] === true
-export const reduced = (x) => isReduced(x) ? x : { [REDUCED]: true, [VALUE]: x }
-export const unreduced = (x) => isReduced(x) ? x[VALUE] : x
+export const asReduced = (x) => isReduced(x) ? x : reduced(x)
+export const asUnreduced = (x) => isReduced(x) ? unreduced(x) : x
 
 export const transducer = (constructor) =>
   (reducer) => {
@@ -36,7 +38,7 @@ export const reduce = (f, a, vs) => {
 
 // Like reduce but with a transducer instead of an f
 export const transduce = (r, a, vs) =>
-  r[RESULT](unreduced(reduce(r[STEP], a, vs)))
+  r[RESULT](asUnreduced(reduce(r[STEP], a, vs)))
 
 // reducers
 
