@@ -3,7 +3,7 @@
 // functions. This is why the joining transducers are excluded.
 
 import {
-  STEP, RESULT, REDUCED,
+  STEP, RESULT,
   transducer, isReduced, reduced, asReduced, asUnreduced, reduce
 } from './reducing.js'
 import { compose, identity, first, second, rest, last } from './util.js'
@@ -14,7 +14,7 @@ export const mapcat = (f) =>
     return {
       [STEP]: (a, v) =>
         reduce((a, v) =>
-          REDUCED === v
+          isReduced(v)
             ? reduced(a)
             : r[STEP](a, v),
         a,
@@ -103,7 +103,7 @@ export const take = (n) =>
       reductions((a, v) => {
         a.vs[0] = v
         if (++a.i >= n) {
-          a.vs.push(REDUCED)
+          a.vs.push(reduced(null))
         }
         return a
       }, {
@@ -114,7 +114,7 @@ export const take = (n) =>
 
 // takeWhile: only step through while `pred(v)` is true.
 export const takeWhile = (pred) =>
-  mapcat(v => [pred(v) ? v : REDUCED])
+  mapcat(v => [pred(v) ? v : reduced(null)])
 
 // drop: do not step `n` times.
 export const drop = (n) =>
