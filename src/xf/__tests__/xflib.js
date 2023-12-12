@@ -51,7 +51,7 @@ test('emit works', () => {
 
 test('reductions works', () => {
   expect(T(reductions((x, y) => x + y, 0), data))
-    .toStrictEqual([1, 3, 6])
+    .toStrictEqual([0, 1, 3, 6])
 })
 
 test('filter works', () => {

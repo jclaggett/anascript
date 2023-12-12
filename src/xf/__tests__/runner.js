@@ -32,7 +32,7 @@ test('run works', async () => {
     d: sink('call', (x) => result.push(x))
   }, [
     [$.a, $.b], [$.a, $.c], [$.b, $.d], [$.c, $.d]
-  ]), 'hello'))
+  ]), { initValue: { ...process, argv: ['hello'] } }))
     .toStrictEqual(undefined)
   expect(result)
     .toStrictEqual(['hello', process.env.USER])

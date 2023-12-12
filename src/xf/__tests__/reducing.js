@@ -5,7 +5,7 @@
 import {
   INIT, STEP, RESULT, isReduced, unreduced, reduced, transducer,
   transduce, nullReducer, count, toArray, average,
-  asReduced, asUnreduced
+  ensureReduced, ensureUnreduced
 } from '../reducing'
 
 test('reducing fns work', () => {
@@ -13,15 +13,15 @@ test('reducing fns work', () => {
     .toStrictEqual(false)
   expect(isReduced(reduced(42)))
     .toStrictEqual(true)
-  expect(isReduced(asReduced(42)))
+  expect(isReduced(ensureReduced(42)))
     .toStrictEqual(true)
-  expect(isReduced(asReduced(reduced(42))))
+  expect(isReduced(ensureReduced(reduced(42))))
     .toStrictEqual(true)
-  expect(isReduced(unreduced(asReduced(reduced(42)))))
+  expect(isReduced(unreduced(ensureReduced(reduced(42)))))
     .toStrictEqual(false)
-  expect(isReduced(asUnreduced(asReduced(reduced(42)))))
+  expect(isReduced(ensureUnreduced(ensureReduced(reduced(42)))))
     .toStrictEqual(false)
-  expect(isReduced(asUnreduced(unreduced(asReduced(reduced(42))))))
+  expect(isReduced(ensureUnreduced(unreduced(ensureReduced(reduced(42))))))
     .toStrictEqual(false)
 })
 

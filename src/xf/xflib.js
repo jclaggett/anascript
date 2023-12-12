@@ -4,7 +4,7 @@
 
 import {
   STEP, RESULT,
-  transducer, isReduced, reduced, asReduced, asUnreduced, reduce
+  transducer, isReduced, reduced, ensureReduced, ensureUnreduced, reduce
 } from './reducing.js'
 import { compose, identity, first, second, rest, last } from './util.js'
 
@@ -23,14 +23,29 @@ export const mapcat = (f) =>
   })
 export const flatMap = mapcat
 
-export const reductions = (f, initialValue) =>
+export const reductions = (f, initialState) =>
   transducer(r => {
-    let state = initialValue
+    let stepNeverCalled = true
+    let state = initialState
     return {
       [STEP]: (a, v) => {
-        state = f(state, v)
-        return r[STEP](a, state)
-      }
+        if (stepNeverCalled) {
+          stepNeverCalled = false
+          a = r[STEP](a, state)
+          if (!isReduced(a)) {
+            state = f(state, v)
+            a = r[STEP](a, state)
+          }
+        } else {
+          state = f(state, v)
+          a = r[STEP](a, state)
+        }
+        return a
+      },
+      [RESULT]: (a) =>
+        r[RESULT](stepNeverCalled
+          ? ensureUnreduced(r[STEP](a, state))
+          : a)
     }
   })
 
@@ -43,13 +58,15 @@ export const emit = (c) =>
   map(_ => c)
 
 export const trailing = (n) =>
-  reductions((a, v) => {
-    a = (a.length < n)
-      ? [...a]
-      : rest(a)
-    a.push(v)
-    return a
-  }, [])
+  compose(
+    reductions((a, v) => {
+      a = (a.length < n)
+        ? [...a]
+        : rest(a)
+      a.push(v)
+      return a
+    }, []),
+    drop(1))
 
 // filter: Step only if `pred(v)` is true.
 export const filter = (pred) =>
@@ -88,6 +105,7 @@ export const partition = (width, stride) => {
       i: stride - width - 1,
       buffer: []
     }),
+    drop(1),
     mapcat(state => state.result))
 }
 
@@ -151,22 +169,7 @@ export const dropWhile = (pred) =>
 // prolog & epilog: step an initial value before first step and a final value
 // after last step.
 export const prolog = (x) =>
-  transducer(r => {
-    let stepNeverCalled = true
-    return {
-      [STEP]: (a, v) => {
-        if (stepNeverCalled) {
-          stepNeverCalled = false
-          a = r[STEP](a, x)
-        }
-        return isReduced(a)
-          ? a
-          : r[STEP](a, v)
-      },
-      [RESULT]: (a) =>
-        r[RESULT](stepNeverCalled ? asUnreduced(r[STEP](a, x)) : a)
-    }
-  })
+  reductions((_, v) => v, x)
 
 export const epilog = (x) =>
   transducer(r => {
@@ -178,7 +181,7 @@ export const epilog = (x) =>
         return a
       },
       [RESULT]: (a) =>
-        r[RESULT](stepWasReduced ? a : asUnreduced(r[STEP](a, x)))
+        r[RESULT](stepWasReduced ? a : ensureUnreduced(r[STEP](a, x)))
     }
   })
 
@@ -228,14 +231,14 @@ export const multiplex = (xfs) =>
                   a = r[STEP](a, v)
                   if (isReduced(a)) {
                     rs[i] = null
-                    a = r[RESULT](asUnreduced(a))
+                    a = r[RESULT](ensureUnreduced(a))
                   }
                   return a
                 },
                 a)
               rs = rs.filter(x => x != null)
               if (rs.length === 0) {
-                a = asReduced(a)
+                a = ensureReduced(a)
               }
               return a
             },

@@ -82,10 +82,10 @@ const pipeSinkConstructor = (pipes) =>
         }
       }))
 
-const runSinkConstructor = (childPromises, initValue, sources, sinks, pipes) =>
+const runSinkConstructor = (childPromises, context) =>
   () =>
     callSink((x) => childPromises.push(
-      runGraph(x, initValue, sources, sinks, pipes)))
+      runGraph(x, context)))
 
 export const sinks = {
   debug: () => callSink(console.debug),
@@ -108,22 +108,22 @@ const makeEdgeFn = (edgeType, edges) =>
 // Use derive to make efficient clones of nested environments.
 const derive = Object.setPrototypeOf
 
-const runGraph = async (g, initValue, sources, sinks, pipes) => {
+const runGraph = async (g, context) => {
+  console.dir(context)
   const childPromises = []
-  const pipes2 = derive({}, pipes)
+  const pipes = derive({}, context.pipes)
+  const sources = derive({
+    pipe: pipeSourceConstructor(pipes)
+  }, context.sources)
 
-  const sources2 = derive({
-    pipe: pipeSourceConstructor(pipes2)
-  }, sources)
-
-  const sinks2 = derive({
-    run: runSinkConstructor(childPromises, initValue, sources, sinks, pipes2),
-    pipe: pipeSinkConstructor(pipes2)
-  }, sinks)
+  const sinks = derive({
+    run: runSinkConstructor(childPromises, derive({ pipes }, context)),
+    pipe: pipeSinkConstructor(pipes)
+  }, context.sinks)
 
   const xfs = composeGraph(g, {
-    leafFn: makeEdgeFn('sink', sinks2),
-    rootFn: makeEdgeFn('source', sources2)
+    leafFn: makeEdgeFn('sink', sinks),
+    rootFn: makeEdgeFn('source', sources)
   })
 
   const rf = r.nullReducer
@@ -131,17 +131,22 @@ const runGraph = async (g, initValue, sources, sinks, pipes) => {
   const rfs = xfs.map(xf => xf(rf))
 
   await Promise.all(rfs.map(async rf => {
-    const a2 = await rf[r.STEP](a, initValue)
-    return rf[r.RESULT](r.unreduced(a2))
+    const a2 = await rf[r.STEP](a, context.initValue)
+    return rf[r.RESULT](r.ensureUnreduced(a2))
   }))
 
   await Promise.all(childPromises)
 }
 
-export const makeRun = (initValue, sources, sinks) =>
-  (g, ...argv) => runGraph(g, { ...initValue, argv }, sources, sinks, {})
+const rootContext = {
+  initValue: process,
+  sources,
+  sinks,
+  pipes: {}
+}
 
-export const run = makeRun({ env: process.env }, sources, sinks)
+export const run = (g, context = {}) =>
+  runGraph(g, derive(context, rootContext))
 
 // define sources and sinks
 export const source = (...value) => ['source', ...value]
