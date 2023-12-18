@@ -1,15 +1,37 @@
 // Goal is to show off the smallest possible program.
-import { chain, source, emit, sink, run } from '../src/xf/index.js'
+import { chain, emit, map, run, sink, source } from '../src/xf/index.js'
 
-// Reactive approach
-const hw1 = chain(
+// Example 1: smallest hello world
+//
+
+// rxf approach
+const ex1_rxf = chain(
   source('init'),
   emit('Hello World!'),
   sink('log'))
-run(hw1)
 
-// Classic approach
-const hw2 = () => {
+// classic approach
+const ex1_classic = () => {
   console.log('Hello World!')
 }
-hw2()
+
+run(ex1_rxf)
+ex1_classic()
+
+
+// Example 2: hello $USER
+//
+
+// rxf approach
+const ex2_rxf = chain(
+  source('init'),
+  map(process => `Hello ${process.env.USER}!`),
+  sink('log'))
+
+// classic approach
+const ex2_classic = () => {
+  console.log(`Hello ${process.env.USER}!`)
+}
+
+run(ex2_rxf)
+ex2_classic()

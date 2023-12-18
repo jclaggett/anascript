@@ -109,7 +109,6 @@ const makeEdgeFn = (edgeType, edges) =>
 const derive = Object.setPrototypeOf
 
 const runGraph = async (g, context) => {
-  console.dir(context)
   const childPromises = []
   const pipes = derive({}, context.pipes)
   const sources = derive({
