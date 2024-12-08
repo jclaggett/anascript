@@ -19,10 +19,10 @@ dependencies:
     version: 4.3.1
   marked:
     specifier: ^7.0.0
-    version: 7.0.0
+    version: 7.0.5
   marked-terminal:
     specifier: ^5.2.0
-    version: 5.2.0(marked@7.0.0)
+    version: 5.2.0(marked@7.0.5)
   print-tree:
     specifier: ^0.1.5
     version: 0.1.5
@@ -1874,8 +1874,8 @@ packages:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
     dev: true
 
-  /fsevents@2.3.2:
-    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+  /fsevents@2.3.3:
+    resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
     requiresBuild: true
@@ -2475,7 +2475,7 @@ packages:
       micromatch: 4.0.5
       walker: 1.0.8
     optionalDependencies:
-      fsevents: 2.3.2
+      fsevents: 2.3.3
     dev: true
 
   /jest-leak-detector@29.6.2:
@@ -2842,7 +2842,7 @@ packages:
       tmpl: 1.0.5
     dev: true
 
-  /marked-terminal@5.2.0(marked@7.0.0):
+  /marked-terminal@5.2.0(marked@7.0.5):
     resolution: {integrity: sha512-Piv6yNwAQXGFjZSaiNljyNFw7jKDdGrw70FSbtxEyldLsyeuV5ZHm/1wW++kWbrOF1VPnUgYOhB2oLL0ZpnekA==}
     engines: {node: '>=14.13.1 || >=16.0.0'}
     peerDependencies:
@@ -2852,13 +2852,13 @@ packages:
       cardinal: 2.1.1
       chalk: 5.3.0
       cli-table3: 0.6.3
-      marked: 7.0.0
+      marked: 7.0.5
       node-emoji: 1.11.0
       supports-hyperlinks: 2.3.0
     dev: false
 
-  /marked@7.0.0:
-    resolution: {integrity: sha512-7Gv1Ry8tqR352ElQOQfxdGpIh8kNZh/yYjNCxAQCN1DDbY4bCTG3qDCSkZWlRElSseeEILDxkY/G9w7cgziBNw==}
+  /marked@7.0.5:
+    resolution: {integrity: sha512-lwNAFTfXgqpt/XvK17a/8wY9/q6fcSPZT1aP6QW0u74VwaJF/Z9KbRcX23sWE4tODM+AolJNcUtErTkgOeFP/Q==}
     engines: {node: '>= 16'}
     hasBin: true
     dev: false
