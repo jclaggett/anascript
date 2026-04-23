@@ -47,7 +47,6 @@ fi
 
 # Perform basic actions
 set -e
-pnpm install
 pnpm run lint
 pnpm run test --coverage
 
