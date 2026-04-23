@@ -123,7 +123,7 @@ test('regression guardrails', () => {
     .toStrictEqual([1, { b: 2, c: 3 }])
 
   // Spreading a complemented empty set should preserve complement semantics.
-  expect(REJ('(= {...~{}} ~{})'))
+  expect(REJ('(= {...{~}} {~})'))
     .toStrictEqual(true)
 })
 
@@ -204,17 +204,17 @@ test('set functions', () => {
     .toStrictEqual([false, true])
   expect(REJ('(complement (complement {}))'))
     .toStrictEqual({})
-  expect(REJ('(= (remove {}) ~{})'))
+  expect(REJ('(= (remove {}) {~})'))
     .toStrictEqual(true)
-  expect(REJ('(= ~{1 2} (remove {1 2}))'))
+  expect(REJ('(= {~ 1 2} (remove {1 2}))'))
     .toStrictEqual(true)
   expect(REJ('(remove {1 2} {2 3})'))
     .toStrictEqual({ 1: 1 })
-  expect(REJ('(remove (remove ~{1 2} {2 3}))'))
+  expect(REJ('(remove (remove {~ 1 2} {2 3}))'))
     .toStrictEqual({ 1: 1, 2: 2, 3: 3 })
-  expect(REJ('(remove {1 2} ~{2 3})'))
+  expect(REJ('(remove {1 2} {~ 2 3})'))
     .toStrictEqual({ 2: 2 })
-  expect(REJ('(remove ~{1 2} ~{2 3})'))
+  expect(REJ('(remove {~ 1 2} {~ 2 3})'))
     .toStrictEqual({ 3: 3 })
   expect(REJ('(keep {1 2} {2 3})'))
     .toStrictEqual({ 2: 2 })
@@ -224,20 +224,28 @@ test('set functions', () => {
     .toStrictEqual([null, {}, {}])
   expect(REJ(`
     [(subset? {1 2} {2})
-     (subset? ~{1 2} {3})
-     (subset? ~{1 2} {3 4 5})
-     (subset? {3} ~{1 2})
-     (subset? ~{1} ~{1 2})]`))
+     (subset? {~ 1 2} {3})
+     (subset? {~ 1 2} {3 4 5})
+     (subset? {3} {~ 1 2})
+     (subset? {~ 1} {~ 1 2})]`))
     .toStrictEqual([true, true, true, false, true])
   expect(REJ(`
     [(superset? {1 2} {2})
-     (superset? ~{1 2} {3})
-     (superset? {3} ~{1 2})
-     (superset? {3 4 5} ~{1 2})
-     (superset? ~{1} ~{1 2})]`))
+     (superset? {~ 1 2} {3})
+     (superset? {3} {~ 1 2})
+     (superset? {3 4 5} {~ 1 2})
+     (superset? {~ 1} {~ 1 2})]`))
     .toStrictEqual([false, false, true, true, false])
-  expect(REJ('[(abs {}) (abs ~{}) (abs "bar")]'))
+  expect(REJ('[(abs {}) (abs {~}) (abs "bar")]'))
     .toStrictEqual([{}, {}, 'bar'])
+
+  // Rebinding "~" should prevent it from acting as the negative-set sentinel.
+  expect(REJ('(do ~:42 (complement? {~ 1 2 3}))'))
+    .toStrictEqual(false)
+
+  // Presence of "~" key denotes a negative set regardless of mapped value.
+  expect(REJ('(complement? {~:42 1 2 3})'))
+    .toStrictEqual(true)
 })
 
 test('math functions', () => {
@@ -315,7 +323,7 @@ test('collection functions', () => {
 })
 
 test('print', () => {
-  expect(print(makeEnv().eval('[_env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null) ~{1 2 3}]')))
+  expect(print(makeEnv().eval('[_env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null) {~ 1 2 3}]')))
     .toBeDefined()
   expect(print(makeEnv().eval('42').last().last().last(), {}))
     .toStrictEqual(42)
@@ -327,6 +335,6 @@ test('printLabel', () => {
 })
 
 test('printSyntax', () => {
-  expect(printSyntax(makeEnv().eval('[_env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null) ~{1 2 3}]')))
+  expect(printSyntax(makeEnv().eval('[_env 0 "a" true null undefined \\list \\a {1 a:2} (fn x null) {~ 1 2 3}]')))
     .toBeDefined()
 })

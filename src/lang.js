@@ -13,12 +13,13 @@ export const toJS = x =>
 
 // Language primitives
 export const identity = x => x
-
-const compFlag = im.Record({}, 'complement')({})
 const Sym = im.Record({ sym: null }, 'Sym')
 export const makeSym = sym => Sym({ sym })
 
-export const syms = { env: makeSym('env') }
+export const syms = {
+  env: makeSym('env'),
+  '~': makeSym('~')
+}
 export const sym = (...args) => {
   const name = str(...args)
   if (!(name in syms)) {
@@ -26,6 +27,7 @@ export const sym = (...args) => {
   }
   return syms[name]
 }
+const compSym = syms['~']
 
 export const makeSet = (...xs) => im.Map(xs)
 export const makeList = (...xs) => im.List(xs)
@@ -40,7 +42,7 @@ export const isForm = (x, ...names) =>
   isList(x) && names.some(name => is(x.first(), sym(name)))
 export const isNumber = x => typeof x === 'number'
 
-export const isComplement = x => x.contains(compFlag)
+export const isComplement = x => x.has(compSym)
 
 export const isPos = x => x > 0
 export const isZero = x => x === 0
@@ -105,8 +107,8 @@ export const conj = (col, ...xs) =>
 
 export const complement = x =>
   isComplement(x)
-    ? x.remove(compFlag)
-    : x.set(compFlag, compFlag)
+    ? x.remove(compSym)
+    : x.set(compSym, compSym)
 
 const s = {
   all: (x, y) => x.merge(y),

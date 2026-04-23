@@ -13,23 +13,30 @@ import {
 } from './lang.js'
 
 // Printing
+const printSetItem = (k, v, r) =>
+  is(k, v)
+    ? print(k, r)
+    : printLabel(makeForm('label', k, v), r)
+
 const printRules = {
   list: (x, r) =>
     isSym(x.first())
       ? r.round(x, r)
       : r.square(x, r),
-  set: (x, r) =>
-    (([lead, fn]) =>
-      chalk.cyan(lead + '{') +
-        fn(x).map((v, k) =>
-          is(k, v)
-            ? print(k, r)
-            : printLabel(makeForm('label', k, v), r))
-          .join(', ') +
-        chalk.cyan('}')
-    )(isComplement(x)
-      ? ['~', complement]
-      : ['', identity]),
+  set: (x, r) => {
+    const values = []
+    if (isComplement(x)) {
+      const k = syms['~']
+      values.push(printSetItem(k, x.get(k), r))
+    }
+    const col = isComplement(x)
+      ? complement(x)
+      : identity(x)
+    col.forEach((v, k) => {
+      values.push(printSetItem(k, v, r))
+    })
+    return chalk.cyan('{') + values.join(', ') + chalk.cyan('}')
+  },
   curly: (x, r) =>
     chalk.cyan('{') + printChildren(x, r, ', ') + chalk.cyan('}'),
   square: (x, r) =>
