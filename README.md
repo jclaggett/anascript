@@ -35,8 +35,12 @@ commands you can use:
 **Warning**: This is still just a crude experiment at the moment so the language
 semantics are still in flux. That said, it does feel like things are solidifying.
 
+## Project Status
+This project is an active experimental language and runtime. Semantics and syntax
+details may still evolve while the implementation is being refined.
+
 ## Syntax Notes
-See the EBNF grammar for specifics on syntax: [src/ebnf.w3c](src/ebnf.w3c).
+See the EBNF grammar for specifics on syntax: [src/grammar.ebnf](src/grammar.ebnf).
 
 1. Label Infix Operator:
     1. Additional syntax layered on top of Clojure syntax layered on Lisp
