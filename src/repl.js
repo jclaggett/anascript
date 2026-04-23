@@ -61,7 +61,7 @@ const closeHistory = async historyFile =>
     : null
 
 const printPrompt = x =>
-  chalk`{blue ${x}}{cyan :} `
+  `${chalk.blue(x)}${chalk.cyan(': ')} `
 
 const repl = async () => {
   console.log(`Welcome to Anascript! (v${version})`)
