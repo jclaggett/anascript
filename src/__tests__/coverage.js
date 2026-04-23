@@ -109,6 +109,24 @@ test('labeling', () => {
     .toThrow()
 })
 
+test('regression guardrails', () => {
+  // Chained labels should remain right-associative and bind all names.
+  expect(REJ('a:b:c:1 [a b c]'))
+    .toStrictEqual([1, 1, 1])
+
+  // List destructuring with spread should capture the remaining tail.
+  expect(REJ('[head ...tail]:[1 2 3 4] [head tail]'))
+    .toStrictEqual([1, [2, 3, 4]])
+
+  // Set destructuring spread should keep all unlabeled leftovers.
+  expect(REJ('{a ...rest}:{a:1 "b":2 "c":3} [a rest]'))
+    .toStrictEqual([1, { b: 2, c: 3 }])
+
+  // Spreading a complemented empty set should preserve complement semantics.
+  expect(REJ('(= {...~{}} ~{})'))
+    .toStrictEqual(true)
+})
+
 test('special forms', () => {
   expect(REJ('#42'))
     .toStrictEqual(undefined)
