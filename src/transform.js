@@ -11,6 +11,9 @@ const nth = (ast, i) =>
 const withAst = (ctx, ast) =>
   ({ ...ctx, ast })
 
+const withCtx = (ctx, next) =>
+  ({ ...ctx, ...next })
+
 const transformAst = (astTransformer) =>
   (ctx) => withAst(ctx, astTransformer(ctx.ast))
 
@@ -58,11 +61,13 @@ const removeForm = compose(
   transformAst((ast) => ast.children[0])
 )
 
-const transformCall = compose(
-  transformChildren,
-  replaceWithSyntax,
-  replaceChildWithSelf
-)
+const transformCall = (ctx) => {
+  const originalType = ctx.ast.type
+  const next = replaceWithSyntax(replaceChildWithSelf(ctx))
+  return (originalType === 'call' && next.ast.type !== 'call')
+    ? transformCtx(next)
+    : transformChildren(next)
+}
 
 const transformList = compose(
   replaceWithCall,
@@ -71,6 +76,48 @@ const transformList = compose(
 
 const transformSet = transformList
 
+const createExpand = (ast) =>
+  derive({
+    type: 'call',
+    children: [
+      { type: 'symbol', text: 'expand', children: [] },
+      ast
+    ]
+  }, ast)
+
+const transformSym = (ctx) =>
+  ctx.protectSymbols
+    ? ctx
+    : withAst(ctx, createExpand(ctx.ast))
+
+const transformQuote = (ctx) =>
+  withAst(ctx, derive({
+    children: ctx.ast.children.map((child) =>
+      transform(child, withCtx(ctx, { protectSymbols: true })))
+  }, ctx.ast))
+
+const transformExpand = (ctx) =>
+  withAst(ctx, derive({
+    children: ctx.ast.children.map((child) =>
+      transform(child, withCtx(ctx, { protectSymbols: true })))
+  }, ctx.ast))
+
+const transformFn = (ctx) =>
+  withAst(ctx, derive({
+    children: [
+      transform(ctx.ast.children[0], withCtx(ctx, { protectSymbols: true })),
+      ...ctx.ast.children.slice(1).map((child) => transform(child, ctx))
+    ]
+  }, ctx.ast))
+
+const transformLabel = (ctx) =>
+  withAst(ctx, derive({
+    children: [
+      transform(ctx.ast.children[0], withCtx(ctx, { protectSymbols: true })),
+      transform(ctx.ast.children[1], ctx)
+    ]
+  }, ctx.ast))
+
 const transformRules = {
   forms: transformChildren,
   form1: removeForm,
@@ -78,13 +125,17 @@ const transformRules = {
   form3: removeForm,
   form4: removeForm,
   comment: transformChildren,
-  label: transformChildren,
+  do: transformChildren,
+  if: transformChildren,
+  label: transformLabel,
   spread: transformChildren,
-  expand: transformChildren,
-  quote: transformChildren,
+  expand: transformExpand,
+  fn: transformFn,
+  quote: transformQuote,
   call: transformCall,
   list: transformList,
-  set: transformSet
+  set: transformSet,
+  symbol: transformSym
 }
 
 function transformCtx (ctx) {

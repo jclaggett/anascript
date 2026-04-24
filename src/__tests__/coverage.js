@@ -44,7 +44,7 @@ test('read', () => {
 
   expect(read('0 1 -1.25 true false "hello" foo null undefined').toJS())
     .toStrictEqual([0, 1, -1.25, true, false,
-      'hello', { sym: 'foo' }, null, undefined])
+      'hello', [{ sym: 'expand' }, { sym: 'foo' }], null, undefined])
 
   expect(read('a:1').toJS())
     .toStrictEqual([[{ sym: 'label' }, { sym: 'a' }, 1]])
