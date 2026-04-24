@@ -96,19 +96,39 @@ const transformQuote = (ctx) =>
       transform(child, withCtx(ctx, { protectSymbols: true })))
   }, ctx.ast))
 
+/** Drop non-tail statements that are not bindings (`label`). Pure ignored results. */
+const pruneDeadStatements = (children) => {
+  if (children.length <= 1) {
+    return children
+  }
+  const last = children[children.length - 1]
+  const prefix = children
+    .slice(0, -1)
+    .filter((c) => c.type === 'label')
+  return [...prefix, last]
+}
+
+const transformDo = (ctx) => {
+  const ast = ctx.ast
+  const children = ast.children.map((child) => transform(child, ctx))
+  return withAst(ctx, derive({ children: pruneDeadStatements(children) }, ast))
+}
+
 const transformExpand = (ctx) =>
   withAst(ctx, derive({
     children: ctx.ast.children.map((child) =>
       transform(child, withCtx(ctx, { protectSymbols: true })))
   }, ctx.ast))
 
-const transformFn = (ctx) =>
-  withAst(ctx, derive({
-    children: [
-      transform(ctx.ast.children[0], withCtx(ctx, { protectSymbols: true })),
-      ...ctx.ast.children.slice(1).map((child) => transform(child, ctx))
-    ]
-  }, ctx.ast))
+const transformFn = (ctx) => {
+  const ast = ctx.ast
+  const param = transform(ast.children[0], withCtx(ctx, { protectSymbols: true }))
+  const body = ast.children.slice(1).map((child) => transform(child, ctx))
+  const prunedBody = pruneDeadStatements(body)
+  return withAst(ctx, derive({
+    children: [param, ...prunedBody]
+  }, ast))
+}
 
 const transformLabel = (ctx) =>
   withAst(ctx, derive({
@@ -125,7 +145,7 @@ const transformRules = {
   form3: removeForm,
   form4: removeForm,
   comment: transformChildren,
-  do: transformChildren,
+  do: transformDo,
   if: transformChildren,
   label: transformLabel,
   spread: transformChildren,

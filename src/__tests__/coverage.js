@@ -31,6 +31,15 @@ test('parse', () => {
     .toThrow()
 })
 
+test('transform prunes dead statements in do and fn bodies', () => {
+  expect(read('(do 1 2)').toJS())
+    .toStrictEqual([[{ sym: 'do' }, 2]])
+  expect(read('(fn x 1 2)').toJS())
+    .toStrictEqual([[{ sym: 'fn' }, { sym: 'x' }, 2]])
+  expect(read('(do 1 (label a 2) 3)').toJS())
+    .toStrictEqual([[{ sym: 'do' }, [{ sym: 'label' }, { sym: 'a' }, 2], 3]])
+})
+
 test('read', () => {
   expect(read('').toJS())
     .toStrictEqual([])
