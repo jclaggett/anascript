@@ -77,9 +77,9 @@ const emitDo = (exp, envName) => {
   }
   const lines = xs
     .slice(0, -1)
-    .map(x => `__tmp = ${emitAstExpr(x, envName)};`)
+    .map(x => `${emitAstExpr(x, envName)};`)
     .join(' ')
-  return `(() => { let __tmp; ${lines} return ${emitAstExpr(xs[xs.length - 1], envName)}; })()`
+  return `(() => { ${lines} return ${emitAstExpr(xs[xs.length - 1], envName)}; })()`
 }
 
 /** `(expand x)` → `env.get(key)` where key is the evaluated atom (sym, literal, or expression). */
