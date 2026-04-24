@@ -8,9 +8,6 @@ const nth = (ast, i) =>
     ? ast.children[ast.children.length + i]
     : ast.children[i]) ?? undefinedAst
 
-const createSym = (text) =>
-  ({ type: 'symbol', text, children: [] })
-
 const transformChildren = (ast) =>
   derive({
     children: ast.children.map(transform)
@@ -27,10 +24,6 @@ const replaceChildWithSelf = (ast) =>
     : ast
 
 const isSyntaxCall = contains(
-  '+',
-  '-',
-  '*',
-  '/',
   'comment',
   'do',
   'expand',
@@ -57,18 +50,10 @@ const replaceWithCall = (ast) =>
     ]
   }, ast)
 
-const insertRemove = (ast) =>
-  ast.text[0] === '~'
-    ? derive({
-      type: 'call',
-      children: [createSym('remove'), ast]
-    }, ast)
-    : ast
-
 const removeForm = compose(transform, replaceSelfWithChild)
 const transformCall = compose(transformChildren, replaceWithSyntax, replaceChildWithSelf)
 const transformList = compose(replaceWithCall, transformCall)
-const transformSet = compose(insertRemove, transformList)
+const transformSet = transformList
 
 const transformRules = {
   forms: transformChildren,
