@@ -17,6 +17,9 @@
   ],
   "type": "module",
   "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
   "bin": {
     "anascript": "src/repl.js"
   },
@@ -33,8 +36,7 @@
     "highlight-es": "^1.0.3",
     "immutable": "^5.1.5",
     "marked": "^18.0.2",
-    "marked-terminal": "^7.3.0",
-    "print-tree": "^0.1.5"
+    "marked-terminal": "^7.3.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",

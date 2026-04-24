@@ -3,10 +3,9 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 import ebnf from 'ebnf'
-import printTree from 'print-tree'
 
 import { compose } from './xf/util.js'
-import * as lang from './lang.js'
+import { emitLisp } from './internal/read-emit-lisp.js'
 import { transform } from './transform.js'
 
 export { transform }
@@ -29,43 +28,6 @@ export const parse = (str) => {
 
   return ast
 }
-
-// Emitting 1: AST -> Lisp
-export const emitLisp = (ast) =>
-  (emitLispRules[ast.type] ?? emitSpecial)(ast)
-const emitChildren = (ast) =>
-  ast.children
-    .filter(child => child.type !== 'comment')
-    .map(emitLisp)
-const emitSpecial = (ast) =>
-  lang.makeList(lang.sym(ast.type), ...emitChildren(ast))
-const emitList = (ast) =>
-  lang.makeList(...emitChildren(ast))
-
-const emitLispRules = {
-  forms: emitList,
-  call: emitList,
-  symbol: (ast) => lang.sym(ast.text),
-  number: (ast) => parseFloat(ast.text),
-  string: (ast) => ast.text.substr(1, ast.text.length - 2),
-  boolean: (ast) => ast.text === 'true',
-  null: (_ast) => null,
-  undefined: (_ast) => undefined
-}
-
-// Emitting 3: AST -> str
-const printPosition = (ast) =>
-  ast.position != null
-    ? `<${ast.position}> `
-    : ''
-
-export const emitTree = (ast) =>
-  printTree(ast,
-    (ast) => printPosition(ast) + ast.type + (
-      ast.children.length > 0
-        ? ''
-        : " '" + ast.text + "'"),
-    ast => ast.children)
 
 // legacy api
 export const form = compose(emitLisp, transform)

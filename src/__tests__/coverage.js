@@ -7,7 +7,6 @@ import {
   print,
   printLabel,
   printSyntax,
-  emitTree,
   emitAstExpr,
   emitAstResult,
   emitSourceExpr,
@@ -31,11 +30,6 @@ test('parse', () => {
     .toBeDefined()
   expect(() => parse('['))
     .toThrow()
-})
-
-test('emitTree', () => {
-  expect(emitTree(transform(parse('0 true "hello" foo null undefined'))))
-    .toBeUndefined()
 })
 
 test('read', () => {

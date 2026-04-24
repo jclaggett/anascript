@@ -3,7 +3,7 @@ import { read } from './read.js'
 import { applyExp, initialEnv } from './eval.js'
 
 export { sym, toJS } from './lang.js'
-export { read, parse, transform, emitLisp, emitTree } from './read.js'
+export { read, parse, transform } from './read.js'
 export { print, printLabel, printSyntax } from './print.js'
 export { emitAstExpr, emitAstResult, emitExpr, emitResult, emitSourceExpr } from './emit.js'
 
