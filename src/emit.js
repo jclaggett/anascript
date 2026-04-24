@@ -30,9 +30,12 @@ const emitCall = (exp, envName) => {
 const emitLabel = (exp, envName) => {
   assert(lang.isForm(exp, 'label'), 'label form expected')
   const lhs = exp.get(1)
-  assert(lang.isSym(lhs), 'only symbol labels are supported in milestone 1')
   const rhs = exp.get(2)
-  return `${envName} = ${envName}.set(lang.sym(${q(lhs.sym)}), ${emitAstExpr(rhs, envName)})`
+  assert(!(lang.isList(lhs) || lang.isSet(lhs)), 'label lhs destructuring is not supported yet')
+  const lhsText = lang.isSym(lhs)
+    ? `lang.sym(${q(lhs.sym)})`
+    : emitLiteral(lhs)
+  return `${envName} = ${envName}.set(${lhsText}, ${emitAstExpr(rhs, envName)})`
 }
 
 const emitFn = (exp, envName) => {
@@ -76,6 +79,17 @@ const emitDo = (exp, envName) => {
   return `(() => { let __tmp; ${lines} return ${emitAstExpr(xs[xs.length - 1], envName)}; })()`
 }
 
+/** `(expand x)` → `env.get(key)` where key is the evaluated atom (sym, literal, or expression). */
+const emitExpand = (exp, envName) => {
+  assert(lang.isForm(exp, 'expand'), 'expand form expected')
+  assert(exp.count() >= 2, 'expand expects an argument')
+  const inner = exp.get(1)
+  if (lang.isSym(inner)) {
+    return `${envName}.get(lang.sym(${q(inner.sym)}))`
+  }
+  return `${envName}.get(${emitAstExpr(inner, envName)})`
+}
+
 export const emitAstExpr = (exp, envName = 'env') => {
   if (lang.isSym(exp)) {
     return emitSym(exp, envName)
@@ -84,6 +98,7 @@ export const emitAstExpr = (exp, envName = 'env') => {
     if (lang.isForm(exp, 'label')) return emitLabel(exp, envName)
     if (lang.isForm(exp, 'fn')) return emitFn(exp, envName)
     if (lang.isForm(exp, 'do')) return emitDo(exp, envName)
+    if (lang.isForm(exp, 'expand')) return emitExpand(exp, envName)
     return emitCall(exp, envName)
   }
   return emitLiteral(exp)
