@@ -13,7 +13,6 @@ import {
   emitResult,
   read,
   toJS,
-  transform,
   sym
 } from '../index'
 
@@ -89,6 +88,38 @@ test('emit milestone 1', () => {
     .toStrictEqual('env.get(lang.sym("foo"))')
   expect(emitSourceExpr('foo: (fn x x)'))
     .toStrictEqual('env = env.set(lang.sym("foo"), (args) => { let fnEnv = env; fnEnv = fnEnv.set(lang.sym("x"), args); return fnEnv.get(lang.sym("x")); })')
+})
+
+test('emit milestone 2', () => {
+  expect(emitAstExpr(read('(if true 1 0)').first()))
+    .toStrictEqual('(true ? 1 : 0)')
+  expect(emitAstExpr(read('(if false 1 0)').first()))
+    .toStrictEqual('(false ? 1 : 0)')
+  expect(emitAstExpr(read('(if $a 1 2)').first()))
+    .toStrictEqual('(env.get(lang.sym("a")) ? 1 : 2)')
+
+  expect(emitAstExpr(read('(quote a)').first()))
+    .toStrictEqual('lang.sym("a")')
+  expect(emitAstExpr(read('(quote [1 2])').first()))
+    .toStrictEqual('lang.makeList(1, 2)')
+  expect(emitAstExpr(read('(quote [])').first()))
+    .toStrictEqual('lang.makeList()')
+  expect(emitAstExpr(read('(quote {})').first()))
+    .toStrictEqual('lang.makeSet()')
+
+  expect(emitAstExpr(read('[1 2 3]').first()))
+    .toStrictEqual('lang.conj(lang.makeList(), 1, 2, 3)')
+  expect(emitAstExpr(read('[]').first()))
+    .toStrictEqual('lang.makeList()')
+  expect(emitAstExpr(read('{1 2}').first()))
+    .toStrictEqual('lang.conj(lang.makeSet(), 1, 2)')
+  expect(emitAstExpr(read('{}').first()))
+    .toStrictEqual('lang.makeSet()')
+
+  expect(emitAstExpr(read('[1 ...[3 4]]').first()))
+    .toStrictEqual("(() => { let col = lang.makeList(); col = lang.conj(col, 1); const __s0 = lang.conj(lang.makeList(), 3, 4); col = lang.isList(__s0) ? __s0.reduce((c, v) => lang.conj(c, v), col) : __s0.reduce((c, v, k) => lang.conj(c, lang.makeForm('bind', k, v)), col); return col; })()")
+  expect(emitAstExpr(read('{1 ...{3 4}}').first()))
+    .toStrictEqual("(() => { let col = lang.makeSet(); col = lang.conj(col, 1); const __s0 = lang.conj(lang.makeSet(), 3, 4); col = lang.isList(__s0) ? __s0.reduce((c, v) => lang.conj(c, v), col) : __s0.reduce((c, v, k) => lang.conj(c, lang.makeForm('bind', k, v)), col); return col; })()")
 })
 
 test('toJS', () => {

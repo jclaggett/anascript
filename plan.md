@@ -11,7 +11,7 @@ personal and professional success.
 
 ## Next Steps
 
-- Complete `emit.js` so anascript forms compile into explicit JS expressions.
+- Extend `emit.js` for Milestone 3 (destructuring, richer `fn`, closure-correct emission, tests).
 - Keep interpreter behavior as the semantic reference until emitter parity is proven.
 - Cut over execution from `eval.js` to emitted JS in controlled phases.
 
@@ -25,7 +25,7 @@ personal and professional success.
   - Public surface: `index.js` exports `read`, `parse`, `transform` (and print / emit APIs); `package.json` `exports` maps `"."` to `src/index.js` only.
 - Emitter path:
   - `emit.js` exists and is tested, but is not yet used for runtime execution.
-  - Implemented so far: literals, symbols, calls, `label` (symbol/string/number lhs), `fn` (simple params), `do`, `expand`.
+  - Implemented so far: literals, symbols, calls, `label` (symbol/string/number lhs), `fn` (simple params), `do`, `expand`, `if`, `quote`, list/set literals (including `spread` in literals).
 - Language semantics to preserve:
   - Functions close over environment at definition time (no late rebinding from outer eval state).
   - Labels behave like flattened sequential `let*` bindings.
@@ -67,17 +67,14 @@ Design rule: `eval.js` remains the behavior oracle until parity tests show the e
 - `read.js` holds parsing (`parse`), re-export of `transform`, the private grammar-tree walk that finishes the reader, and legacy `read` / `form` composition.
 - Legacy JS emission was removed from the reader; all JS string emission for execution belongs in `emit.js`.
 
-### Milestone 2 (next)
+### Milestone 2 (done in `emit.js`)
 
-Add missing core special forms and data forms with no destructuring:
+- `if` — short-circuit ternary in emitted JS.
+- `quote` — unevaluated structure → `lang.sym` / `lang.makeList` / `lang.makeSet` (reader `list` / `set` shapes and implicit lists).
+- Collection literals `[...]` / `{...}` — `lang.conj` / `lang.makeList` / `lang.makeSet`; list or set `spread` lowered via `lang.isList` branch vs map `bind` entries (mirrors `lang.conj`).
+- Clearer `emit:` errors for unsupported `label` lhs / bad `fn` arg specs.
 
-- `quote`
-- `if`
-- collection literals (`list`, `set`) including spread basics where possible
-- comments as no-op in emitted expressions
-- stricter unsupported-form errors with useful context
-
-Deliverable: emitted output covers typical non-destructuring programs used in examples/tests.
+Deliverable: typical non-destructuring emit coverage in tests; `(list …)` / `(set …)` calls still go through `emitCall` (runtime specials), not a separate emitter rule.
 
 ### Milestone 3
 

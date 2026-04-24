@@ -3,10 +3,12 @@ import { read } from './read.js'
 
 const q = (s) => JSON.stringify(s)
 
+const emitFail = (msg) => {
+  throw new Error(`emit: ${msg}`)
+}
+
 const assert = (ok, msg) => {
-  if (!ok) {
-    throw new Error(`emit: ${msg}`)
-  }
+  if (!ok) emitFail(msg)
 }
 
 const emitLiteral = (exp) =>
@@ -31,7 +33,8 @@ const emitLabel = (exp, envName) => {
   assert(lang.isForm(exp, 'label'), 'label form expected')
   const lhs = exp.get(1)
   const rhs = exp.get(2)
-  assert(!(lang.isList(lhs) || lang.isSet(lhs)), 'label lhs destructuring is not supported yet')
+  assert(!(lang.isList(lhs) || lang.isSet(lhs)),
+    `label lhs destructuring is not supported in emit yet (got ${lang.getType(lhs)})`)
   const lhsText = lang.isSym(lhs)
     ? `lang.sym(${q(lhs.sym)})`
     : emitLiteral(lhs)
@@ -55,7 +58,7 @@ const emitFn = (exp, envName) => {
         `${fnEnv} = ${fnEnv}.set(lang.sym(${q(s.sym)}), args.get(${i}));`)
       .join(' ')
   } else {
-    throw new Error('emit: fn arg spec must be symbol or list')
+    emitFail(`fn arg spec must be symbol or list (got ${lang.getType(argSpec)})`)
   }
   const bodyExpr = body.size === 1
     ? emitAstExpr(body.first(), fnEnv)
@@ -90,16 +93,119 @@ const emitExpand = (exp, envName) => {
   return `${envName}.get(${emitAstExpr(inner, envName)})`
 }
 
+const emitIf = (exp, envName) => {
+  assert(lang.isForm(exp, 'if'), 'if form expected')
+  assert(exp.count() >= 4, 'if expects test, then, and else branches')
+  const test = emitAstExpr(exp.get(1), envName)
+  const thenB = emitAstExpr(exp.get(2), envName)
+  const elseB = emitAstExpr(exp.get(3), envName)
+  return `(${test} ? ${thenB} : ${elseB})`
+}
+
+const emitQuotedListShape = (exp) => {
+  const rest = exp.rest().toArray()
+  if (rest.length === 0) {
+    return 'lang.makeList()'
+  }
+  return `lang.makeList(${rest.map(emitQuotedDatum).join(', ')})`
+}
+
+const emitQuotedSetShape = (exp) => {
+  const rest = exp.rest().toArray()
+  if (rest.length === 0) {
+    return 'lang.makeSet()'
+  }
+  return `lang.makeSet(${rest
+    .map(v => `[${emitQuotedDatum(v)},${emitQuotedDatum(v)}]`)
+    .join(', ')})`
+}
+
+const emitQuotedImplicitList = (exp) =>
+  exp.count() === 0
+    ? 'lang.makeList()'
+    : `lang.makeList(${exp.map(emitQuotedDatum).toArray().join(', ')})`
+
+const emitQuotedDatum = (exp) => {
+  if (lang.isSym(exp)) {
+    return `lang.sym(${q(exp.sym)})`
+  }
+  if (lang.isList(exp)) {
+    if (lang.isForm(exp, 'list')) return emitQuotedListShape(exp)
+    if (lang.isForm(exp, 'set')) return emitQuotedSetShape(exp)
+    return emitQuotedImplicitList(exp)
+  }
+  if (lang.isSet(exp)) {
+    emitFail(`quoted value cannot be a set map (${lang.getType(exp)})`)
+  }
+  return emitLiteral(exp)
+}
+
+const emitQuote = (exp, _envName) => {
+  assert(lang.isForm(exp, 'quote'), 'quote form expected')
+  assert(exp.count() >= 2, 'quote expects an argument')
+  return emitQuotedDatum(exp.get(1))
+}
+
+const emitConjNoSpread = (emptyExpr, parts, envName) => {
+  const em = parts.map(p => emitAstExpr(p, envName)).join(', ')
+  return `lang.conj(${emptyExpr}, ${em})`
+}
+
+const emitConjSpreadBody = (emptyExpr, parts, envName) => {
+  const stmts = [`let col = ${emptyExpr};`]
+  let si = 0
+  for (const p of parts) {
+    if (lang.isForm(p, 'spread')) {
+      const tmp = `__s${si++}`
+      stmts.push(`const ${tmp} = ${emitAstExpr(p.get(1), envName)};`)
+      stmts.push(
+        `col = lang.isList(${tmp})` +
+          ` ? ${tmp}.reduce((c, v) => lang.conj(c, v), col)` +
+          ` : ${tmp}.reduce((c, v, k) => lang.conj(c, lang.makeForm('bind', k, v)), col);`
+      )
+    } else {
+      stmts.push(`col = lang.conj(col, ${emitAstExpr(p, envName)});`)
+    }
+  }
+  stmts.push('return col;')
+  return `(() => { ${stmts.join(' ')} })()`
+}
+
+const emitConjParts = (emptyExpr, parts, envName) =>
+  parts.length === 0
+    ? emptyExpr
+    : parts.some(p => lang.isForm(p, 'spread'))
+      ? emitConjSpreadBody(emptyExpr, parts, envName)
+      : emitConjNoSpread(emptyExpr, parts, envName)
+
+const emitListLiteral = (exp, envName) => {
+  assert(lang.isForm(exp, 'list'), 'list literal form expected')
+  return emitConjParts('lang.makeList()', exp.rest().toArray(), envName)
+}
+
+const emitSetLiteral = (exp, envName) => {
+  assert(lang.isForm(exp, 'set'), 'set literal form expected')
+  return emitConjParts('lang.makeSet()', exp.rest().toArray(), envName)
+}
+
+const emitAstListExpr = (exp, envName) => {
+  if (lang.isForm(exp, 'if')) return emitIf(exp, envName)
+  if (lang.isForm(exp, 'quote')) return emitQuote(exp, envName)
+  if (lang.isForm(exp, 'list')) return emitListLiteral(exp, envName)
+  if (lang.isForm(exp, 'set')) return emitSetLiteral(exp, envName)
+  if (lang.isForm(exp, 'label')) return emitLabel(exp, envName)
+  if (lang.isForm(exp, 'fn')) return emitFn(exp, envName)
+  if (lang.isForm(exp, 'do')) return emitDo(exp, envName)
+  if (lang.isForm(exp, 'expand')) return emitExpand(exp, envName)
+  return emitCall(exp, envName)
+}
+
 export const emitAstExpr = (exp, envName = 'env') => {
   if (lang.isSym(exp)) {
     return emitSym(exp, envName)
   }
   if (lang.isList(exp)) {
-    if (lang.isForm(exp, 'label')) return emitLabel(exp, envName)
-    if (lang.isForm(exp, 'fn')) return emitFn(exp, envName)
-    if (lang.isForm(exp, 'do')) return emitDo(exp, envName)
-    if (lang.isForm(exp, 'expand')) return emitExpand(exp, envName)
-    return emitCall(exp, envName)
+    return emitAstListExpr(exp, envName)
   }
   return emitLiteral(exp)
 }
