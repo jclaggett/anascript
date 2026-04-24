@@ -1,4 +1,4 @@
-import { identity, compose, derive, rest, contains } from './xf/util.js'
+import { identity, derive, compose, rest, contains } from './xf/util.js'
 
 // Transforming: AST -> AST
 // Keep this as a single-pass rule-dispatched walk.
@@ -8,20 +8,24 @@ const nth = (ast, i) =>
     ? ast.children[ast.children.length + i]
     : ast.children[i]) ?? undefinedAst
 
-const transformChildren = (ast) =>
-  derive({
-    children: ast.children.map(transform)
-  }, ast)
+const withAst = (ctx, ast) =>
+  ({ ...ctx, ast })
 
-const replaceSelfWithChild = (ast) =>
-  ast.children[0]
+const transformAst = (astTransformer) =>
+  (ctx) => withAst(ctx, astTransformer(ctx.ast))
 
-const replaceChildWithSelf = (ast) =>
+const transformChildren = (ctx) =>
+  withAst(ctx, derive({
+    children: ctx.ast.children.map((child) =>
+      transform(child, ctx))
+  }, ctx.ast))
+
+const replaceChildWithSelf = transformAst((ast) =>
   ast.children.length > 0
     ? derive({
       children: ast.children[0].children
     }, ast)
-    : ast
+    : ast)
 
 const isSyntaxCall = contains(
   'comment',
@@ -33,26 +37,38 @@ const isSyntaxCall = contains(
   'quote',
   'spread')
 
-const replaceWithSyntax = (ast) =>
+const replaceWithSyntax = transformAst((ast) =>
   isSyntaxCall(ast.children[0]?.text)
     ? derive({
       type: nth(ast, 0).text,
       children: rest(ast.children)
     }, ast)
-    : ast
+    : ast)
 
-const replaceWithCall = (ast) =>
-  derive({
-    type: 'call',
-    children: [
-      { type: 'symbol', text: ast.type, children: [] },
-      ...ast.children
-    ]
-  }, ast)
+const replaceWithCall = transformAst((ast) => derive({
+  type: 'call',
+  children: [
+    { type: 'symbol', text: ast.type, children: [] },
+    ...ast.children
+  ]
+}, ast))
 
-const removeForm = compose(transform, replaceSelfWithChild)
-const transformCall = compose(transformChildren, replaceWithSyntax, replaceChildWithSelf)
-const transformList = compose(replaceWithCall, transformCall)
+const removeForm = compose(
+  transformCtx,
+  transformAst((ast) => ast.children[0])
+)
+
+const transformCall = compose(
+  transformChildren,
+  replaceWithSyntax,
+  replaceChildWithSelf
+)
+
+const transformList = compose(
+  replaceWithCall,
+  transformCall
+)
+
 const transformSet = transformList
 
 const transformRules = {
@@ -71,6 +87,12 @@ const transformRules = {
   set: transformSet
 }
 
-export function transform (ast) {
-  return (transformRules[ast.type] ?? identity)(ast)
+function transformCtx (ctx) {
+  return (transformRules[ctx.ast.type] ?? identity)(ctx)
 }
+
+function transform (ast, ctx = {}) {
+  return transformCtx(withAst(ctx, ast)).ast
+}
+
+export { transform }
