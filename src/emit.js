@@ -19,10 +19,10 @@ const emitSym = (exp, envName) =>
 
 const emitCall = (exp, envName) => {
   assert(lang.isList(exp) && exp.count() > 0, 'call expects non-empty list')
-  const fnText = emitExpr(exp.first(), envName)
+  const fnText = emitAstExpr(exp.first(), envName)
   const argsText = exp
     .rest()
-    .map(arg => emitExpr(arg, envName))
+    .map(arg => emitAstExpr(arg, envName))
     .join(', ')
   return `${fnText}(lang.makeList(${argsText}))`
 }
@@ -32,7 +32,7 @@ const emitLabel = (exp, envName) => {
   const lhs = exp.get(1)
   assert(lang.isSym(lhs), 'only symbol labels are supported in milestone 1')
   const rhs = exp.get(2)
-  return `${envName} = ${envName}.set(lang.sym(${q(lhs.sym)}), ${emitExpr(rhs, envName)})`
+  return `${envName} = ${envName}.set(lang.sym(${q(lhs.sym)}), ${emitAstExpr(rhs, envName)})`
 }
 
 const emitFn = (exp, envName) => {
@@ -55,7 +55,7 @@ const emitFn = (exp, envName) => {
     throw new Error('emit: fn arg spec must be symbol or list')
   }
   const bodyExpr = body.size === 1
-    ? emitExpr(body.first(), fnEnv)
+    ? emitAstExpr(body.first(), fnEnv)
     : emitDo(lang.makeForm('do', ...body), fnEnv)
   return `(args) => { let ${fnEnv} = ${envName}; ${bindText} return ${bodyExpr}; }`
 }
@@ -67,16 +67,16 @@ const emitDo = (exp, envName) => {
     return 'undefined'
   }
   if (xs.length === 1) {
-    return emitExpr(xs[0], envName)
+    return emitAstExpr(xs[0], envName)
   }
   const lines = xs
     .slice(0, -1)
-    .map(x => `__tmp = ${emitExpr(x, envName)};`)
+    .map(x => `__tmp = ${emitAstExpr(x, envName)};`)
     .join(' ')
-  return `(() => { let __tmp; ${lines} return ${emitExpr(xs[xs.length - 1], envName)}; })()`
+  return `(() => { let __tmp; ${lines} return ${emitAstExpr(xs[xs.length - 1], envName)}; })()`
 }
 
-export const emitExpr = (exp, envName = 'env') => {
+export const emitAstExpr = (exp, envName = 'env') => {
   if (lang.isSym(exp)) {
     return emitSym(exp, envName)
   }
@@ -89,8 +89,12 @@ export const emitExpr = (exp, envName = 'env') => {
   return emitLiteral(exp)
 }
 
-export const emitResult = (exp, resultSym = 'result', envName = 'env') =>
-  `${envName} = ${envName}.set(lang.sym(${q(resultSym)}), ${emitExpr(exp, envName)})`
+export const emitAstResult = (exp, resultSym = 'result', envName = 'env') =>
+  `${envName} = ${envName}.set(lang.sym(${q(resultSym)}), ${emitAstExpr(exp, envName)})`
+
+// Backward-compatible aliases.
+export const emitExpr = emitAstExpr
+export const emitResult = emitAstResult
 
 export const emitSourceExpr = (src, envName = 'env') =>
-  emitExpr(read(src).first(), envName)
+  emitAstExpr(read(src).first(), envName)

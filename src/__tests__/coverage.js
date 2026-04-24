@@ -8,6 +8,8 @@ import {
   printLabel,
   printSyntax,
   emitTree,
+  emitAstExpr,
+  emitAstResult,
   emitSourceExpr,
   emitResult,
   read,
@@ -54,6 +56,15 @@ test('read', () => {
 })
 
 test('emit milestone 1', () => {
+  expect(emitAstExpr(read('1').first()))
+    .toStrictEqual('1')
+  expect(emitAstExpr(read('+').first()))
+    .toStrictEqual('env.get(lang.sym("+"))')
+  expect(emitAstExpr(read('(+ 1 1)').first()))
+    .toStrictEqual('env.get(lang.sym("+"))(lang.makeList(1, 1))')
+  expect(emitAstResult(read('(+ 1 1)').first()))
+    .toStrictEqual('env = env.set(lang.sym("result"), env.get(lang.sym("+"))(lang.makeList(1, 1)))')
+
   expect(emitSourceExpr('1'))
     .toStrictEqual('1')
   expect(emitSourceExpr('+'))
