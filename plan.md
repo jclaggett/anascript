@@ -2,11 +2,12 @@
 
 Goal: build a small Lisp with a well defined grammar. The language should be
 compiled into javascript. It is a purely evaluative language with no side
-effects.
+effects from user programs: bindings update only by replacing `env` with a new
+immutable map (`env.set` / `label`), not by mutating values in place.
 
 Future Goal: to promote the use of reactive transducer framework in languages
 like javascript and clojure. Be able to write all programs using rxf for
-personal and profesional success.
+personal and professional success.
 
 ## Next Steps
 
@@ -18,6 +19,10 @@ personal and profesional success.
 
 - Runtime execution path:
   - `repl.js` -> `makeEnv().eval(...)` -> `eval.js` interpreter (`applyExp` / special forms).
+- Reader pipeline (text → values `eval` / `emit` consume):
+  - `read.js`: `parse` (text → grammar AST), `transform`, and a small private walk from the transformed tree into host structures (`read` / `form` compose these).
+  - `transform.js`: AST → AST (syntax forms, `expand` on symbols, etc.).
+  - Public surface: `index.js` exports `read`, `parse`, `transform` (and print / emit APIs); `package.json` `exports` maps `"."` to `src/index.js` only.
 - Emitter path:
   - `emit.js` exists and is tested, but is not yet used for runtime execution.
   - Implemented so far: literals, symbols, calls, `label` (symbol/string/number lhs), `fn` (simple params), `do`, `expand`.
@@ -28,11 +33,16 @@ personal and profesional success.
 
 ## Architecture Direction
 
-Build and stabilize this pipeline:
+End-to-end pipeline (mental model):
 
-1. source -> `read.parse`/`read.transform` -> Lisp forms
-2. Lisp forms -> `emit.js` -> JS source string
-3. JS source string -> runtime evaluation in a controlled closure (`lang`, `env`)
+`anascript` → **`read`** → AST → **`transform`** → AST → **`emit`** → JavaScript → **`run`**
+
+How this maps in the repo today:
+
+- **`read`** — In `read.js`, the full reader path: `parse` (text → grammar AST), then `transform`, then a private walk in the same file that turns the transformed tree into the structures `eval` and `emit.js` use. The exported `read()` / `form()` helpers are that full chain; `parse` alone stops at the grammar AST.
+- **`transform`** — `transform.js`, AST → AST.
+- **`emit`** — `emit.js`, same structures as `read()` produces → JavaScript source string.
+- **`run`** — execution: today the interpreter (`eval.js`); later, evaluate emitted JS in a controlled closure (`lang`, `env`).
 
 Design rule: `eval.js` remains the behavior oracle until parity tests show the emitted path is equivalent for supported forms.
 
@@ -51,6 +61,12 @@ Design rule: `eval.js` remains the behavior oracle until parity tests show the e
   - simple `fn`
   - `expand`
 
+### Reader layout (done)
+
+- Transform logic lives in `transform.js` (single-pass rule-dispatched walk); behavior preserved from the earlier `read.js` extraction.
+- `read.js` holds parsing (`parse`), re-export of `transform`, the private grammar-tree walk that finishes the reader, and legacy `read` / `form` composition.
+- Legacy JS emission was removed from the reader; all JS string emission for execution belongs in `emit.js`.
+
 ### Milestone 2 (next)
 
 Add missing core special forms and data forms with no destructuring:
@@ -62,22 +78,6 @@ Add missing core special forms and data forms with no destructuring:
 - stricter unsupported-form errors with useful context
 
 Deliverable: emitted output covers typical non-destructuring programs used in examples/tests.
-
-### Refactor Work (immediate)
-
-Before extending `emit.js` further, cleanly separate responsibilities in reader/transform code:
-
-- Extract transform logic from `read.js` into `transform.js`:
-  - keep the single-pass composed transform walk design
-  - preserve behavior exactly (no semantic changes during move)
-- Make `read.js` responsible only for:
-  - parsing (`parse`)
-  - lisp-form emission (`emitLisp`, `read`)
-  - tree visualization (`emitTree`)
-- Remove legacy JS emission code from `read.js` (`emitJS`, `testJS`, and related helpers).
-- Ensure all existing tests still pass after the refactor.
-
-Deliverable: `read.js` becomes a small parser/reader module, transform concerns live in `transform.js`, and all JS emission concerns live in `emit.js`.
 
 ### Milestone 3
 
@@ -127,7 +127,7 @@ Deliverable: confidence + performance data before cutover.
 
 ## Guardrails
 
-- Do not change language semantics while emitter is being built unless explicitly planned.
+- Do not change language semantics while the emitter is being built unless explicitly planned.
 - Preserve closure semantics: function env snapshot at definition time.
 - Keep commits small and milestone-based.
 - Each milestone ends with:
