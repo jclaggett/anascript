@@ -5,6 +5,7 @@ import { applyExp, initialEnv } from './eval.js'
 export { sym, toJS } from './lang.js'
 export { read, parse, transform, emitLisp, emitTree } from './read.js'
 export { print, printLabel, printSyntax } from './print.js'
+export { emitExpr, emitResult, emitSourceExpr } from './emit.js'
 
 class Env {
   constructor (envMap) {

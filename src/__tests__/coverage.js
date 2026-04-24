@@ -8,6 +8,8 @@ import {
   printLabel,
   printSyntax,
   emitTree,
+  emitSourceExpr,
+  emitResult,
   read,
   toJS,
   transform,
@@ -49,6 +51,19 @@ test('read', () => {
     .toStrictEqual([
       [{ sym: 'label' }, { sym: 'a' },
         [{ sym: 'label' }, { sym: 'b' }, 1]]])
+})
+
+test('emit milestone 1', () => {
+  expect(emitSourceExpr('1'))
+    .toStrictEqual('1')
+  expect(emitSourceExpr('+'))
+    .toStrictEqual('env.get(lang.sym("+"))')
+  expect(emitSourceExpr('(+ 1 1)'))
+    .toStrictEqual('env.get(lang.sym("+"))(lang.makeList(1, 1))')
+  expect(emitResult(read('(+ 1 1)').first()))
+    .toStrictEqual('env = env.set(lang.sym("result"), env.get(lang.sym("+"))(lang.makeList(1, 1)))')
+  expect(emitSourceExpr('foo: (fn x x)'))
+    .toStrictEqual('env = env.set(lang.sym("foo"), (args) => { let fnEnv = env; fnEnv = fnEnv.set(lang.sym("x"), args); return fnEnv.get(lang.sym("x")); })')
 })
 
 test('toJS', () => {
