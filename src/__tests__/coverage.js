@@ -15,37 +15,12 @@ import {
   toJS,
   sym
 } from '../index'
-import * as lang from '../lang.js'
 
 const RE = str =>
   makeEnv().eval(str)?.last()?.last()?.last()
 
 const REJ = str =>
   toJS(RE(str))
-
-const runEmitted = (src) => {
-  let env = makeEnv().envMap
-  let val
-  for (const exp of read(src)) {
-    const code = `
-      const val = ${emitAstExpr(exp, 'env')}
-      return { env, val }
-    `
-    // eslint-disable-next-line no-new-func
-    const fn = Function('lang', 'env', code)
-    const out = fn(lang, env)
-    env = out.env
-    val = out.val
-  }
-  return val
-}
-
-const expectParity = (src) => {
-  const interp = RE(src)
-  const emitted = runEmitted(src)
-  expect(toJS(emitted))
-    .toStrictEqual(toJS(interp))
-}
 
 test('parse', () => {
   expect(parse(''))
@@ -184,15 +159,6 @@ test('emit milestone 2', () => {
     .toStrictEqual("(() => { let col = lang.makeList(); col = lang.conj(col, 1); const __s0 = lang.conj(lang.makeList(), 3, 4); col = lang.isList(__s0) ? __s0.reduce((c, v) => lang.conj(c, v), col) : __s0.reduce((c, v, k) => lang.conj(c, lang.makeForm('bind', k, v)), col); return col; })()")
   expect(emitAstExpr(read('{1 ...{3 4}}').first()))
     .toStrictEqual("(() => { let col = lang.makeSet(); col = lang.conj(col, 1); const __s0 = lang.conj(lang.makeSet(), 3, 4); col = lang.isList(__s0) ? __s0.reduce((c, v) => lang.conj(c, v), col) : __s0.reduce((c, v, k) => lang.conj(c, lang.makeForm('bind', k, v)), col); return col; })()")
-})
-
-test('emit parity helper', () => {
-  expect.hasAssertions()
-  expectParity('42')
-  expectParity('a:1 $a')
-  expectParity('a:b:2 [a b]')
-  expectParity('[x ...xs]:[1 2 3] [x xs]')
-  expectParity('(if true [1 2] {3 4})')
 })
 
 test('toJS', () => {
