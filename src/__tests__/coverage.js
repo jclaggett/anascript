@@ -239,6 +239,8 @@ test('regression guardrails', () => {
   // Label lhs calls are evaluated and can be expanded as keys.
   expect(REJ('(+ 1 1):42 $2'))
     .toStrictEqual(42)
+  expect(REJ('((fn (+ 1 1) $2) 42)'))
+    .toStrictEqual([42])
 })
 
 test('special forms', () => {
