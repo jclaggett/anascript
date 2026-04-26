@@ -29,16 +29,36 @@ const emitCall = (exp, envName) => {
   return `${fnText}(lang.makeList(${argsText}))`
 }
 
-const emitLabel = (exp, envName) => {
-  assert(lang.isForm(exp, 'label'), 'label form expected')
-  const lhs = exp.get(1)
-  const rhs = exp.get(2)
+const collectLabelChain = (exp) => {
+  const lhses = []
+  let rhs = exp
+  while (lang.isForm(rhs, 'label')) {
+    lhses.push(rhs.get(1))
+    rhs = rhs.get(2)
+  }
+  return { lhses, rhs }
+}
+
+const emitSimpleLabelLhs = (lhs) => {
   assert(!(lang.isList(lhs) || lang.isSet(lhs)),
     `label lhs destructuring is not supported in emit yet (got ${lang.getType(lhs)})`)
-  const lhsText = lang.isSym(lhs)
-    ? `lang.sym(${q(lhs.sym)})`
-    : emitLiteral(lhs)
-  return `${envName} = ${envName}.set(${lhsText}, ${emitAstExpr(rhs, envName)})`
+  if (lang.isSym(lhs)) {
+    return `lang.sym(${q(lhs.sym)})`
+  }
+  return emitLiteral(lhs)
+}
+
+const emitLabel = (exp, envName) => {
+  assert(lang.isForm(exp, 'label'), 'label form expected')
+  const { lhses, rhs } = collectLabelChain(exp)
+  const lhsTexts = lhses.map(emitSimpleLabelLhs)
+  if (lhsTexts.length === 1) {
+    return `${envName} = ${envName}.set(${lhsTexts[0]}, ${emitAstExpr(rhs, envName)})`
+  }
+  const steps = lhsTexts
+    .map((lhsText) => `__labelEnv = __labelEnv.set(${lhsText}, __labelRhs);`)
+    .join(' ')
+  return `${envName} = (() => { let __labelEnv = ${envName}; const __labelRhs = ${emitAstExpr(rhs, '__labelEnv')}; ${steps} return __labelEnv; })()`
 }
 
 const emitFn = (exp, envName) => {

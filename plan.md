@@ -29,6 +29,7 @@ personal and professional success.
 - Language semantics to preserve:
   - Functions close over environment at definition time (no late rebinding from outer eval state).
   - Labels behave like flattened sequential `let*` bindings.
+  - Milestone 3 planned semantic change: chained `label` bindings are emitted left-to-right.
   - Negative sets represented with `{~ ...}` conventions already established.
 
 ## Architecture Direction
@@ -85,7 +86,18 @@ Add binding and function features needed for real workloads:
 - nested `fn` emission strategy
 - closure correctness tests (definition-time env capture)
 
-Deliverable: functions and labels in emitter match interpreter behavior for existing tests.
+Deliverable: functions and labels in emitter match target Milestone 3 behavior, including left-to-right label chain binding order.
+
+#### destructuring examples & notes
+| anascript | javascript |
+| --------- | ---------- |
+| `a:1` | `const __tmp1 = 1; env = env.set(sym('a'), __tmp1)` |
+| `a:b:2` | `const __tmp2 = 2; env = env.set(sym('a'), __tmp2); env = env.set(sym('b'), __tmp2)` |
+| `[a ...bs]:foo` | `const __tmp3 = env.get(sym('foo')); const __tmp4 = __tmp3.get(0); env = env.set(sym('a'), __tmp4); const __tmp5 = __tmp3.slice(1); env = env.set(sym('bs'), __tmp5);` |
+
+- temp names are IIFE-local in emitted snippets so they do not leak or collide across nested emits.
+- the actual emitted javascript for destructuring access into rhs values can reuse emitted `get` semantics where practical.
+- This feels very complex. Perhaps some of the complexity should be handled in transform.js? Just a thought.
 
 ### Milestone 4
 
