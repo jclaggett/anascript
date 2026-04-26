@@ -47,6 +47,9 @@ const parityCases = {
   ],
   destructure: [
     '[x ...xs]:[1 2 3] [x xs]',
+    '[a b ...c ...d]: {0:1 1:2 2:3} [a b c d]',
+    '{a ...rest}:{a:1 "b":2 "c":3} [a rest]',
+    '{a:0 b:1 ...c}: [1, 2, 3] [a b c]',
     '[a ...[b ...c]]:[1 2 3] [a b c]'
   ],
   fn: [
@@ -76,9 +79,6 @@ test('emit parity matrix', () => {
   }
 })
 
-test.todo('emit parity known gap: list spread from set rhs [a b ...c ...d]: {0:1 1:2 2:3} [a b c d]')
-test.todo('emit parity known gap: set spread from set rhs {a ...rest}:{a:1 "b":2 "c":3} [a rest]')
-test.todo('emit parity known gap: set numeric keys with spread {a:0 b:1 ...c}: [1, 2, 3] [a b c]')
 test.todo('emit parity known gap: function identity/value equality ((fn x (fn y x)) 42 0)')
 
 const makeRng = (seed) => {

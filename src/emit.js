@@ -19,15 +19,13 @@ const emitLiteral = (exp) =>
 const emitSym = (exp, envName) =>
   `${envName}.get(lang.sym(${q(exp.sym)}))`
 
-const emitCallArgValue = (arg, envName) => {
-  if (lang.isForm(arg, 'label')) {
-    const tmpEnv = '__argEnv'
-    const tmpBefore = '__argBefore'
-    const tmpBinds = '__argBinds'
-    const labeled = emitLabel(arg, tmpEnv)
-    return `(() => { let ${tmpEnv} = ${envName}; const ${tmpBefore} = ${tmpEnv}; ${labeled}; const ${tmpBinds} = ${tmpEnv}.entrySeq().filter(([k, v]) => !${tmpBefore}.has(k) || !lang.is(${tmpBefore}.get(k), v)).map(([k, v]) => lang.makeForm("bind", k, v)); return lang.makeForm("binds", ...${tmpBinds}.toArray()); })()`
-  }
-  return emitAstExpr(arg, envName)
+const emitContributionValue = (arg, envName) => {
+  if (!lang.isForm(arg, 'label')) return emitAstExpr(arg, envName)
+  const tmpEnv = '__argEnv'
+  const tmpBefore = '__argBefore'
+  const tmpBinds = '__argBinds'
+  const labeled = emitLabel(arg, tmpEnv)
+  return `(() => { let ${tmpEnv} = ${envName}; const ${tmpBefore} = ${tmpEnv}; ${labeled}; const ${tmpBinds} = ${tmpEnv}.entrySeq().filter(([k, v]) => !${tmpBefore}.has(k) || !lang.is(${tmpBefore}.get(k), v)).map(([k, v]) => lang.makeForm("bind", k, v)); return lang.makeForm("binds", ...${tmpBinds}.toArray()); })()`
 }
 
 const emitCall = (exp, envName) => {
@@ -36,8 +34,8 @@ const emitCall = (exp, envName) => {
   const parts = exp
     .rest()
     .map((arg) => lang.isForm(arg, 'spread')
-      ? `lang.makeForm("spread", ${emitCallArgValue(arg.get(1), envName)})`
-      : emitCallArgValue(arg, envName))
+      ? `lang.makeForm("spread", ${emitContributionValue(arg.get(1), envName)})`
+      : emitContributionValue(arg, envName))
     .join(', ')
   return `(() => { const __callFn = ${fnText}; const __callArgs = lang.makeList(${parts}); return __callFn(...__callArgs.flatMap(x => lang.isForm(x, "spread") ? x.get(1) : lang.makeList(x)).toArray()); })()`
 }
@@ -312,7 +310,7 @@ const emitQuote = (exp, _envName) => {
 }
 
 const emitConjNoSpread = (emptyExpr, parts, envName) => {
-  const em = parts.map(p => emitAstExpr(p, envName)).join(', ')
+  const em = parts.map(p => emitContributionValue(p, envName)).join(', ')
   return `lang.conj(${emptyExpr}, ${em})`
 }
 
@@ -322,14 +320,14 @@ const emitConjSpreadBody = (emptyExpr, parts, envName) => {
   for (const p of parts) {
     if (lang.isForm(p, 'spread')) {
       const tmp = `__s${si++}`
-      stmts.push(`const ${tmp} = ${emitAstExpr(p.get(1), envName)};`)
+      stmts.push(`const ${tmp} = ${emitContributionValue(p.get(1), envName)};`)
       stmts.push(
         `col = lang.isList(${tmp})` +
           ` ? ${tmp}.reduce((c, v) => lang.conj(c, v), col)` +
           ` : ${tmp}.reduce((c, v, k) => lang.conj(c, lang.makeForm('bind', k, v)), col);`
       )
     } else {
-      stmts.push(`col = lang.conj(col, ${emitAstExpr(p, envName)});`)
+      stmts.push(`col = lang.conj(col, ${emitContributionValue(p, envName)});`)
     }
   }
   stmts.push('return col;')
