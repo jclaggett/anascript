@@ -211,7 +211,7 @@ const emitFn = (exp, envName) => {
   const bodyExpr = body.size === 1
     ? emitAstExpr(body.first(), fnEnv)
     : emitDo(lang.makeForm('do', ...body), fnEnv)
-  return `(args) => { let ${fnEnv} = ${envName}; ${bindText} return ${bodyExpr}; }`
+  return `(() => { const __fnDefEnv = ${envName}; return (args) => { let ${fnEnv} = __fnDefEnv; ${bindText} return ${bodyExpr}; }; })()`
 }
 
 const emitDo = (exp, envName) => {
