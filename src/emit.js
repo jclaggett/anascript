@@ -1,4 +1,5 @@
 import * as lang from './lang.js'
+import * as print from './print.js'
 import { read } from './read.js'
 
 const q = (s) => JSON.stringify(s)
@@ -226,7 +227,8 @@ const emitFn = (exp, envName) => {
   const bodyExpr = body.size === 1
     ? emitAstExpr(body.first(), fnEnv)
     : emitDo(lang.makeForm('do', ...body), fnEnv)
-  return `(() => { const __fnDefEnv = ${envName}; return (...args) => { let ${fnEnv} = __fnDefEnv; const ${fnArgs} = lang.conj(lang.makeList(), ...args); ${bindText} return ${bodyExpr}; }; })()`
+  const anaSig = q(print.printSyntax(argSpec))
+  return `(() => { const __fnDefEnv = ${envName}; const __fn = (...args) => { let ${fnEnv} = __fnDefEnv; const ${fnArgs} = lang.conj(lang.makeList(), ...args); ${bindText} return ${bodyExpr}; }; __fn.anaSig = ${anaSig}; return __fn; })()`
 }
 
 const emitDo = (exp, envName) => {
