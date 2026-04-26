@@ -26,6 +26,7 @@
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "lint": "eslint src",
+    "bench": "node bench/emit-vs-eval.js",
     "start": "node src/repl.js",
     "start-inspect": "node --inspect src/repl.js",
     "repl": "node src/node-repl.js"
