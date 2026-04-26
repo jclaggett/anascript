@@ -26,11 +26,21 @@ const runEmitted = (src) => {
   return val
 }
 
+const normalizeParityValue = (x) => {
+  if (typeof x === 'function') {
+    return {
+      __fn__: true,
+      anaSig: x.anaSig ?? null
+    }
+  }
+  return x
+}
+
 const expectParity = (src) => {
   const interp = RE(src)
   const emitted = runEmitted(src)
-  expect(toJS(emitted))
-    .toStrictEqual(toJS(interp))
+  expect(normalizeParityValue(toJS(emitted)))
+    .toStrictEqual(normalizeParityValue(toJS(interp)))
 }
 
 const parityCases = {
@@ -79,7 +89,15 @@ test('emit parity matrix', () => {
   }
 })
 
-test.todo('emit parity known gap: function identity/value equality ((fn x (fn y x)) 42 0)')
+test('emit parity function-valued result behavior', () => {
+  const src = '((fn x (fn y x)) 42 0)'
+  const interp = RE(src)
+  const emitted = runEmitted(src)
+  expect(typeof interp).toStrictEqual('function')
+  expect(typeof emitted).toStrictEqual('function')
+  expect(toJS(emitted(7)))
+    .toStrictEqual(toJS(interp(7)))
+})
 
 const makeRng = (seed) => {
   let s = seed >>> 0
