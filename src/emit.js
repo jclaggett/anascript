@@ -48,17 +48,131 @@ const emitSimpleLabelLhs = (lhs) => {
   return emitLiteral(lhs)
 }
 
+const getLabelKey = (exp) =>
+  lang.isForm(exp, 'label')
+    ? getLabelKey(exp.get(2))
+    : exp
+
+const emitNumericRangeList = (n) =>
+  n <= 0
+    ? 'lang.makeList()'
+    : `lang.makeList(${Array.from({ length: n }, (_, i) => i).join(', ')})`
+
+const emitBindPattern = (pattern, valueExpr, envName, nextTemp) => {
+  if (lang.isForm(pattern, 'list')) {
+    return emitBindListPattern(pattern, valueExpr, envName, nextTemp)
+  }
+  if (lang.isForm(pattern, 'set')) {
+    return emitBindSetPattern(pattern, valueExpr, envName, nextTemp)
+  }
+
+  const keys = lang.isForm(pattern, 'label')
+    ? collectLabelChain(pattern).lhses
+    : [pattern]
+  return keys
+    .map((lhs) => `${envName} = ${envName}.set(${emitSimpleLabelLhs(lhs)}, ${valueExpr});`)
+    .join(' ')
+}
+
+const emitBindListFromList = (tmp, entries, envName, nextTemp) => {
+  const lines = []
+  let i = 0
+  let spreadSeen = false
+  for (const x of entries) {
+    if (lang.isForm(x, 'spread')) {
+      const target = x.get(1)
+      const restExpr = spreadSeen ? 'lang.makeList()' : `${tmp}.slice(${i})`
+      lines.push(emitBindPattern(target, restExpr, envName, nextTemp))
+      spreadSeen = true
+      continue
+    }
+    lines.push(emitBindPattern(x, `${tmp}.get(${i})`, envName, nextTemp))
+    i += 1
+  }
+  return lines.join(' ')
+}
+
+const emitBindListFromSet = (tmp, entries, envName, nextTemp) => {
+  const lines = []
+  let i = 0
+  let spreadSeen = false
+  for (const x of entries) {
+    if (lang.isForm(x, 'spread')) {
+      const target = x.get(1)
+      const restExpr = spreadSeen
+        ? 'lang.makeSet()'
+        : `${tmp}.deleteAll(${emitNumericRangeList(i)})`
+      lines.push(emitBindPattern(target, restExpr, envName, nextTemp))
+      spreadSeen = true
+      continue
+    }
+    lines.push(emitBindPattern(x, `${tmp}.get(${i})`, envName, nextTemp))
+    i += 1
+  }
+  return lines.join(' ')
+}
+
+function emitBindListPattern (pattern, valueExpr, envName, nextTemp) {
+  const tmp = nextTemp('src')
+  const entries = pattern.rest().toArray()
+  const listBody = emitBindListFromList(tmp, entries, envName, nextTemp)
+  const setBody = emitBindListFromSet(tmp, entries, envName, nextTemp)
+  return `const ${tmp} = ${valueExpr}; if (lang.isList(${tmp})) { ${listBody} } else if (lang.isSet(${tmp})) { ${setBody} } else { lang.throwError("Unable to use list destructure on " + lang.getType(${tmp})); }`
+}
+
+const emitBindSetFromList = (tmp, entries, envName, nextTemp) => {
+  const maxKey = nextTemp('max')
+  const lines = [`let ${maxKey} = 0;`]
+  for (const x of entries) {
+    if (lang.isForm(x, 'spread')) {
+      lines.push(emitBindPattern(x.get(1), `${tmp}.slice(${maxKey} + 1)`, envName, nextTemp))
+      continue
+    }
+    const keyVar = nextTemp('key')
+    lines.push(`const ${keyVar} = ${emitAstExpr(getLabelKey(x), envName)};`)
+    lines.push(`if (${keyVar} > ${maxKey}) ${maxKey} = ${keyVar};`)
+    lines.push(emitBindPattern(x, `${tmp}.get(${keyVar})`, envName, nextTemp))
+  }
+  return lines.join(' ')
+}
+
+const emitBindSetFromSet = (tmp, entries, envName, nextTemp) => {
+  const keysTaken = nextTemp('keys')
+  const lines = [`let ${keysTaken} = lang.makeList();`]
+  for (const x of entries) {
+    if (lang.isForm(x, 'spread')) {
+      lines.push(emitBindPattern(x.get(1), `${tmp}.deleteAll(${keysTaken})`, envName, nextTemp))
+      continue
+    }
+    const keyVar = nextTemp('key')
+    lines.push(`const ${keyVar} = ${emitAstExpr(getLabelKey(x), envName)};`)
+    lines.push(`${keysTaken} = ${keysTaken}.push(${keyVar});`)
+    lines.push(emitBindPattern(x, `${tmp}.get(${keyVar})`, envName, nextTemp))
+  }
+  return lines.join(' ')
+}
+
+function emitBindSetPattern (pattern, valueExpr, envName, nextTemp) {
+  const tmp = nextTemp('src')
+  const entries = pattern.rest().toArray()
+  const listBody = emitBindSetFromList(tmp, entries, envName, nextTemp)
+  const setBody = emitBindSetFromSet(tmp, entries, envName, nextTemp)
+  return `const ${tmp} = ${valueExpr}; if (lang.isList(${tmp})) { ${listBody} } else if (lang.isSet(${tmp})) { ${setBody} } else { lang.throwError("Unable to use set destructure on " + lang.getType(${tmp})); }`
+}
+
 const emitLabel = (exp, envName) => {
   assert(lang.isForm(exp, 'label'), 'label form expected')
   const { lhses, rhs } = collectLabelChain(exp)
-  const lhsTexts = lhses.map(emitSimpleLabelLhs)
-  if (lhsTexts.length === 1) {
-    return `${envName} = ${envName}.set(${lhsTexts[0]}, ${emitAstExpr(rhs, envName)})`
+  if (lhses.length === 1 && !(lang.isList(lhses[0]) || lang.isSet(lhses[0]))) {
+    return `${envName} = ${envName}.set(${emitSimpleLabelLhs(lhses[0])}, ${emitAstExpr(rhs, envName)})`
   }
-  const steps = lhsTexts
-    .map((lhsText) => `${envName} = ${envName}.set(${lhsText}, __labelRhs);`)
+  let n = 0
+  const nextTemp = (prefix = 'tmp') => `__label_${prefix}${n++}`
+  const rhsTmp = nextTemp('rhs')
+  const steps = lhses
+    .map((lhs) => emitBindPattern(lhs, rhsTmp, envName, nextTemp))
     .join(' ')
-  return `${envName} = (() => { const __labelRhs = ${emitAstExpr(rhs, envName)}; ${steps} return ${envName}; })()`
+  return `${envName} = (() => { const ${rhsTmp} = ${emitAstExpr(rhs, envName)}; ${steps} return ${envName}; })()`
 }
 
 const emitFn = (exp, envName) => {
