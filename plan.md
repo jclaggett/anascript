@@ -11,7 +11,7 @@ personal and professional success.
 
 ## Next Steps
 
-- Extend `emit.js` for Milestone 3 (destructuring, richer `fn`, closure-correct emission, tests).
+- Extend `emit.js` for Milestone 4 hardening (snapshots, parity harness, failure-mode coverage, benchmarks).
 - Keep interpreter behavior as the semantic reference until emitter parity is proven.
 - Cut over execution from `eval.js` to emitted JS in controlled phases.
 
@@ -25,11 +25,11 @@ personal and professional success.
   - Public surface: `index.js` exports `read`, `parse`, `transform` (and print / emit APIs); `package.json` `exports` maps `"."` to `src/index.js` only.
 - Emitter path:
   - `emit.js` exists and is tested, but is not yet used for runtime execution.
-  - Implemented so far: literals, symbols, calls, `label` (symbol/string/number lhs), `fn` (simple params), `do`, `expand`, `if`, `quote`, list/set literals (including `spread` in literals).
+  - Implemented so far: literals, symbols, calls, `label` (including chained left-to-right binding and list/set destructuring with spread), `fn` (definition-time env capture, nested closures, destructuring arg signatures), `do`, `expand`, `if`, `quote`, list/set literals (including `spread` in literals).
 - Language semantics to preserve:
   - Functions close over environment at definition time (no late rebinding from outer eval state).
   - Labels behave like flattened sequential `let*` bindings.
-  - Milestone 3 planned semantic change: chained `label` bindings are emitted left-to-right.
+  - Milestone 3 semantic change (implemented): chained `label` bindings are emitted left-to-right.
   - Negative sets represented with `{~ ...}` conventions already established.
 
 ## Architecture Direction
@@ -77,7 +77,7 @@ Design rule: `eval.js` remains the behavior oracle until parity tests show the e
 
 Deliverable: typical non-destructuring emit coverage in tests; `(list …)` / `(set …)` calls still go through `emitCall` (runtime specials), not a separate emitter rule.
 
-### Milestone 3
+### Milestone 3 (done in `emit.js`)
 
 Add binding and function features needed for real workloads:
 
@@ -86,7 +86,7 @@ Add binding and function features needed for real workloads:
 - nested `fn` emission strategy
 - closure correctness tests (definition-time env capture)
 
-Deliverable: functions and labels in emitter match target Milestone 3 behavior, including left-to-right label chain binding order.
+Deliverable: functions and labels in emitter now match target Milestone 3 behavior, including left-to-right label chain binding order and definition-time closure capture.
 
 #### destructuring examples & notes
 | anascript | javascript |
