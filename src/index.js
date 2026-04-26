@@ -30,20 +30,26 @@ const parityEqual = (a, b) => {
 
 const emitApplyExp = (env, exp) => {
   const evalFormEnv = env.set('evalForm', exp)
+  const expKey = evalFormEnv.get('expTotal')
   const wrapped = lang.makeForm(
     'label',
     lang.sym('_'),
-    lang.makeForm('label', evalFormEnv.get('expTotal'), exp))
+    lang.makeForm('label', expKey, exp))
   const code = `return (${emitAstExpr(wrapped, 'env')})`
   // eslint-disable-next-line no-new-func
   const run = Function('lang', 'env', code)
   const nextEnv = run(lang, evalFormEnv)
-  const binds = nextEnv
+  const changedBinds = nextEnv
     .entrySeq()
-    .filter(([k, v]) => !evalFormEnv.has(k) || !lang.is(evalFormEnv.get(k), v))
+    .filter(([k, v]) =>
+      !lang.is(k, lang.sym('_')) &&
+      !lang.is(k, expKey) &&
+      (!evalFormEnv.has(k) || !lang.is(evalFormEnv.get(k), v)))
     .map(([k, v]) => lang.makeForm('bind', k, v))
-  const orderedBinds = binds
-    .sortBy(bind => lang.is(bind.get(1), lang.sym('_')) ? 0 : 1)
+  const orderedBinds = lang.makeList(
+    lang.makeForm('bind', lang.sym('_'), nextEnv.get(lang.sym('_'))),
+    lang.makeForm('bind', expKey, nextEnv.get(expKey)),
+    ...changedBinds.toArray())
   const val = lang.makeForm('binds', ...orderedBinds.toArray())
   return lang.conj(nextEnv, val)
     .update('expTotal', x => x + 1)

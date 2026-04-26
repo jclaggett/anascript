@@ -199,6 +199,15 @@ test('emitted runtime preserves fn display bind ordering/signature', () => {
     .toStrictEqual('x')
 })
 
+test('emitted runtime repeats pure calls without dropping "_" bind', () => {
+  const env = makeEnv(undefined, { runtime: 'emit', paritySample: true })
+  env.eval('foo: (fn x x)')
+  env.eval('(foo 1)')
+  const secondCallBinds = env.eval('(foo 1)').last()
+  expect(secondCallBinds.get(1).get(1))
+    .toStrictEqual(sym('_'))
+})
+
 test('simple use', () => {
   expect(REJ(''))
     .toStrictEqual(undefined)
