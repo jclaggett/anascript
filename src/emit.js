@@ -54,6 +54,19 @@ const getLabelKey = (exp) =>
     ? getLabelKey(exp.get(2))
     : exp
 
+// Mirrors evalCallAtom semantics used by label key extraction:
+// - lists are evaluated
+// - atoms (including symbols) evaluate to themselves
+const emitCallAtomExpr = (exp, envName) => {
+  if (lang.isList(exp)) {
+    return emitAstExpr(exp, envName)
+  }
+  if (lang.isSym(exp)) {
+    return `lang.sym(${q(exp.sym)})`
+  }
+  return emitLiteral(exp)
+}
+
 const emitNumericRangeList = (n) =>
   n <= 0
     ? 'lang.makeList()'
@@ -134,7 +147,7 @@ const emitBindSetFromList = (tmp, entries, envName, nextTemp) => {
       continue
     }
     const keyVar = nextTemp('key')
-    lines.push(`const ${keyVar} = ${emitAstExpr(getLabelKey(x), envName)};`)
+    lines.push(`const ${keyVar} = ${emitCallAtomExpr(getLabelKey(x), envName)};`)
     lines.push(`if (${keyVar} > ${maxKey}) ${maxKey} = ${keyVar};`)
     lines.push(emitBindPattern(x, `${tmp}.get(${keyVar})`, envName, nextTemp))
   }
@@ -150,7 +163,7 @@ const emitBindSetFromSet = (tmp, entries, envName, nextTemp) => {
       continue
     }
     const keyVar = nextTemp('key')
-    lines.push(`const ${keyVar} = ${emitAstExpr(getLabelKey(x), envName)};`)
+    lines.push(`const ${keyVar} = ${emitCallAtomExpr(getLabelKey(x), envName)};`)
     lines.push(`${keysTaken} = ${keysTaken}.push(${keyVar});`)
     lines.push(emitBindPattern(x, `${tmp}.get(${keyVar})`, envName, nextTemp))
   }
@@ -190,15 +203,10 @@ const emitFn = (exp, envName) => {
   let bindText = ''
   if (lang.isSym(argSpec)) {
     bindText = `${fnEnv} = ${fnEnv}.set(lang.sym(${q(argSpec.sym)}), args);`
-  } else if (lang.isForm(argSpec, 'list')) {
-    const syms = argSpec.rest().toArray()
-    assert(syms.every(lang.isSym), 'list arg spec only supports symbols')
-    bindText = syms
-      .map((s, i) =>
-        `${fnEnv} = ${fnEnv}.set(lang.sym(${q(s.sym)}), args.get(${i}));`)
-      .join(' ')
   } else {
-    emitFail(`fn arg spec must be symbol or list (got ${lang.getType(argSpec)})`)
+    let n = 0
+    const nextTemp = (prefix = 'arg') => `__fn_${prefix}${n++}`
+    bindText = emitBindPattern(argSpec, 'args', fnEnv, nextTemp)
   }
   const bodyExpr = body.size === 1
     ? emitAstExpr(body.first(), fnEnv)
