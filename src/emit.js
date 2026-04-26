@@ -29,6 +29,7 @@ const emitCall = (exp, envName) => {
   return `${fnText}(lang.makeList(${argsText}))`
 }
 
+// Label destructuring emission (Milestone 3)
 const collectLabelChain = (exp) => {
   const lhses = []
   let rhs = exp
@@ -57,6 +58,9 @@ const emitNumericRangeList = (n) =>
   n <= 0
     ? 'lang.makeList()'
     : `lang.makeList(${Array.from({ length: n }, (_, i) => i).join(', ')})`
+
+const emitBindTypeBranch = (tmp, listBody, setBody, kind) =>
+  `const ${tmp} = VALUE_EXPR; if (lang.isList(${tmp})) { ${listBody} } else if (lang.isSet(${tmp})) { ${setBody} } else { lang.throwError("Unable to use ${kind} destructure on " + lang.getType(${tmp})); }`
 
 const emitBindPattern = (pattern, valueExpr, envName, nextTemp) => {
   if (lang.isForm(pattern, 'list')) {
@@ -117,7 +121,8 @@ function emitBindListPattern (pattern, valueExpr, envName, nextTemp) {
   const entries = pattern.rest().toArray()
   const listBody = emitBindListFromList(tmp, entries, envName, nextTemp)
   const setBody = emitBindListFromSet(tmp, entries, envName, nextTemp)
-  return `const ${tmp} = ${valueExpr}; if (lang.isList(${tmp})) { ${listBody} } else if (lang.isSet(${tmp})) { ${setBody} } else { lang.throwError("Unable to use list destructure on " + lang.getType(${tmp})); }`
+  return emitBindTypeBranch(tmp, listBody, setBody, 'list')
+    .replace('VALUE_EXPR', valueExpr)
 }
 
 const emitBindSetFromList = (tmp, entries, envName, nextTemp) => {
@@ -157,7 +162,8 @@ function emitBindSetPattern (pattern, valueExpr, envName, nextTemp) {
   const entries = pattern.rest().toArray()
   const listBody = emitBindSetFromList(tmp, entries, envName, nextTemp)
   const setBody = emitBindSetFromSet(tmp, entries, envName, nextTemp)
-  return `const ${tmp} = ${valueExpr}; if (lang.isList(${tmp})) { ${listBody} } else if (lang.isSet(${tmp})) { ${setBody} } else { lang.throwError("Unable to use set destructure on " + lang.getType(${tmp})); }`
+  return emitBindTypeBranch(tmp, listBody, setBody, 'set')
+    .replace('VALUE_EXPR', valueExpr)
 }
 
 const emitLabel = (exp, envName) => {
