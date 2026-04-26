@@ -38,6 +38,7 @@ const parityCases = {
     '42',
     'a:1 $a',
     'a:b:2 [a b]',
+    '(= [1 2] [1 2])',
     '(if true [1 2] {3 4})',
     '(if false [1 2] {3 4})',
     '[1 ...[2 3 4]]',
@@ -75,7 +76,6 @@ test('emit parity matrix', () => {
   }
 })
 
-test.todo('emit parity known gap: collection equality (= [1 2] [1 2])')
 test.todo('emit parity known gap: list spread from set rhs [a b ...c ...d]: {0:1 1:2 2:3} [a b c d]')
 test.todo('emit parity known gap: set spread from set rhs {a ...rest}:{a:1 "b":2 "c":3} [a rest]')
 test.todo('emit parity known gap: set numeric keys with spread {a:0 b:1 ...c}: [1, 2, 3] [a b c]')
