@@ -56,9 +56,9 @@ const emitLabel = (exp, envName) => {
     return `${envName} = ${envName}.set(${lhsTexts[0]}, ${emitAstExpr(rhs, envName)})`
   }
   const steps = lhsTexts
-    .map((lhsText) => `__labelEnv = __labelEnv.set(${lhsText}, __labelRhs);`)
+    .map((lhsText) => `${envName} = ${envName}.set(${lhsText}, __labelRhs);`)
     .join(' ')
-  return `${envName} = (() => { let __labelEnv = ${envName}; const __labelRhs = ${emitAstExpr(rhs, '__labelEnv')}; ${steps} return __labelEnv; })()`
+  return `${envName} = (() => { const __labelRhs = ${emitAstExpr(rhs, envName)}; ${steps} return ${envName}; })()`
 }
 
 const emitFn = (exp, envName) => {

@@ -71,7 +71,7 @@ test('emit milestone 1', () => {
   expect(emitAstExpr(read('1:true').first()))
     .toStrictEqual('env = env.set(1, true)')
   expect(emitAstExpr(read('a:b:2').first()))
-    .toStrictEqual('env = (() => { let __labelEnv = env; const __labelRhs = 2; __labelEnv = __labelEnv.set(lang.sym("a"), __labelRhs); __labelEnv = __labelEnv.set(lang.sym("b"), __labelRhs); return __labelEnv; })()')
+    .toStrictEqual('env = (() => { const __labelRhs = 2; env = env.set(lang.sym("a"), __labelRhs); env = env.set(lang.sym("b"), __labelRhs); return env; })()')
   expect(emitAstExpr(read('$42').first()))
     .toStrictEqual('env.get(42)')
   expect(emitAstExpr(read('$foo').first()))
