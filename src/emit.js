@@ -40,9 +40,12 @@ const collectLabelChain = (exp) => {
   return { lhses, rhs }
 }
 
-const emitSimpleLabelLhs = (lhs) => {
-  assert(!(lang.isList(lhs) || lang.isSet(lhs)),
-    `label lhs destructuring is not supported in emit yet (got ${lang.getType(lhs)})`)
+const emitSimpleLabelLhs = (lhs, envName = 'env') => {
+  assert(!lang.isSet(lhs),
+    `label set lhs is not supported in simple key emission (got ${lang.getType(lhs)})`)
+  if (lang.isList(lhs)) {
+    return emitCallAtomExpr(lhs, envName)
+  }
   if (lang.isSym(lhs)) {
     return `lang.sym(${q(lhs.sym)})`
   }
@@ -87,7 +90,7 @@ const emitBindPattern = (pattern, valueExpr, envName, nextTemp) => {
     ? collectLabelChain(pattern).lhses
     : [pattern]
   return keys
-    .map((lhs) => `${envName} = ${envName}.set(${emitSimpleLabelLhs(lhs)}, ${valueExpr});`)
+    .map((lhs) => `${envName} = ${envName}.set(${emitSimpleLabelLhs(lhs, envName)}, ${valueExpr});`)
     .join(' ')
 }
 
@@ -183,7 +186,7 @@ const emitLabel = (exp, envName) => {
   assert(lang.isForm(exp, 'label'), 'label form expected')
   const { lhses, rhs } = collectLabelChain(exp)
   if (lhses.length === 1 && !(lang.isList(lhses[0]) || lang.isSet(lhses[0]))) {
-    return `${envName} = ${envName}.set(${emitSimpleLabelLhs(lhses[0])}, ${emitAstExpr(rhs, envName)})`
+    return `${envName} = ${envName}.set(${emitSimpleLabelLhs(lhses[0], envName)}, ${emitAstExpr(rhs, envName)})`
   }
   let n = 0
   const nextTemp = (prefix = 'tmp') => `__label_${prefix}${n++}`

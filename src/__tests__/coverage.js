@@ -70,6 +70,8 @@ test('emit milestone 1', () => {
     .toStrictEqual('env = env.set("foo", 1)')
   expect(emitAstExpr(read('1:true').first()))
     .toStrictEqual('env = env.set(1, true)')
+  expect(emitAstExpr(read('(+ 1 1):42').first()))
+    .toStrictEqual('env = (() => { const __label_rhs0 = 42; env = env.set(env.get(lang.sym("+"))(lang.makeList(1, 1)), __label_rhs0); return env; })()')
   expect(emitAstExpr(read('a:b:2').first()))
     .toStrictEqual('env = (() => { const __label_rhs0 = 2; env = env.set(lang.sym("a"), __label_rhs0); env = env.set(lang.sym("b"), __label_rhs0); return env; })()')
   const listDestructure = emitAstExpr(read('[a ...bs]:foo').first())
@@ -233,6 +235,10 @@ test('regression guardrails', () => {
   // Spreading a complemented empty set should preserve complement semantics.
   expect(REJ('(= {...{~}} {~})'))
     .toStrictEqual(true)
+
+  // Label lhs calls are evaluated and can be expanded as keys.
+  expect(REJ('(+ 1 1):42 $2'))
+    .toStrictEqual(42)
 })
 
 test('special forms', () => {
