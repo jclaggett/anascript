@@ -33,11 +33,37 @@ const expectParity = (src) => {
     .toStrictEqual(toJS(interp))
 }
 
-test('emit parity helper', () => {
-  expect.hasAssertions()
-  expectParity('42')
-  expectParity('a:1 $a')
-  expectParity('a:b:2 [a b]')
-  expectParity('[x ...xs]:[1 2 3] [x xs]')
-  expectParity('(if true [1 2] {3 4})')
+const parityCases = {
+  core: [
+    '42',
+    'a:1 $a',
+    'a:b:2 [a b]',
+    '(if true [1 2] {3 4})',
+    '(if false [1 2] {3 4})',
+    '[1 ...[2 3 4]]',
+    '{1 ...{2 3 4}}'
+  ],
+  destructure: [
+    '[x ...xs]:[1 2 3] [x xs]',
+    '[a b ...c ...d]: {0:1 1:2 2:3} [a b c d]',
+    '{a ...rest}:{a:1 "b":2 "c":3} [a rest]',
+    '{a:0 b:1 ...c}: [1, 2, 3] [a b c]'
+  ],
+  fn: [
+    '((fn x x) 42)',
+    '((fn [x y] [x y]) 1 2)',
+    '((fn args (+ ...args)) 1 2 3)',
+    '((fn x (fn y x)) 42 0)',
+    '((fn (+ 1 1) $2) 42)'
+  ]
+}
+
+test('emit parity matrix', () => {
+  for (const [category, cases] of Object.entries(parityCases)) {
+    for (const src of cases) {
+      expect(() => expectParity(src))
+        .not
+        .toThrow(`[parity:${category}] ${src}`)
+    }
+  }
 })
