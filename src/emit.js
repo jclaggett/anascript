@@ -19,14 +19,27 @@ const emitLiteral = (exp) =>
 const emitSym = (exp, envName) =>
   `${envName}.get(lang.sym(${q(exp.sym)}))`
 
+const emitCallArgValue = (arg, envName) => {
+  if (lang.isForm(arg, 'label')) {
+    const tmpEnv = '__argEnv'
+    const tmpBefore = '__argBefore'
+    const tmpBinds = '__argBinds'
+    const labeled = emitLabel(arg, tmpEnv)
+    return `(() => { let ${tmpEnv} = ${envName}; const ${tmpBefore} = ${tmpEnv}; ${labeled}; const ${tmpBinds} = ${tmpEnv}.entrySeq().filter(([k, v]) => !${tmpBefore}.has(k) || !lang.is(${tmpBefore}.get(k), v)).map(([k, v]) => lang.makeForm("bind", k, v)); return lang.makeForm("binds", ...${tmpBinds}.toArray()); })()`
+  }
+  return emitAstExpr(arg, envName)
+}
+
 const emitCall = (exp, envName) => {
   assert(lang.isList(exp) && exp.count() > 0, 'call expects non-empty list')
   const fnText = emitAstExpr(exp.first(), envName)
-  const argsText = exp
+  const parts = exp
     .rest()
-    .map(arg => emitAstExpr(arg, envName))
+    .map((arg) => lang.isForm(arg, 'spread')
+      ? `lang.makeForm("spread", ${emitCallArgValue(arg.get(1), envName)})`
+      : emitCallArgValue(arg, envName))
     .join(', ')
-  return `${fnText}(lang.makeList(${argsText}))`
+  return `(() => { const __callFn = ${fnText}; const __callArgs = lang.makeList(${parts}); return __callFn(...__callArgs.flatMap(x => lang.isForm(x, "spread") ? x.get(1) : lang.makeList(x)).toArray()); })()`
 }
 
 // Label destructuring emission (Milestone 3)
@@ -203,18 +216,19 @@ const emitFn = (exp, envName) => {
   const argSpec = exp.get(1)
   const body = exp.slice(2)
   const fnEnv = 'fnEnv'
+  const fnArgs = '__fnArgs'
   let bindText = ''
   if (lang.isSym(argSpec)) {
-    bindText = `${fnEnv} = ${fnEnv}.set(lang.sym(${q(argSpec.sym)}), args);`
+    bindText = `${fnEnv} = ${fnEnv}.set(lang.sym(${q(argSpec.sym)}), ${fnArgs});`
   } else {
     let n = 0
     const nextTemp = (prefix = 'arg') => `__fn_${prefix}${n++}`
-    bindText = emitBindPattern(argSpec, 'args', fnEnv, nextTemp)
+    bindText = emitBindPattern(argSpec, fnArgs, fnEnv, nextTemp)
   }
   const bodyExpr = body.size === 1
     ? emitAstExpr(body.first(), fnEnv)
     : emitDo(lang.makeForm('do', ...body), fnEnv)
-  return `(() => { const __fnDefEnv = ${envName}; return (args) => { let ${fnEnv} = __fnDefEnv; ${bindText} return ${bodyExpr}; }; })()`
+  return `(() => { const __fnDefEnv = ${envName}; return (...args) => { let ${fnEnv} = __fnDefEnv; const ${fnArgs} = lang.conj(lang.makeList(), ...args); ${bindText} return ${bodyExpr}; }; })()`
 }
 
 const emitDo = (exp, envName) => {
