@@ -41,20 +41,31 @@ const parityCases = {
     '(if true [1 2] {3 4})',
     '(if false [1 2] {3 4})',
     '[1 ...[2 3 4]]',
-    '{1 ...{2 3 4}}'
+    '{1 ...{2 3 4}}',
+    '(do a:1 b:2 [a b])',
+    '(= [1 2] [1 2])',
+    '(= {1 2} {2 1})'
   ],
   destructure: [
     '[x ...xs]:[1 2 3] [x xs]',
     '[a b ...c ...d]: {0:1 1:2 2:3} [a b c d]',
     '{a ...rest}:{a:1 "b":2 "c":3} [a rest]',
-    '{a:0 b:1 ...c}: [1, 2, 3] [a b c]'
+    '{a:0 b:1 ...c}: [1, 2, 3] [a b c]',
+    '{a b:0}: {a:1 b:2} [a b]',
+    '[a ...[b ...c]]:[1 2 3] [a b c]'
   ],
   fn: [
     '((fn x x) 42)',
     '((fn [x y] [x y]) 1 2)',
     '((fn args (+ ...args)) 1 2 3)',
     '((fn x (fn y x)) 42 0)',
-    '((fn (+ 1 1) $2) 42)'
+    '((fn (+ 1 1) $2) 42)',
+    '((fn [x ...xs] [x xs]) 1 2 3)',
+    '((fn {a b:0} [a b]) 1 2)'
+  ],
+  callLhs: [
+    '(+ 1 1):42 $2',
+    '(str \\a "b"):9 $(str \\a "b")'
   ]
 }
 
@@ -65,5 +76,51 @@ test('emit parity matrix', () => {
         .not
         .toThrow(`[parity:${category}] ${src}`)
     }
+  }
+})
+
+const makeRng = (seed) => {
+  let s = seed >>> 0
+  return () => {
+    s = (1664525 * s + 1013904223) >>> 0
+    return s / 0x100000000
+  }
+}
+
+const pick = (rng, xs) =>
+  xs[Math.floor(rng() * xs.length)]
+
+const genNum = (rng) =>
+  Math.floor(rng() * 6)
+
+const genAtom = (rng) =>
+  pick(rng, [
+    String(genNum(rng)),
+    String(genNum(rng)),
+    'true',
+    'false'
+  ])
+
+const genExpr = (rng, depth) => {
+  if (depth <= 0) return genAtom(rng)
+  const tag = pick(rng, ['atom', 'if', 'sum', 'list'])
+  if (tag === 'atom') return genAtom(rng)
+  if (tag === 'if') {
+    return `(if ${genAtom(rng)} ${genExpr(rng, depth - 1)} ${genExpr(rng, depth - 1)})`
+  }
+  if (tag === 'sum') {
+    return `(+ ${genExpr(rng, depth - 1)} ${genExpr(rng, depth - 1)})`
+  }
+  return `[${genExpr(rng, depth - 1)} ${genExpr(rng, depth - 1)}]`
+}
+
+test('emit parity generated expressions', () => {
+  const rng = makeRng(0xc0ffee)
+  const generated = Array.from({ length: 25 }, () => genExpr(rng, 2))
+  expect(generated.length).toStrictEqual(25)
+  for (const src of generated) {
+    expect(() => expectParity(src))
+      .not
+      .toThrow(`[parity:generated] ${src}`)
   }
 })
