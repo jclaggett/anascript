@@ -24,6 +24,17 @@ const workloads = [
   {
     name: 'control + collections',
     src: '(if true [1 2 3] {1 2})'
+  },
+  {
+    name: 'fixed-point factorial',
+    warmupIters: 20,
+    measureIters: 100,
+    src: `
+      z:(fn [f] ((fn [x] (f (fn [v] ((x x) v)))) (fn [x] (f (fn [v] ((x x) v))))))
+      factGen:(fn [recur] (fn [n] (if (= n 0) 1 (* n (recur (- n 1))))))
+      fact:(z factGen)
+      (fact 8)
+    `
   }
 ]
 
@@ -66,7 +77,7 @@ console.log(`Measured iterations: ${measureIters}\n`)
 console.log('Workload'.padEnd(28) + 'eval(ms)  emit(ms)  speedup')
 console.log('-'.repeat(58))
 
-for (const { name, src } of workloads) {
+for (const { name, src, warmupIters: warmupN, measureIters: measureN } of workloads) {
   const compiled = compileEmitted(src)
 
   const evalVal = runEval(src)
@@ -77,11 +88,11 @@ for (const { name, src } of workloads) {
     throw new Error(`parity mismatch in workload "${name}"`)
   }
 
-  measureMs(() => runEval(src), warmupIters)
-  measureMs(() => runEmitCompiled(compiled), warmupIters)
+  measureMs(() => runEval(src), warmupN ?? warmupIters)
+  measureMs(() => runEmitCompiled(compiled), warmupN ?? warmupIters)
 
-  const evalMs = measureMs(() => runEval(src), measureIters)
-  const emitMs = measureMs(() => runEmitCompiled(compiled), measureIters)
+  const evalMs = measureMs(() => runEval(src), measureN ?? measureIters)
+  const emitMs = measureMs(() => runEmitCompiled(compiled), measureN ?? measureIters)
   const speedup = evalMs / emitMs
 
   console.log(

@@ -1,0 +1,15 @@
+#"Fixed-point combinator (Z variant for eager evaluation)"
+z:
+  (fn [f]
+    ((fn [x] (f (fn [v] ((x x) v))))
+     (fn [x] (f (fn [v] ((x x) v))))))
+
+fact-gen:
+  (fn [recur]
+    (fn [n]
+      (if (= n 0)
+          1
+          (* n (recur (- n 1))))))
+
+fact: (z fact-gen)
+(fact 8)
