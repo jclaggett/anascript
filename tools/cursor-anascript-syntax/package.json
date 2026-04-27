@@ -1,0 +1,35 @@
+{
+  "name": "anascript-syntax",
+  "displayName": "Anascript Syntax",
+  "description": "Syntax highlighting for Anascript (.ana) in Cursor/VS Code.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "anascript",
+        "aliases": [
+          "Anascript",
+          "ana"
+        ],
+        "extensions": [
+          ".ana"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "anascript",
+        "scopeName": "source.anascript",
+        "path": "./syntaxes/anascript.tmLanguage.json"
+      }
+    ]
+  }
+}

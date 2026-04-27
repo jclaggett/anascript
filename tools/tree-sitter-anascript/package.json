@@ -1,0 +1,14 @@
+{
+  "name": "tree-sitter-anascript",
+  "version": "0.0.1",
+  "description": "Tree-sitter grammar scaffold for Anascript",
+  "main": "grammar.js",
+  "license": "ISC",
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "test": "tree-sitter test"
+  },
+  "devDependencies": {
+    "tree-sitter-cli": "^0.22.6"
+  }
+}

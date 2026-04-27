@@ -1,0 +1,127 @@
+{
+  "name": "Anascript",
+  "scopeName": "source.anascript",
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#sigils"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#symbol"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.anascript",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.anascript",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.anascript",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "sigils": {
+      "patterns": [
+        {
+          "name": "keyword.operator.sigils.anascript",
+          "match": "\\$|\\\\|\\.\\.\\.|:"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.anascript",
+          "match": "(?<![\\w+\\-*/<>=!?~])(if|do|fn|let|eval|eval2|label|quote|expand|spread|conj|list|set)(?![\\w+\\-*/<>=!?~])"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.anascript",
+          "match": "(?<![\\w+\\-*/<>=!?~])(true|false)(?![\\w+\\-*/<>=!?~])"
+        },
+        {
+          "name": "constant.language.null.anascript",
+          "match": "(?<![\\w+\\-*/<>=!?~])(null|undefined)(?![\\w+\\-*/<>=!?~])"
+        }
+      ]
+    },
+    "number": {
+      "patterns": [
+        {
+          "name": "constant.numeric.anascript",
+          "match": "(?<![\\w.])[-+]?\\d+(?:\\.\\d+)?(?![\\w.])"
+        }
+      ]
+    },
+    "symbol": {
+      "patterns": [
+        {
+          "name": "variable.other.symbol.anascript",
+          "match": "(?<![\"\\w])[A-Za-z_~+\\-*/<>=!?][A-Za-z0-9_~+\\-*/<>=!?]*(?![\\w\"])"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.section.parens.begin.anascript",
+          "match": "\\("
+        },
+        {
+          "name": "punctuation.section.parens.end.anascript",
+          "match": "\\)"
+        },
+        {
+          "name": "punctuation.section.brackets.begin.anascript",
+          "match": "\\["
+        },
+        {
+          "name": "punctuation.section.brackets.end.anascript",
+          "match": "\\]"
+        },
+        {
+          "name": "punctuation.section.braces.begin.anascript",
+          "match": "\\{"
+        },
+        {
+          "name": "punctuation.section.braces.end.anascript",
+          "match": "\\}"
+        }
+      ]
+    }
+  }
+}
