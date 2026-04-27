@@ -17,7 +17,7 @@ const envFlag = (name) => {
 }
 
 const envRuntime = () =>
-  getProcessEnv().ANASCRIPT_RUNTIME === 'emit' ? 'emit' : 'eval'
+  getProcessEnv().ANASCRIPT_RUNTIME === 'eval' ? 'eval' : 'emit'
 
 const parityEqual = (a, b) => {
   if (typeof a === 'function' || typeof b === 'function') {
@@ -26,6 +26,35 @@ const parityEqual = (a, b) => {
       (a.anaSig ?? null) === (b.anaSig ?? null)
   }
   return lang.is(a, b)
+}
+
+const emitFallbackForms = new Set([
+  'do',
+  'let',
+  'eval',
+  'eval2',
+  'not',
+  'and',
+  'or',
+  'conj',
+  'spread'
+])
+
+const getHeadSym = (exp) => {
+  if (!lang.isList(exp)) return undefined
+  const head = exp.first()
+  if (lang.isSym(head)) return head
+  if (lang.isForm(head, 'expand') && lang.isSym(head.get(1))) {
+    return head.get(1)
+  }
+  return undefined
+}
+
+const hasEmitFallbackForm = (exp) => {
+  if (!lang.isList(exp)) return false
+  const head = getHeadSym(exp)
+  return (head !== undefined && emitFallbackForms.has(head.sym)) ||
+    exp.some(hasEmitFallbackForm)
 }
 
 const emitApplyExp = (env, exp) => {
@@ -66,6 +95,9 @@ class Env {
   eval (s) {
     const reducer = this.runtime === 'emit'
       ? (env, exp) => {
+          if (hasEmitFallbackForm(exp)) {
+            return applyExp(env, exp)
+          }
           const emitted = emitApplyExp(env, exp)
           if (!this.paritySample) return emitted
           const interpreted = applyExp(env, exp)
