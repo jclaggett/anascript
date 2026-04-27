@@ -99,14 +99,17 @@ const repl = async () => {
 }
 
 const evalFile = filename =>
-  console.log(
-    ana.print(
-      ana
-        .makeEnv()
-        .eval(`(do ${fs.readFileSync(filename)})`)
-        .last()
-        .last()
-        .last()))
+  console.log((() => {
+    const binds = ana
+      .makeEnv()
+      .eval(fs.readFileSync(filename, 'utf8'))
+      ?.last()
+    const value = binds
+      ?.rest()
+      ?.find(x => ana.sym('_').equals(x.get(1)))
+      ?.get(2)
+    return ana.print(value)
+  })())
 
 const main = async () => {
   // parse command line args here
