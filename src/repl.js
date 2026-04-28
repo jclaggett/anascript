@@ -15,7 +15,8 @@ import * as lang from './lang.js'
 import * as eval2 from './eval.js'
 import * as ana from './index.js'
 
-const { version } = JSON.parse(fs.readFileSync(process.env.PWD + '/package.json'))
+const packageJsonUrl = new URL('../package.json', import.meta.url)
+const { version } = JSON.parse(fs.readFileSync(packageJsonUrl, 'utf8'))
 
 const helpText = `
 # Anascript Help
