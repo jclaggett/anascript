@@ -22,6 +22,9 @@ const RE = str =>
 const REJ = str =>
   toJS(RE(str))
 
+const stripAnsi = (s) =>
+  String(s).replace(/\u001B\[[0-9;]*m/g, '')
+
 test('parse', () => {
   expect(parse(''))
     .toBeDefined()
@@ -195,7 +198,7 @@ test('emitted runtime preserves fn display bind ordering/signature', () => {
     .toStrictEqual(1)
   expect(hidden.get(1))
     .toStrictEqual(sym('_'))
-  expect(String(shown.get(2).anaSig))
+  expect(stripAnsi(shown.get(2).anaSig))
     .toStrictEqual('x')
 })
 
