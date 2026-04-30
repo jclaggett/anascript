@@ -17,6 +17,12 @@
   ],
   "type": "module",
   "main": "src/index.js",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE.txt",
+    "SECURITY.md"
+  ],
   "exports": {
     ".": "./src/index.js"
   },
