@@ -1,0 +1,55 @@
+export const grammar = `
+
+/* Labeled, Structured Notation v1.6 */
+
+/* Root rule */
+forms           ::= (WS* form1)* WS*
+
+/* Precedence rules */
+form1           ::= comment | form2
+form2           ::= label | form3
+form3           ::= expand | quote | spread | form4
+form4           ::= call | list | set | number | string | boolean | null | undefined | symbol
+
+/* Infix syntax */
+label           ::= form3 WS* COLON WS* form1
+
+/* Prefix syntax */
+comment         ::= NUMBER_SIGN WS* form1
+spread          ::= ELLIPSIS WS* form3
+expand          ::= DOLLAR_SIGN WS* form3
+quote           ::= BACKSLASH WS* form3
+
+/* Grouping syntax */
+call            ::= LEFT_ROUND forms? RIGHT_ROUND
+list            ::= LEFT_SQUARE forms? RIGHT_SQUARE
+set             ::= LEFT_CURLY forms? RIGHT_CURLY
+
+/* Literal syntax */
+number          ::= "-"? DIGS ("." DIG+)? (("e" | "E") ( "-" | "+" )? DIGS)?
+string          ::= '"' (([#x20-#x21] | [#x23-#x5B] | [#x5D-#xFFFF]) | #x5C (#x22 | #x5C | #x2F | #x62 | #x66 | #x6E | #x72 | #x74 | #x75 HEXDIG HEXDIG HEXDIG HEXDIG))* '"'
+boolean         ::= "true" | "false"
+null            ::= "null"
+undefined       ::= "undefined"
+symbol          ::= (OCHAR | SCHAR) (OCHAR | SCHAR | DIG)*
+
+/* Tokens */
+OCHAR           ::= ("=" | "!" | "@" | "%" | "~" | "^" | "&" | "*" | "-" | "+" | ">" | "<" | "?" | "/" | "|" )
+SCHAR           ::= ([a-z] | [A-Z] | "_")
+HEXDIG          ::= [a-fA-F0-9]
+DIGS            ::= ("0" | [1-9] DIG*)
+DIG             ::= [0-9]
+ELLIPSIS        ::= "..."
+BACKSLASH       ::= "\\\\"
+DOLLAR_SIGN     ::= "$"
+NUMBER_SIGN     ::= "#"
+COLON           ::= ":"
+LEFT_ROUND      ::= "("
+LEFT_SQUARE     ::= "["
+LEFT_CURLY      ::= "{"
+RIGHT_ROUND     ::= ")"
+RIGHT_SQUARE    ::= "]"
+RIGHT_CURLY     ::= "}"
+WS              ::= [#x20#x09#x0A#x0D#x2C#x3B] /* Space Tab Newline Return Comma Semicolon */
+
+`

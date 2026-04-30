@@ -1,8 +1,6 @@
-import fs from 'fs'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
 import ebnf from 'ebnf'
+
+import { grammar } from './grammar.js'
 
 import * as lang from './lang.js'
 import { compose } from './xf/util.js'
@@ -12,12 +10,7 @@ export { transform }
 
 // Parsing: text -> Abstract Syntax Tree (AST)
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-const anaParser = new ebnf.Grammars.W3C.Parser(
-  fs.readFileSync(path.resolve(__dirname, 'grammar.ebnf'))
-    .toString())
+const anaParser = new ebnf.Grammars.W3C.Parser(grammar)
 
 export const parse = (str) => {
   const ast = anaParser.getAST(str.length === 0 ? ' ' : str)
