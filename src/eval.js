@@ -1,4 +1,4 @@
-import im from 'immutable'
+import * as im from 'immutable'
 
 import * as lang from './lang.js'
 import * as read from './read.js'
