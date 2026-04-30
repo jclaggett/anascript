@@ -3,6 +3,7 @@
 // 2. Tests should be defined only in terms of the public API.
 import {
   makeEnv,
+  runProgram,
   parse,
   print,
   printLabel,
@@ -175,6 +176,20 @@ test('makeEnv', () => {
   const env = makeEnv()
   expect(env.eval('"hello world"'))
     .toBeDefined()
+})
+
+test('runProgram', () => {
+  const { lastValue, env } = runProgram('42')
+  expect(toJS(lastValue))
+    .toStrictEqual(42)
+  expect(typeof env.eval)
+    .toBe('function')
+})
+
+test('runProgram emit runtime', () => {
+  const { lastValue } = runProgram('a:1 [a (+ a 1)]', { runtime: 'emit' })
+  expect(toJS(lastValue))
+    .toStrictEqual([1, 2])
 })
 
 test('makeEnv emitted runtime (opt-in)', () => {
