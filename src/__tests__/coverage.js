@@ -195,7 +195,7 @@ test('emitted runtime preserves fn display bind ordering/signature', () => {
     .toStrictEqual(1)
   expect(hidden.get(1))
     .toStrictEqual(sym('_'))
-  expect(shown.get(2).anaSig)
+  expect(String(shown.get(2).anaSig))
     .toStrictEqual('x')
 })
 
